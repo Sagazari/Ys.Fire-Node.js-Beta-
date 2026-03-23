@@ -252,51 +252,76 @@ app.post('/api/channels', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/protection', authMiddleware, async (req, res) => {
-  const { guildId, active } = req.body;
-  const backup = getBackup(guildId);
-  if (!backup) return res.status(400).json({ error: 'No backup found.' });
-  setProtection(guildId, active);
-  res.json({ success: true, protection: active });
+// ── Express + Dashboard ───────────────────────────────
+const express  = require('express');
+const path     = require('path');
+const cors     = require('cors');
+const fetch    = require('node-fetch');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+const DASHBOARD_URL = '/dashboard.html';
+const API_KEY = process.env.API_KEY || 'architect-secret-key';
+
+// Middleware para proteger API
+function authMiddleware(req, res, next) {
+  if (req.headers['authorization'] !== `Bearer ${API_KEY}`) return res.status(401).json({ error: 'Unauthorized' });
+  next();
+}
+
+// Redireciona "/" direto para dashboard.html
+app.get('/', (req, res) => res.redirect(DASHBOARD_URL));
+
+// OAuth2 Callback
+app.get('/auth/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send('No code');
+
+  try {
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.REDIRECT_URI, // ex: https://oauth-architect.onrender.com/auth/callback
+      }),
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.status(400).send('Failed to get token');
+
+    const userData = await (await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    })).json();
+
+    const guildsData = await (await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    })).json();
+
+    const botGuildIds = client.guilds.cache.map(g => g.id);
+    const adminGuilds = guildsData
+      .filter(g => (g.permissions & 0x8) === 0x8 && botGuildIds.includes(g.id))
+      .map(g => ({ id: g.id, name: g.name, icon: g.icon }));
+
+    const data = encodeURIComponent(JSON.stringify({ user: userData, guilds: adminGuilds }));
+    res.redirect(`${DASHBOARD_URL}?auth=${data}`);
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
 });
 
-app.get('/api/backup', authMiddleware, async (req, res) => {
-  const { guildId } = req.query;
-  const backup = getBackup(guildId);
-  if (!backup) return res.status(404).json({ error: 'No backup found' });
-  res.json({ savedAt: backup.savedAt, guildName: backup.guildName, roles: backup.structure.roles?.length || 0, categories: backup.structure.categories?.length || 0 });
-});
+// Health check
+app.get('/health', (req, res) => res.json({ status: 'online', version: 'v1.5.0' }));
 
-app.post('/api/backup/restore', authMiddleware, async (req, res) => {
-  const { guildId } = req.body;
-  const guild  = client.guilds.cache.get(guildId);
-  const backup = getBackup(guildId);
-  if (!guild)  return res.status(404).json({ error: 'Guild not found' });
-  if (!backup) return res.status(404).json({ error: 'No backup found' });
-  res.json({ success: true, message: 'Restauração iniciada!' });
-  await applyStructure(guild, backup.structure, async () => {});
-});
-
-app.post('/api/logs', authMiddleware, async (req, res) => {
-  const { guildId, channelId } = req.body;
-  const existing = db.get('backups').find({ guildId }).value();
-  if (existing) db.get('backups').find({ guildId }).assign({ logChannelId: channelId }).write();
-  res.json({ success: true });
-});
-
-app.post('/api/reaction-roles', authMiddleware, async (req, res) => {
-  const { guildId, channelId, roleId, emoji, description } = req.body;
-  const guild   = client.guilds.cache.get(guildId);
-  if (!guild) return res.status(404).json({ error: 'Guild not found' });
-  const channel = guild.channels.cache.get(channelId);
-  if (!channel) return res.status(404).json({ error: 'Channel not found' });
-  const msg = await channel.send({ embeds: [new EmbedBuilder().setTitle('🎭 Seleção de Cargos').setColor(0x9b59b6).setDescription(description || 'Reaja para receber um cargo!')] });
-  await msg.react(emoji);
-  const existing = db.get('backups').find({ guildId }).value();
-  if (existing) { const rrs = existing.reactionRoles || []; rrs.push({ messageId: msg.id, channelId, emoji, roleId }); db.get('backups').find({ guildId }).assign({ reactionRoles: rrs }).write(); }
-  res.json({ success: true, messageId: msg.id });
-});
-
-app.listen(process.env.PORT || 3000, () => console.log(`✅ Architect ${VERSION} API + Dashboard rodando na porta ${process.env.PORT || 3000}`));
+// ── Start Server ──────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ Dashboard rodando na porta ${PORT}`));
 
 // ── Interaction Handler ────────────────────────────────────────────────────────
 client.on('interactionCreate', async interaction => {
