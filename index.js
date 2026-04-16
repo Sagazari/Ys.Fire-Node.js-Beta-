@@ -1481,3 +1481,18 @@ async function startup() {
 }
 
 startup();
+
+(async () => {
+  try {
+    console.log("Iniciando o Architect...");
+
+    await connectDB(); // 🔥 conecta primeiro
+
+    console.log("TOKEN:", process.env.DISCORD_TOKEN ? "OK" : "NÃO DETECTADO");
+
+    await client.login(process.env.DISCORD_TOKEN); // 🔥 depois loga
+
+  } catch (err) {
+    console.error("Erro ao iniciar:", err);
+  }
+})();
