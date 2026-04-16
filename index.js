@@ -1481,3 +1481,8 @@ async function startup() {
 }
 
 startup();
+
+// Iniciar bot
+console.log("TOKEN:", process.env.DISCORD_TOKEN ? "OK" : "NÃO DETECTADO");
+
+client.login(process.env.DISCORD_TOKEN);
