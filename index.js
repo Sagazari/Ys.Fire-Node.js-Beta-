@@ -1482,17 +1482,13 @@ async function startup() {
 
 startup();
 
-(async () => {
-  try {
-    console.log("Iniciando o Architect...");
+client.on("ready", () => {
+  console.log("BOT ONLINE ✅");
+});
 
-    await connectDB(); // 🔥 conecta primeiro
+client.on("error", console.error);
+client.on("shardError", console.error);
 
-    console.log("TOKEN:", process.env.DISCORD_TOKEN ? "OK" : "NÃO DETECTADO");
-
-    await client.login(process.env.DISCORD_TOKEN); // 🔥 depois loga
-
-  } catch (err) {
-    console.error("Erro ao iniciar:", err);
-  }
-})();
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => console.log("LOGIN OK"))
+  .catch(err => console.error("ERRO LOGIN:", err));
