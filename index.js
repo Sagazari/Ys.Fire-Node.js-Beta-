@@ -440,6 +440,10 @@ async function generateStructure(prompt, onLog, isPremium = false) {
   const rolesMsg  = `You are an expert Discord server architect. Your task is to generate a COMPLETE and REALISTIC role hierarchy for a Discord server.
 RULES:
 - Return ONLY a valid JSON array, no markdown, no explanation.
+- You must respect the responses. If they ask for few channels, you should make few channels. If they ask for many channels, you should make many channels. 
+- You must run the servers consistently, without bugs, without anything wrong.
+- You should block illegal prompts, such as communities over eighteen.
+- Perform the server setup with extreme care and pay attention to every detail.
 - Always write role names in Portuguese with correct accents.
 - Generate between ${minRoles} and ${maxRoles} roles.
 - Every role MUST have a unique, fitting hex color.
