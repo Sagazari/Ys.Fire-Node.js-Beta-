@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Architect AI — Chat</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,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"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    :root{
+      --bg:       #060605;
+      --bg-1:     #0e0e0c;
+      --bg-2:     #161614;
+      --bg-3:     #1e1e1b;
+      --line:     #252522;
+      --line-2:   #2e2e2b;
+      --text:     #e8e8e0;
+      --text-2:   #9a9990;
+      --text-3:   #555550;
+      --orange:   #f26c1e;
+      --orange-d: #c95510;
+      --orange-dim:rgba(242,108,30,.08);
+      --green:    #22c55e;
+      --blue:     #3b82f6;
+      --f:'Inter',-apple-system,sans-serif;
+      --mono:'JetBrains Mono',ui-monospace,'SF Mono',Consolas,monospace;
+    }
+
+    html,body{height:100%;overflow:hidden}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:var(--f);font-size:13.5px;
+      line-height:1.6;-webkit-font-smoothing:antialiased;
+      display:flex;flex-direction:column;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar{
+      height:52px;flex-shrink:0;
+      background:rgba(6,6,5,.92);
+      backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--line);
+      display:flex;align-items:center;
+      padding:0 20px;gap:12px;
+      position:relative;z-index:10;
+    }
+    .topbar-logo{display:flex;align-items:center;gap:8px}
+    .topbar-logo img{width:20px;height:20px}
+    .topbar-logo-name{font-size:13px;font-weight:600;color:var(--text);letter-spacing:-.01em}
+    .topbar-sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+    .topbar-model{
+      font-family:var(--mono);font-size:10.5px;
+      color:var(--text-3);letter-spacing:.04em;
+    }
+    .topbar-status{
+      display:flex;align-items:center;gap:5px;
+      font-size:11px;color:var(--green);
+    }
+    .topbar-status-dot{
+      width:6px;height:6px;border-radius:50%;
+      background:var(--green);
+      box-shadow:0 0 6px var(--green);
+    }
+    .topbar-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+
+    .btn-top{
+      font-family:var(--f);font-size:11.5px;font-weight:400;
+      padding:5px 12px;border-radius:5px;border:none;cursor:pointer;
+      display:inline-flex;align-items:center;gap:5px;
+      transition:all .12s;
+    }
+    .btn-top svg{width:12px;height:12px}
+    .btn-top-ghost{background:transparent;border:1px solid var(--line-2);color:var(--text-2)}
+    .btn-top-ghost:hover{background:var(--bg-2);color:var(--text)}
+    .btn-top-orange{background:var(--orange);color:#fff}
+    .btn-top-orange:hover{background:var(--orange-d)}
+
+    /* ── LAYOUT ── */
+    .layout{display:flex;flex:1;overflow:hidden}
+
+    /* ── SIDEBAR ── */
+    .sidebar{
+      width:240px;flex-shrink:0;
+      background:var(--bg-1);
+      border-right:1px solid var(--line);
+      display:flex;flex-direction:column;
+      overflow:hidden;
+    }
+    .sidebar-head{
+      padding:14px 14px 10px;
+      border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .sidebar-head-title{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+    .btn-new{
+      font-family:var(--f);font-size:11px;font-weight:500;
+      padding:4px 10px;border-radius:5px;
+      background:var(--orange);color:#fff;border:none;cursor:pointer;
+      transition:background .12s;display:flex;align-items:center;gap:4px;
+    }
+    .btn-new:hover{background:var(--orange-d)}
+    .btn-new svg{width:10px;height:10px}
+
+    .chat-list{flex:1;overflow-y:auto;padding:6px 6px}
+    .chat-item{
+      padding:8px 10px;border-radius:6px;cursor:pointer;
+      margin-bottom:2px;transition:background .1s;
+      border:1px solid transparent;
+    }
+    .chat-item:hover{background:var(--bg-2)}
+    .chat-item.active{background:var(--orange-dim);border-color:rgba(242,108,30,.15)}
+    .chat-item-title{
+      font-size:12px;color:var(--text-2);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      margin-bottom:2px;
+    }
+    .chat-item.active .chat-item-title{color:var(--text)}
+    .chat-item-meta{font-size:10.5px;color:var(--text-3);font-family:var(--mono)}
+
+    .sidebar-footer{
+      padding:10px 14px;border-top:1px solid var(--line);
+    }
+    .sidebar-tip{
+      font-size:11px;color:var(--text-3);line-height:1.5;
+    }
+    .sidebar-tip span{color:var(--orange)}
+
+    /* ── MAIN CHAT ── */
+    .chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+    /* Welcome screen */
+    .chat-welcome{
+      flex:1;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      padding:32px;text-align:center;
+    }
+    .welcome-icon{
+      width:48px;height:48px;border-radius:10px;
+      background:var(--orange-dim);border:1px solid rgba(242,108,30,.15);
+      display:flex;align-items:center;justify-content:center;
+      margin:0 auto 16px;
+    }
+    .welcome-icon img{width:26px;height:26px}
+    .welcome-title{font-size:18px;font-weight:600;letter-spacing:-.02em;color:var(--text);margin-bottom:8px}
+    .welcome-sub{font-size:13px;color:var(--text-3);max-width:380px;line-height:1.65;margin-bottom:28px}
+    .welcome-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-width:480px}
+    .chip{
+      font-size:12px;color:var(--text-2);
+      background:var(--bg-1);border:1px solid var(--line-2);
+      padding:6px 12px;border-radius:99px;cursor:pointer;
+      transition:all .12s;
+    }
+    .chip:hover{border-color:var(--orange);color:var(--text)}
+
+    /* Messages */
+    .chat-messages{
+      flex:1;overflow-y:auto;
+      padding:24px 0;
+      scroll-behavior:smooth;
+    }
+    .chat-messages::-webkit-scrollbar{width:4px}
+    .chat-messages::-webkit-scrollbar-track{background:transparent}
+    .chat-messages::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:2px}
+
+    .msg-wrap{
+      max-width:760px;margin:0 auto;
+      padding:0 24px;
+      display:flex;flex-direction:column;gap:0;
+    }
+
+    .msg{
+      display:flex;gap:12px;padding:14px 0;
+      border-bottom:1px solid var(--line);
+    }
+    .msg:last-child{border-bottom:none}
+
+    .msg-avatar{
+      width:28px;height:28px;border-radius:6px;
+      flex-shrink:0;margin-top:1px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:700;overflow:hidden;
+    }
+    .msg-avatar-ai{
+      background:var(--orange-dim);
+      border:1px solid rgba(242,108,30,.2);
+    }
+    .msg-avatar-ai img{width:16px;height:16px}
+    .msg-avatar-user{
+      background:var(--bg-3);
+      border:1px solid var(--line-2);
+      color:var(--text-2);
+    }
+
+    .msg-body{flex:1;min-width:0}
+    .msg-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+    .msg-name{font-size:12.5px;font-weight:600;color:var(--text)}
+    .msg-time{font-size:10.5px;color:var(--text-3);font-family:var(--mono)}
+    .msg-badge{
+      font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+      padding:1px 5px;border-radius:3px;
+      background:var(--orange-dim);border:1px solid rgba(242,108,30,.2);color:var(--orange);
+    }
+
+    /* Content rendering */
+    .msg-content{font-size:13.5px;color:var(--text-2);line-height:1.75}
+    .msg-content p{margin-bottom:12px}
+    .msg-content p:last-child{margin-bottom:0}
+    .msg-content strong{color:var(--text);font-weight:600}
+    .msg-content em{color:var(--text-2);font-style:italic}
+    .msg-content ul,.msg-content ol{padding-left:20px;margin-bottom:12px}
+    .msg-content li{margin-bottom:4px;color:var(--text-2)}
+    .msg-content h1,.msg-content h2,.msg-content h3{
+      color:var(--text);font-weight:600;letter-spacing:-.02em;
+      margin:20px 0 8px;line-height:1.2;
+    }
+    .msg-content h1{font-size:18px}
+    .msg-content h2{font-size:15px}
+    .msg-content h3{font-size:13.5px}
+    .msg-content code{
+      font-family:var(--mono);font-size:12px;
+      background:var(--bg-2);border:1px solid var(--line);
+      padding:1px 5px;border-radius:3px;color:var(--orange);
+    }
+    .msg-content a{color:var(--orange);text-decoration:none}
+    .msg-content a:hover{text-decoration:underline}
+    .msg-content blockquote{
+      border-left:2px solid var(--orange);
+      padding:8px 14px;margin:12px 0;
+      background:var(--bg-1);border-radius:0 5px 5px 0;
+      color:var(--text-3);font-style:italic;
+    }
+    .msg-content hr{border:none;border-top:1px solid var(--line);margin:16px 0}
+
+    /* Code block */
+    .code-block{
+      background:var(--bg-1);border:1px solid var(--line-2);
+      border-radius:7px;overflow:hidden;margin:12px 0;
+    }
+    .code-block-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:8px 14px;
+      background:var(--bg-2);border-bottom:1px solid var(--line);
+    }
+    .code-lang{
+      font-family:var(--mono);font-size:10.5px;
+      color:var(--text-3);letter-spacing:.06em;text-transform:uppercase;
+    }
+    .code-actions{display:flex;gap:5px}
+    .code-btn{
+      font-family:var(--f);font-size:11px;font-weight:400;
+      padding:3px 9px;border-radius:4px;
+      border:1px solid var(--line);background:transparent;
+      color:var(--text-3);cursor:pointer;
+      transition:all .1s;display:flex;align-items:center;gap:4px;
+    }
+    .code-btn:hover{background:var(--bg-3);color:var(--text)}
+    .code-btn svg{width:11px;height:11px}
+    .code-btn.copied{color:var(--green);border-color:rgba(34,197,94,.3)}
+    .code-body{
+      padding:14px;overflow-x:auto;
+      font-family:var(--mono);font-size:12px;
+      line-height:1.7;color:var(--text-2);
+    }
+    .code-body::-webkit-scrollbar{height:3px}
+    .code-body::-webkit-scrollbar-thumb{background:var(--line-2)}
+
+    /* Syntax highlight */
+    .tok-kw{color:#c792ea}
+    .tok-str{color:#c3e88d}
+    .tok-num{color:#f78c6c}
+    .tok-cmt{color:#546e7a;font-style:italic}
+    .tok-fn{color:#82aaff}
+    .tok-cls{color:#ffcb6b}
+    .tok-op{color:#89ddff}
+    .tok-var{color:#eeffff}
+    .tok-dec{color:#f26c1e}
+
+    /* Thinking animation */
+    .thinking{
+      display:flex;align-items:center;gap:8px;
+      padding:6px 0;
+    }
+    .thinking-dots{display:flex;gap:4px}
+    .thinking-dot{
+      width:5px;height:5px;border-radius:50%;
+      background:var(--text-3);
+      animation:thinkPulse 1.4s ease-in-out infinite;
+    }
+    .thinking-dot:nth-child(2){animation-delay:.2s}
+    .thinking-dot:nth-child(3){animation-delay:.4s}
+    @keyframes thinkPulse{0%,80%,100%{transform:scale(.6);opacity:.3}40%{transform:scale(1);opacity:1}}
+    .thinking-label{font-size:12px;color:var(--text-3)}
+
+    /* Streaming skeleton */
+    .skeleton-line{
+      height:14px;border-radius:3px;margin-bottom:8px;
+      background:linear-gradient(90deg,var(--bg-2) 0%,var(--bg-3) 50%,var(--bg-2) 100%);
+      background-size:200% 100%;
+      animation:shimmer 1.5s infinite;
+    }
+    .skeleton-line:nth-child(2){width:88%}
+    .skeleton-line:nth-child(3){width:72%}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* Working label */
+    .working-label{
+      font-size:11.5px;color:var(--text-3);
+      display:flex;align-items:center;gap:6px;margin-bottom:10px;
+      font-style:italic;
+    }
+    .working-label::before{
+      content:'';width:16px;height:1px;
+      background:linear-gradient(to right,var(--orange),transparent);
+    }
+
+    /* ── INPUT AREA ── */
+    .chat-input-wrap{
+      flex-shrink:0;
+      padding:14px 24px 20px;
+      background:linear-gradient(to top,var(--bg) 80%,transparent);
+      max-width:760px;margin:0 auto;width:100%;
+    }
+    .chat-input-box{
+      background:var(--bg-1);
+      border:1px solid var(--line-2);
+      border-radius:10px;
+      overflow:hidden;
+      transition:border-color .15s;
+    }
+    .chat-input-box:focus-within{border-color:rgba(242,108,30,.4)}
+    .chat-input{
+      width:100%;background:transparent;border:none;outline:none;
+      padding:14px 16px 10px;
+      font-family:var(--f);font-size:13.5px;color:var(--text);
+      resize:none;min-height:52px;max-height:200px;
+      line-height:1.55;
+    }
+    .chat-input::placeholder{color:var(--text-3)}
+    .chat-input-foot{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:6px 12px 10px;
+    }
+    .input-hint{font-family:var(--mono);font-size:10.5px;color:var(--text-3)}
+    .input-hint kbd{
+      background:var(--bg-2);border:1px solid var(--line);
+      padding:1px 5px;border-radius:3px;font-family:var(--mono);
+    }
+    .btn-send{
+      width:32px;height:32px;border-radius:7px;
+      background:var(--orange);border:none;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .12s,opacity .12s;color:#fff;flex-shrink:0;
+    }
+    .btn-send:hover{background:var(--orange-d)}
+    .btn-send:disabled{opacity:.3;cursor:not-allowed}
+    .btn-send svg{width:14px;height:14px}
+    .btn-send.stop{background:var(--bg-3);border:1px solid var(--line-2);color:var(--text-2)}
+    .btn-send.stop:hover{background:var(--bg-2)}
+
+    /* ── SAVE MODAL ── */
+    .overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;
+      display:none;align-items:center;justify-content:center;
+    }
+    .overlay.show{display:flex}
+    .modal{
+      background:var(--bg-1);border:1px solid var(--line-2);
+      border-radius:10px;width:440px;max-width:90vw;overflow:hidden;
+    }
+    .modal-head{
+      padding:16px 20px;border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .modal-title{font-size:13.5px;font-weight:600;color:var(--text)}
+    .modal-close{
+      width:24px;height:24px;border-radius:5px;
+      background:transparent;border:1px solid var(--line);
+      color:var(--text-3);cursor:pointer;
+      display:flex;align-items:center;justify-content:center;transition:all .1s;
+    }
+    .modal-close:hover{background:var(--bg-2);color:var(--text)}
+    .modal-body{padding:20px;display:flex;flex-direction:column;gap:10px}
+    .modal-actions{
+      padding:14px 20px;border-top:1px solid var(--line);
+      display:flex;gap:8px;justify-content:flex-end;
+    }
+    .btn-modal{
+      font-family:var(--f);font-size:12.5px;font-weight:500;
+      padding:7px 16px;border-radius:6px;border:none;cursor:pointer;
+      transition:all .12s;
+    }
+    .btn-modal-ghost{background:transparent;border:1px solid var(--line-2);color:var(--text-2)}
+    .btn-modal-ghost:hover{background:var(--bg-2)}
+    .btn-modal-orange{background:var(--orange);color:#fff}
+    .btn-modal-orange:hover{background:var(--orange-d)}
+
+    /* Download bar */
+    .download-bar{
+      display:flex;align-items:center;gap:6px;
+      padding:6px 10px;
+      background:var(--bg-2);border:1px solid var(--line);border-radius:5px;
+      margin-top:6px;
+    }
+    .download-bar-name{font-family:var(--mono);font-size:11.5px;color:var(--text-2);flex:1}
+    .download-btn{
+      font-family:var(--f);font-size:11px;font-weight:400;
+      padding:3px 9px;border-radius:4px;
+      border:1px solid var(--line);background:transparent;
+      color:var(--text-2);cursor:pointer;transition:all .1s;
+    }
+    .download-btn:hover{background:var(--bg-3);color:var(--text)}
+
+    @media(max-width:700px){
+      .sidebar{display:none}
+      .chat-input-wrap{padding:10px 16px 16px}
+      .msg-wrap{padding:0 16px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-logo">
+    <img src="data:image/png;base64,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" alt="Architect"/>
+    <span class="topbar-logo-name">Architect AI</span>
+  </div>
+  <div class="topbar-sep"></div>
+  <span class="topbar-model">mistral-small-2503</span>
+  <div class="topbar-sep"></div>
+  <div class="topbar-status">
+    <div class="topbar-status-dot"></div>
+    Online
+  </div>
+  <div class="topbar-actions">
+    <button class="btn-top btn-top-ghost" onclick="showSaveModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Salvar chat
+    </button>
+    <button class="btn-top btn-top-ghost" onclick="clearChat()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      Limpar
+    </button>
+    <a href="/dashboard" class="btn-top btn-top-ghost">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-head">
+    <span class="sidebar-head-title">Conversas</span>
+    <button class="btn-new" onclick="newChat()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nova
+    </button>
+  </div>
+  <div class="chat-list" id="chat-list"></div>
+  <div class="sidebar-footer">
+    <div class="sidebar-tip">
+      Especializado em <span>programação</span>, arquitetura de sistemas e bots Discord.
+    </div>
+  </div>
+</aside>
+
+<!-- CHAT MAIN -->
+<main class="chat-main">
+  <!-- Welcome -->
+  <div class="chat-welcome" id="welcome">
+    <div class="welcome-icon">
+      <img src="data:image/png;base64,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" alt="AI"/>
+    </div>
+    <div class="welcome-title">Architect AI</div>
+    <div class="welcome-sub">IA especializada em programação e desenvolvimento. Direta, técnica e sem respostas genéricas.</div>
+    <div class="welcome-chips">
+      <div class="chip" onclick="useChip(this)">Como estruturar um bot Discord escalável?</div>
+      <div class="chip" onclick="useChip(this)">Otimize esse código Node.js para mim</div>
+      <div class="chip" onclick="useChip(this)">Crie um sistema de filas com Redis</div>
+      <div class="chip" onclick="useChip(this)">Como funciona o OAuth2 do Discord?</div>
+      <div class="chip" onclick="useChip(this)">Explique async/await com exemplos reais</div>
+      <div class="chip" onclick="useChip(this)">Crie uma API REST com Express e MongoDB</div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="chat-messages" id="chat-messages" style="display:none">
+    <div class="msg-wrap" id="msg-wrap"></div>
+  </div>
+
+  <!-- Input -->
+  <div class="chat-input-wrap">
+    <div class="chat-input-box">
+      <textarea
+        class="chat-input" id="chat-input"
+        placeholder="Pergunte qualquer coisa sobre programação, bots, sistemas..."
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <div class="chat-input-foot">
+        <span class="input-hint"><kbd>Enter</kbd> enviar &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> nova linha</span>
+        <button class="btn-send" id="send-btn" onclick="sendMessage()" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- SAVE MODAL -->
+<div class="overlay" id="save-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Salvar conversa</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:var(--text-2);margin-bottom:4px">Formato</div>
+      <div style="display:flex;gap:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);cursor:pointer">
+          <input type="radio" name="save-fmt" value="md" checked style="accent-color:var(--orange)"/> Markdown (.md)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);cursor:pointer">
+          <input type="radio" name="save-fmt" value="txt" style="accent-color:var(--orange)"/> Texto (.txt)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);cursor:pointer">
+          <input type="radio" name="save-fmt" value="json" style="accent-color:var(--orange)"/> JSON (.json)
+        </label>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-3);margin-top:4px" id="save-preview-info"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal btn-modal-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-modal btn-modal-orange" onclick="downloadChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;display:inline;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Baixar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are Architect AI — a highly specialized programming assistant built into the Architect Discord bot dashboard by Velroc.
+
+IDENTITY:
+- You are direct, technical, and precise. You never produce generic, vague, or filler content.
+- You think deeply before answering. When facing a complex problem, you reason step by step internally before presenting the solution.
+- You write code that actually runs. Every snippet is production-ready, properly indented, and handles edge cases.
+- You never say "it depends" without immediately explaining what it depends on and giving concrete recommendations.
+- You prefer showing over explaining — real code over abstract descriptions.
+
+EXPERTISE (in order of depth):
+1. Node.js / JavaScript / TypeScript — you know the runtime, event loop, and ecosystem deeply
+2. Discord.js v14 — bots, slash commands, interactions, permissions, rate limits, OAuth2
+3. Database design — MongoDB, Redis, PostgreSQL, schema design, indexing
+4. APIs — REST design, Express/Fastify, authentication, middleware
+5. System architecture — queues, workers, caching, scalability patterns
+6. DevOps — Docker, Render, Railway, environment management
+7. General programming — algorithms, data structures, design patterns
+
+BEHAVIOR RULES:
+- Always write complete, runnable code — never truncate with "// ... rest of code"
+- When showing file structure, show the actual content of each file
+- Point out potential bugs or security issues proactively
+- If you use a library, mention the install command
+- Prefer modern syntax (ES2022+, async/await, optional chaining)
+- Format code blocks with the correct language tag
+- After solving a problem, briefly mention what to watch out for in production
+
+RESPONSE STYLE:
+- Start directly with the answer or code — no preambles
+- Use headers to organize long responses
+- Keep explanations tight — every sentence earns its place
+- End with a concrete next step or what to test, not generic "let me know if you need help"`;
+
+// ── State ────────────────────────────────────────────────────────────────────
+let conversations = JSON.parse(localStorage.getItem('arch_convs') || '[]');
+let currentConvId = null;
+let isStreaming    = false;
+let abortCtrl      = null;
+
+function getConv(id) { return conversations.find(c => c.id === id); }
+function saveConvs()  { localStorage.setItem('arch_convs', JSON.stringify(conversations)); }
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  renderConvList();
+  document.getElementById('chat-input').addEventListener('input', () => {
+    const v = document.getElementById('chat-input').value.trim();
+    document.getElementById('send-btn').disabled = !v || isStreaming;
+  });
+  if (conversations.length) selectConv(conversations[0].id);
+}
+
+// ── Conversations ─────────────────────────────────────────────────────────────
+function newChat() {
+  const id = Date.now().toString();
+  conversations.unshift({ id, title: 'Nova conversa', messages: [], createdAt: new Date().toISOString() });
+  saveConvs();
+  renderConvList();
+  selectConv(id);
+}
+
+function selectConv(id) {
+  currentConvId = id;
+  document.querySelectorAll('.chat-item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+  renderMessages();
+}
+
+function renderConvList() {
+  const list = document.getElementById('chat-list');
+  list.innerHTML = conversations.length ? '' : '<div style="padding:10px;font-size:11.5px;color:var(--text-3)">Nenhuma conversa. Clique em Nova.</div>';
+  conversations.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'chat-item' + (c.id === currentConvId ? ' active' : '');
+    el.dataset.id = c.id;
+    el.onclick = () => selectConv(c.id);
+    const d = new Date(c.createdAt);
+    el.innerHTML = `<div class="chat-item-title">${esc(c.title)}</div><div class="chat-item-meta">${d.toLocaleDateString('pt-BR')}</div>`;
+    list.appendChild(el);
+  });
+}
+
+// ── Messages ─────────────────────────────────────────────────────────────────
+function renderMessages() {
+  const conv = getConv(currentConvId);
+  if (!conv) return;
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('chat-messages').style.display = 'block';
+  const wrap = document.getElementById('msg-wrap');
+  wrap.innerHTML = '';
+  conv.messages.forEach(m => wrap.appendChild(buildMsg(m)));
+  scrollBottom();
+}
+
+function buildMsg(msg) {
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.dataset.id = msg.id || '';
+  const isAI = msg.role === 'assistant';
+  const time  = msg.time ? new Date(msg.time).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '';
+  el.innerHTML = `
+    <div class="msg-avatar ${isAI ? 'msg-avatar-ai' : 'msg-avatar-user'}">
+      ${isAI ? `<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAASN0lEQVR4nO2be5heVXXGf2vtc/tmcjUkQBC8QAEDiAraKk8NVqotT1VEoxa5aAgTrloUL4WEmcnFiIJY1NwIQZG2wHhvRZ5HLUK19mnRYkUsiIKCRnIhJDPzXc45e6/+cb4v+TJinJAJPrZZf83lm3PWfvfaa737XWtgv+23/fb/2eT39WIDYR4KwBBBwH5fvjzjZvNw4/nZM2HRM/ky6692XAbx980jOWJycqmKppsen361DG2od/0+PFM+PSNHwECYi5O7KAGa70hOdZEsixJ5MQK+kPtL567IVo18CdrR8Awdi30OgM3DyRAeYNtZyZG1RAbiWP8aAV9aKSJoTIQKvgxf9IVbnK4b/dHYv91Xts8A6A7ne/+c3qMPzS6NIt7vYpnsc4IJiGCVByIYuBQNudVD4Npto7WPHPD3T2zf18diwgHoZPfOzo2eXXtjmtgyl+kcCiMYHhExDJdUiws5wUwQFVOCIxF8zk98Kf3putF/hH13LCYUgO6QHT6795g09sviiNNQofTiRUwFvEYSEYNv2tdDsHqcyBswCKWUCGqGOYdDwZd2u89lUbq+/l9j3zERNiEAWD/KACaC/fyMqdMP6s0/4DRc4mLt8TkBBMRMwUkmhJJHy8Bguqp+A0BzYe3NkbOlLtGjyQ3v8QKCYBrhfGG5CZ9qtKIVU24c2TQ2yvbG9goAM4S37HSkfm52TqJc6TJ5vuVGMNm5kBQXCsqArNzU1GWzbxzZZP0o9yMyhH/8QiY9i/R9avIejWVSaBEwA8EEnKSCz+0xTJe4NfV1AmbzcMzB9iY/PC0Axu7AtvnZy2salsapvpoA3lMCTkS8RkQ4wXv7Zqvk8t41jf+AXUO5++tmX3J05GSpc/JmDEKBB8TAXIQjEnwh38nRK3pWjdwFYHOJuAv/dPLDHgPQ7eym+bXZU9SucMr5Lhb1JV7Mqh1XHKnic/uZDzKQrq5/tvP3nWTWYX8yhP8NrrAwOTVSWeZieTEFeI8HEVExTcyZBwu6fnuIlk5fs+2Rsb5NOADd5eieE4iPPb52YRTZ5S6TWdYyTMWbIWKGpqgvaJjIx0ZGk6unf2bbk2YIA4gMEvr70QF2lrbuZ3d/fd88kiMPyC528EGNZGbIMYSAgBnqEpFQ2BPey0fjrc/6Oxl6rLGnZXNcABhIJ7xG3tFzahb5pS6Vl+CFEryACgSNcIjgA1/yXhanq0fvg507M3aXG+9MTxFxaba+/lXYNZS7d/OJvuywyU76I2E+Cr4wL4iAmGpwxEIo7L4Q5Mp4TeOLY33eKwA6D9p+VvKCLJOBWOUtOAil+KpkiTlnSiKEwn5YePqzjhO/bUFnZM+Z1GODsZNzcELp5R/KRnRl7abtP90tYBekr4phuYvl5ZRCCHhAzSy4Nvghly/Xc1k8+dOjPxwPCLsFwPpRGSS0FvS8yGn4tkvoDTkBEQTUwDQT8bkNB5MP/3pL/drDhvitYbimry8+J9z0N5HaB1wiM0K7RGomGnJ70rCrfvZI89oj76C1ix9d1aYf9Irzawud2JWayEGhaSYghgQDXGwagjR9cK9JVo/8623zcG/ZTV7Y/W3w/gqgoByUxNIbcisQYhGwYEFjkaLFrZtb7pLZ7fps83AyuPOFBkJ/vzzxy+vePFluXhQnHEcQQo4XwYERWnhVphGx4vnPq51VP1dX1B4avaUTPRVRxu8se41Vm+Zz81Syq6NI+qy0UJEsIRTkmpBZWc4GmLlx95usuwWgbaJI1yfNoB1chuIPnu6K4wAEjI2IPVVkRRwqjiNQCIFAxQ+q54CEYB4EUY4SDUf9aBbaHbwGwsYqiQL0UDtKSztQDKteLVgn3BWIKo9P/h1r2z0Ac9pUJJQPB28/0ZrEKiKAFzENHnGxvjLL5JvlBbXbmgsmHyl3Ue5S4sAYHLQZq7de84gdfFTh+bTGqKaoGd7Myup7dd7L50dafk7t+sbiY4fI2ztf5QQwuYty89trzy76spVZYv/pMn1DqIqjmOEVRDNJfMGGViEPGQgn774ajDsJbr6EKVN97b1idqlLmByaGO3jKQZaE/U5w8G4ZuuW3msOHNo0skt560qCjfPSU5JYVmgsJwKEkh8XnsXZ6sbndyx4CN/NFO85gfiFJ9QuULFFLpGZoQQLhM6+aybqPYUPsmrrVvnQQbeMPr7XSXAsCADbFiRH9sQyGDl5GwYV+VExxZyYIxVCbj8ucq7M1jU+11kQQ4SBfmSgs6A+4he67DIJMmXzaGPZwTcz2gGMQWxsuYwzt8LFnEgJPpininlzzhxO8MFubxa6eNLa+vdp70wngvYagA4I9ONksO3U+elrY2GJi+RlBMGXeKriHDSSCIzg7Suld4vStaM/7AAhQ1UyG8vYnup3T56ZHtHTq4Ox4wyc4gu8YIKYqVDV/9zuL4MuS9e0r839RAyOnxaPH4Aux+45gfjE71EYSHFB7QJVPugiDqVleBEvJmIGLjUNpTWCl2uHn8g+8qyhrdt22eUuVZj+tjQySPjFPGoHTM3emzguc6lM9bkaholYFWsp4nPbUgb9eLqlfo0M0bC5RJ2I2RNKvEd3gYfPITs4zt4dJZwZTG/+xsOzP37qHQ+1Hjtr8oxpk+RvE4qL44Q0tCqBA8FUzEkihNx+UnpbnK5t3tpxkqF2guq+A5xbOz1yNuhSOZYCPLRZH6YJznshN73B8nKgd13jMTBpnttzSRRbny/lS9tDz1Uz128ZHu+axpUEmYsbfk5yWk8mV7pUjiMIRNBqyn+PaO/gjFlzviKDd5WPLpx5/MFueIlzvB6jHbIiVDQ5qgRQvuq9LErX1e/tfs/w/N5ja5Ff6iJOq/RC8SIIZtWRihTv7e56SK+YsnLrt/v7+/XCDStfM9Xqg2lSvowAOCGUPFiWDCTa/Bxrq4r0tAHohFJ9waQ/rcXF3Rh4Ey/SXlRiEXHMr0YmLZj9xIZP77jSXlA7PVZbqhFzyOlQVgHQRDSUtILpJ4ZDsqzxq63FAbNrH4zU3qsxPb5VRYUo1TlPFV/Yo4WXgdrq+vqOX7+cPvP0Q5LR28ATWpQVWzHTSBwRlE39q3ht/au/6ziMkwiFGiLeeykFcVRc2BWlbvt5Y/oph6zZcAPTUZuHs340W9X4wsZtzZcVOYu8sE1r4trVklDgFdIos8umaPN7sw7Kvp9kLFaRnlCIFxEQ0EScF4q8aR+rF+4ltdX19R2myXT02Ws3DT2cT/+TVqEb1VXPF8QFT4GJF6wH4Fu/gwmOqzESGQ7FiVBUciaCiSlks3jybdvmT35M1g4/0Nkdm4eTmxmF5vJGX3qLiQxEEWciSCjxAQItzDkOx1W0mEr0wMUoTigKvlbkurh3Xf17AHfOJWIW1t5NP3p27RBh21udMKkKGaEd7YbgUB1Xp2n3AMypnhgcv/ae7S5lSsgxMzEVURFLa2m5IFXeli/s+ei2DbVrZWjLsPVX0cBGRNa2fgqc1bgovSk2We5SeSmF4YP5UFZ3ewzUoaRCKO1/WrkO9Kwa3ZksK1+CDBIe/AvS5x7We5FT/0FNypnk1YoNC+3LWeI9RfCyAWDTrL0kQh0S9OTZ6eG9PVwZOT0brXbN2nqfUxyREVr2QGn075LpOy8awt85l+ikY2oXOuVyjTgwNMyonNZQMuxNrtm6qX7NgUOMdFggG5GuCvG6KGapS+R4CggheKpjHDTGoYL38uVmi4FJ6+r37hMm2LgwfXWiulQdL6dsM0GkrdmZawsWt/uWXp7eWP9BNxA7egULa4ckav0RnFexOIZK8YuyT+UPPtXnt5+THJ2lbknsZB4CwVekC6yS3mLwBT8ojYFsVeNLY33eawCgLVu1aeydc4lOmpMuUNHLXcShtBXgTqJzCRoKWqAf316PPjz9M9ue3LGjXQtr9KWvFqwnW5v/U/fCO0rvhjPpfVaavi+K5D2ayORKP6DNL1AyEd+yzcHs6l9vbl532BCNPVWK9wgAHSR0Q7q9b9IBNS0+IMhFLpHaGAerDk/LfuqDLt5BVdsOwhhN8DfD/fQosiUu4RgKqo5SVX1ME1zwWBC5vsjD8p61zV/s4utEM8HucGqdm53pYs7KPTf2XN+8BWC4Lz4uiZMlSWSn4Q1f2q4ESMEX3O6bsuNY3DmX6OSuBLWzoxQfU+uJl7rI3ohB8JQGTswqiT1SipJ/aRahf8ra5rcBRucnr08TfVcI8vlkbWM1eyCPjzsJ1s/JToojWx6lOrfK3EZRyu1PMm3xrLUbvg/C9ounnNZDa6mLOJYW7WNRKSca40JBE891w1vjq6YNbX+iWyne/HamTKlll7pI3qep9PpW+6pLhxBByHmkQTQ4aeXwpwG2zO89dpLzS5LI3oirluJL+Y4Vuii6YfSu9gL3ngnmfbU/dth3NRYJpXiqoiOuhqIRj9ez8w48ePN6GST8so+emS671Anv14gpodVujalUHZ4YQs7DpTGQrqnfBNDqq81z2HKX6R9RVsBZMBGxqqNUkofAJx4fiVY8+7PDW8yQLfMnnTYj818gMUKDQBstjcQhUBb6mnjN6Nd/13EYFxHyyPQ4QnxJIVgMmDgoC54Y1ug9UTrti2zY7Noiah2ay5sLkiGHLIkSfWvV4TFvSLCcoBHPS1Q+k/fVzgGKOJXXYlLdHQyBgIsqQuRLu8MXckXauef3E7EQmTFt2h3D9S2nZy1Z6ZwdaEFEBPEluUuIJfgZAEwIE1QMMaskvJ0qgxiJeJn14MZm8YohCjPE7m8ToHX5g8DbRhb23FSLwhLN5AQKIwQxX1Z9vzjlz0AIhYQqUg1VlFjwhT3oSxlIV9Z3Js/Kgqwl3HPCYxzzotpBEltGW4hoN2GF0OZG41nbeD5kFkYA0Zg4lOZBVAxRYdK0WusjLzugtaDV13ulyOittNXbneWofvt98/jGkTNqF6rY5S5lZmgBIr7d92t3/hCX4nzJSCi4eluz8bGZ6xl+qgoxOj85LXUy6DJ7IUWl0gYwCeZdQowTrJTqSjwRTJB+pPnr9JWxY5lL9CRyqwiQoCYSXCSdXv7XmqUs2iFLjSE0mxfUnj01tkUqcp46NLTMI2KaEGFQBm6tB98/dXX+AOysFLtUiEwHneNNiHQIkWISVMWRGKG0e4tCBr/7QOOfTx5Hw3RPm6OSX9RznjO/SCM9lByC4G3HiItpyMnLICtbuX6ou5ffvYP1C7JXJLDcRZxc3eHlnjxncW1t/Y5u4DqE5uE3TJ02e2bzMufkUpfQE7pmDgDVVCUUtsVjKx75WfOTYxsrEwKAzcNp1a7iV++cNPPAzH8AuFjbChCAiZiaOUkhFDxahmggXT284w6/46XtHW0t7DlPNEz+zv3N6151F+VTscXWudlbNZLlUcLhlBDAW/sK5RJxGJRm64vCBjuEaJ9JYmMf3loYH++ieKmLeB3Bql5+1R6vVBwVfM6doXSXJ+uG/70biKcSRbt/PjK/58VZFJa7mL/EhNCeOUDw6iRqN0Tv9qaLk5Ujd8PTmxOYkAGJ5kW1N8VmSzSVObSsrQC1dbwYF0p8CPKpRq7Lptw4sqnT6wOqMjUL4zaCCPbkGVOn13ryy52zd7mExLdkp0KkOFLB5/zCiy5JPzlyQwe8gTnY4NOYFNm7EZmuxseGM+mdMSW71AmXacTU0MQM6fT1nCYQWjxaBhlIr98pbXXnhtaC7GynDLqU51pOpcBZVeNcRiWlIZ/cWOiHD1k7snkiZoUmZkiqu+tzYXpEBIMRcgZaSWBm1b3AOSIc+NzuDMai5PrmvwGMzq+dGKutiBNOAfBe2vd8Cy6umF0R+GpusmjSykpMnahpsQkbk/uNXn5f+ppYWeYSXkoh+CAdYdRcbM6XmC9YhbeGi3m3SyQKZdfR6YR7YQ/4wOJ0VWMIdsrpEzUvOPGDkmN1gxckFzuVKzTWA0JTDCxUIhZOOjSsrMopVaSgKRpKRgNc81CzcfULOoSI8Y++jNcmHICO/eaIC9WIi6MSQa3N/6iIrAnmInGI4b19sR6iRVPWjNw/9lkTbfsMAKiOxbfm4l7VORYL05Nj1Q+5hJd3DUSiiiNTfG73lZ5F2ZrGl+HplbU9tX0KQMf6+9FOV9j60WJj7XynYZFGcjAm+JJtpchVGzfWP767EZs/eGsPOgAw0tdzcHFRbV1xUc+tjb708O7P/J7ce+bst/3LzFOO1uxje8Zf2LGOHLbDkf9r4b7f9tt+22/77Q/A/hdTOOQkhomKYwAAAABJRU5ErkJggg==" alt="AI"/>` : userInitial()}
+    </div>
+    <div class="msg-body">
+      <div class="msg-header">
+        <span class="msg-name">${isAI ? 'Architect AI' : 'Você'}</span>
+        ${isAI ? '<span class="msg-badge">AI</span>' : ''}
+        <span class="msg-time">${time}</span>
+      </div>
+      <div class="msg-content">${isAI ? renderMarkdown(msg.content) : esc(msg.content).replace(/\n/g,'<br/>')}</div>
+    </div>`;
+  return el;
+}
+
+function userInitial() {
+  return 'U';
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text || isStreaming) return;
+  if (!currentConvId) newChat();
+
+  const conv = getConv(currentConvId);
+  if (!conv) return;
+
+  // Add user message
+  const userMsg = { id: Date.now()+'u', role: 'user', content: text, time: new Date().toISOString() };
+  conv.messages.push(userMsg);
+  if (conv.title === 'Nova conversa' && conv.messages.length === 1) {
+    conv.title = text.substring(0, 48) + (text.length > 48 ? '…' : '');
+  }
+  saveConvs();
+  renderConvList();
+
+  input.value = '';
+  autoResize(input);
+  document.getElementById('send-btn').disabled = true;
+
+  // Show messages area
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('chat-messages').style.display = 'block';
+  const wrap = document.getElementById('msg-wrap');
+  wrap.appendChild(buildMsg(userMsg));
+
+  // AI thinking placeholder — use direct reference, never getElementById
+  const aiEl = document.createElement('div');
+  aiEl.className = 'msg';
+  const streamContentEl = document.createElement('div');
+  streamContentEl.className = 'msg-content';
+  streamContentEl.innerHTML = `
+    <div class="working-label">Analisando o problema…</div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line"></div>`;
+  aiEl.innerHTML = `
+    <div class="msg-avatar msg-avatar-ai"><img src="${document.querySelector('.topbar-logo img').src}" alt="AI"/></div>
+    <div class="msg-body">
+      <div class="msg-header">
+        <span class="msg-name">Architect AI</span>
+        <span class="msg-badge">AI</span>
+      </div>
+    </div>`;
+  aiEl.querySelector('.msg-body').appendChild(streamContentEl);
+  wrap.appendChild(aiEl);
+  scrollBottom();
+
+  // Stream response
+  isStreaming = true;
+  abortCtrl   = new AbortController();
+  setSendStop(true);
+
+  let fullText = '';
+  try {
+    const messages = conv.messages.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
+    messages.push({ role: 'user', content: text });
+
+    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${window.MISTRAL_KEY || ''}`,
+      },
+      signal: abortCtrl.signal,
+      body: JSON.stringify({
+        model:       'mistral-small-2503',
+        messages:    [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+        stream:      true,
+        max_tokens:  4096,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Mistral error ${res.status}`);
+
+    streamContentEl.innerHTML = '';
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const json  = JSON.parse(data);
+          const delta = json.choices?.[0]?.delta?.content;
+          if (delta) {
+            fullText += delta;
+            streamContentEl.innerHTML = renderMarkdown(fullText) + '<span class="cursor-blink">▋</span>';
+            scrollBottom();
+          }
+        } catch {}
+      }
+    }
+
+    // Finalize
+    streamContentEl.innerHTML = renderMarkdown(fullText);
+    const aiMsg = { id: Date.now()+'a', role: 'assistant', content: fullText, time: new Date().toISOString() };
+    conv.messages.push(aiMsg);
+    saveConvs();
+
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      document.getElementById('stream-content').innerHTML = `<span style="color:var(--red)">Erro: ${esc(e.message)}</span>`;
+    }
+  } finally {
+    isStreaming = false;
+    abortCtrl   = null;
+    aiEl.removeAttribute('id');
+    setSendStop(false);
+    document.getElementById('send-btn').disabled = !document.getElementById('chat-input').value.trim();
+    scrollBottom();
+  }
+}
+
+function stopStreaming() {
+  if (abortCtrl) abortCtrl.abort();
+}
+
+function setSendStop(isStop) {
+  const btn = document.getElementById('send-btn');
+  if (isStop) {
+    btn.classList.add('stop');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+    btn.disabled = false;
+    btn.onclick = stopStreaming;
+  } else {
+    btn.classList.remove('stop');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+    btn.onclick = sendMessage;
+  }
+}
+
+// ── Markdown Renderer ─────────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  if (!text) return '';
+
+  // Code blocks
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const hl  = highlight(code.trim(), lang);
+    const ext = langToExt(lang);
+    const fn  = `code_${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`;
+    return `<div class="code-block">
+      <div class="code-block-head">
+        <span class="code-lang">${lang || 'code'}</span>
+        <div class="code-actions">
+          <button class="code-btn" onclick="copyCode(this,'${encodeURIComponent(code.trim())}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copiar
+          </button>
+          <button class="code-btn" onclick="downloadCode('${encodeURIComponent(code.trim())}','${fn}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            ${fn}
+          </button>
+        </div>
+      </div>
+      <div class="code-body">${hl}</div>
+    </div>`;
+  });
+
+  // Inline code
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Headers
+  text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
+  text = text.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
+
+  // Bold / italic
+  text = text.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  text = text.replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g,         '<em>$1</em>');
+
+  // Links
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  // Blockquote
+  text = text.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // HR
+  text = text.replace(/^---+$/gm, '<hr/>');
+
+  // Lists
+  text = text.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+  text = text.replace(/^[-*] (.+)$/gm,    '<li>$1</li>');
+  text = text.replace(/(<li>[\s\S]+?<\/li>)(?=\s*<li>|\s*$)/g, '<ul>$&</ul>');
+
+  // Paragraphs
+  text = text.split(/\n\n+/).map(block => {
+    if (/^<[houlbdp]|^<blockquote|^<hr/.test(block.trim())) return block;
+    if (block.trim()) return `<p>${block.replace(/\n/g,'<br/>')}</p>`;
+    return '';
+  }).join('');
+
+  return text;
+}
+
+// Minimal syntax highlighter
+function highlight(code, lang) {
+  const e = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let c = e(code);
+  const js = ['const','let','var','function','async','await','return','if','else','for','while','class','new','import','export','default','from','try','catch','throw','typeof','instanceof','true','false','null','undefined','void','this','super','extends','require','module'];
+  const py = ['def','class','import','from','return','if','elif','else','for','while','async','await','with','as','try','except','raise','True','False','None','lambda','pass','break','continue','in','not','and','or','is'];
+  if (['js','javascript','ts','typescript','jsx','tsx'].includes(lang)) {
+    c = c.replace(/\/\/.*/g, m => `<span class="tok-cmt">${m}</span>`);
+    c = c.replace(/(["'`])((?:\\.|(?!\1)[^\\])*)\1/g, m => `<span class="tok-str">${m}</span>`);
+    c = c.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
+    c = c.replace(new RegExp(`\\b(${js.join('|')})\\b`,'g'), '<span class="tok-kw">$1</span>');
+    c = c.replace(/\b([A-Z][a-zA-Z0-9]*)\b(?=\s*[({])/g, '<span class="tok-cls">$1</span>');
+    c = c.replace(/\b([a-z_][a-zA-Z0-9_]*)\s*(?=\()/g, '<span class="tok-fn">$1</span>');
+  } else if (['py','python'].includes(lang)) {
+    c = c.replace(/#.*/g, m => `<span class="tok-cmt">${m}</span>`);
+    c = c.replace(/(["']{3})([\s\S]*?)\1/g, m => `<span class="tok-str">${m}</span>`);
+    c = c.replace(/(["'])((?:\\.|(?!\1)[^\\])*)\1/g, m => `<span class="tok-str">${m}</span>`);
+    c = c.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
+    c = c.replace(new RegExp(`\\b(${py.join('|')})\\b`,'g'), '<span class="tok-kw">$1</span>');
+    c = c.replace(/\bdef\s+([a-z_][a-zA-Z0-9_]*)/g, 'def <span class="tok-fn">$1</span>');
+    c = c.replace(/\bclass\s+([A-Z][a-zA-Z0-9_]*)/g, 'class <span class="tok-cls">$1</span>');
+  } else if (['json'].includes(lang)) {
+    c = c.replace(/"([^"]+)":/g, '<span class="tok-kw">"$1"</span>:');
+    c = c.replace(/: "([^"]*)"/g, ': <span class="tok-str">"$1"</span>');
+    c = c.replace(/: (\d+(?:\.\d+)?)/g, ': <span class="tok-num">$1</span>');
+    c = c.replace(/: (true|false|null)/g, ': <span class="tok-dec">$1</span>');
+  }
+  return c;
+}
+
+function langToExt(lang) {
+  const map = {js:'js',javascript:'js',ts:'ts',typescript:'ts',jsx:'jsx',tsx:'tsx',
+    py:'py',python:'py',css:'css',html:'html',json:'json',bash:'sh',sh:'sh',
+    sql:'sql',md:'md',yml:'yml',yaml:'yml',go:'go',rust:'rs',java:'java',c:'c',cpp:'cpp'};
+  return map[lang] || 'txt';
+}
+
+// ── Code actions ─────────────────────────────────────────────────────────────
+function copyCode(btn, encoded) {
+  navigator.clipboard.writeText(decodeURIComponent(encoded)).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = btn.innerHTML.replace('Copiar','Copiado!');
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = btn.innerHTML.replace('Copiado!','Copiar'); }, 2000);
+  });
+}
+
+function downloadCode(encoded, filename) {
+  const blob = new Blob([decodeURIComponent(encoded)], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Save / Download chat ──────────────────────────────────────────────────────
+function showSaveModal() {
+  const conv = getConv(currentConvId);
+  if (!conv || !conv.messages.length) return;
+  document.getElementById('save-preview-info').textContent = `${conv.messages.length} mensagens · ${conv.title}`;
+  document.getElementById('save-modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('save-modal').classList.remove('show');
+}
+
+function downloadChat() {
+  const conv = getConv(currentConvId);
+  if (!conv) return;
+  const fmt = document.querySelector('input[name="save-fmt"]:checked').value;
+  let content = '', ext = fmt, mime = 'text/plain';
+  if (fmt === 'md') {
+    content = `# ${conv.title}\n\n*Exportado em ${new Date().toLocaleString('pt-BR')}*\n\n---\n\n`;
+    conv.messages.forEach(m => {
+      content += `## ${m.role === 'user' ? 'Você' : 'Architect AI'}\n\n${m.content}\n\n---\n\n`;
+    });
+    mime = 'text/markdown';
+  } else if (fmt === 'json') {
+    content = JSON.stringify({ title: conv.title, exportedAt: new Date().toISOString(), messages: conv.messages }, null, 2);
+    mime = 'application/json';
+  } else {
+    conv.messages.forEach(m => {
+      content += `[${m.role === 'user' ? 'Você' : 'Architect AI'}]\n${m.content}\n\n`;
+    });
+  }
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a'); a.href = url;
+  a.download = `architect-chat-${Date.now()}.${ext}`; a.click();
+  URL.revokeObjectURL(url);
+  closeModal();
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function clearChat() {
+  if (!currentConvId) return;
+  const conv = getConv(currentConvId);
+  if (!conv) return;
+  if (!confirm('Limpar esta conversa?')) return;
+  conv.messages = [];
+  conv.title = 'Nova conversa';
+  saveConvs();
+  renderMessages();
+  document.getElementById('msg-wrap').innerHTML = '';
+  document.getElementById('chat-messages').style.display = 'none';
+  document.getElementById('welcome').style.display = 'flex';
+}
+
+function useChip(el) {
+  document.getElementById('chat-input').value = el.textContent;
+  autoResize(document.getElementById('chat-input'));
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('chat-input').focus();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+}
+
+function scrollBottom() {
+  const el = document.getElementById('chat-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Cursor blink style
+const style = document.createElement('style');
+style.textContent = `.cursor-blink{animation:blink .7s step-end infinite;color:var(--orange)}@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}`;
+document.head.appendChild(style);
+
+// ── API key injection ─────────────────────────────────────────────────────────
+// The server injects the key via /api/ai-config to avoid exposing it in HTML
+async function loadKey() {
+  try {
+    const res = await fetch('/api/ai-config', { credentials: 'include' });
+    const d   = await res.json();
+    window.MISTRAL_KEY = d.key || '';
+  } catch { window.MISTRAL_KEY = ''; }
+}
+
+loadKey().then(init);
+</script>
+</body>
+</html>
