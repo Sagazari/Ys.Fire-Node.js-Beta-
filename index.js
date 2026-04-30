@@ -456,6 +456,80 @@ function trackNukeAction(guildId, userId) {
   return u.count;
 }
 
+// ── Ticket Handler ────────────────────────────────────────────────────────────
+async function handleTicketOpen(interaction, categoryName) {
+  await interaction.deferReply({ ephemeral: true });
+  try {
+    const guild  = interaction.guild;
+    const member = interaction.member;
+    const config = await mongoDB?.collection('guild_configs').findOne({ guildId: guild.id });
+
+    // Check if user already has open ticket
+    const existingCh = guild.channels.cache.find(c =>
+      c.name === `ticket-${member.user.username.toLowerCase().replace(/\s+/g,'-')}` ||
+      (c.topic && c.topic.includes(member.id))
+    );
+    if (existingCh) {
+      return interaction.editReply({ content: `Você já tem um ticket aberto: <#${existingCh.id}>` });
+    }
+
+    // Find or use configured category
+    const catChannel = config?.ticketCategoryCh
+      ? guild.channels.cache.get(config.ticketCategoryCh)
+      : null;
+
+    // Permission overwrites
+    const overwrites = [
+      { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+      { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+    ];
+    if (config?.ticketRole) {
+      const role = guild.roles.cache.get(config.ticketRole);
+      if (role) overwrites.push({ id: role.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] });
+    }
+
+    const chName = `ticket-${member.user.username.toLowerCase().replace(/[^a-z0-9]/g,'-').substring(0,20)}`;
+    const ticketCh = await guild.channels.create({
+      name:                chName,
+      type:                ChannelType.GuildText,
+      parent:              catChannel || null,
+      topic:               `Ticket de ${member.user.tag} (${member.id}) · ${categoryName || 'Suporte'} · Aberto em ${new Date().toLocaleString('pt-BR')}`,
+      permissionOverwrites: overwrites,
+    });
+
+    // Send ticket embed in new channel
+    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+    const closeBtn = new ButtonBuilder()
+      .setCustomId(`ticket_close_${ticketCh.id}`)
+      .setLabel('Fechar ticket')
+      .setEmoji('🔒')
+      .setStyle(ButtonStyle.Danger);
+
+    const embed = new EmbedBuilder()
+      .setColor(0xf26c1e)
+      .setAuthor({ name: `Ticket — ${categoryName || 'Suporte'}` })
+      .setDescription(`Olá, <@${member.id}>! Descreva seu problema e a equipe responderá em breve.`)
+      .addFields(
+        { name: 'Usuário',    value: member.user.tag,                inline: true },
+        { name: 'Categoria',  value: categoryName || 'Suporte',      inline: true },
+        { name: 'Aberto em',  value: new Date().toLocaleString('pt-BR'), inline: true },
+      )
+      .setFooter({ text: `Architect ${VERSION}` })
+      .setTimestamp();
+
+    await ticketCh.send({
+      content: config?.ticketRole ? `<@&${config.ticketRole}>` : '',
+      embeds: [embed],
+      components: [new ActionRowBuilder().addComponents(closeBtn)],
+    });
+
+    await interaction.editReply({ content: `Seu ticket foi aberto: <#${ticketCh.id}>` });
+  } catch (e) {
+    console.error('[TICKET]', e.message);
+    await interaction.editReply({ content: `Erro ao criar ticket: ${e.message}` });
+  }
+}
+
 // ── Generate Structure ─────────────────────────────────────────────────────────
 async function generateStructure(prompt, onLog, isPremium = false) {
   const laneName = getLaneName(isPremium);
@@ -1411,13 +1485,40 @@ client.on('interactionCreate', async interaction => {
       pendingCreate.delete(id);
       pendingRestore.delete(id);
       await interaction.update({ embeds: [new EmbedBuilder()
-        .setTitle('❌  Cancelado')
         .setColor(0x95a5a6)
+        .setAuthor({ name: 'Cancelado' })
         .setDescription('Operação cancelada.')
         .setFooter({ text: `Architect ${VERSION}` })], components: [] });
       return;
     }
+
+    // Ticket — fechar ticket
+    if (interaction.customId.startsWith('ticket_close_')) {
+      const chId = interaction.customId.replace('ticket_close_', '');
+      const ch   = interaction.guild.channels.cache.get(chId);
+      if (!ch) return interaction.reply({ content: 'Canal não encontrado.', ephemeral: true });
+      await interaction.reply({ content: '🔒 Fechando ticket em 5 segundos…', ephemeral: false });
+      setTimeout(async () => { await ch.delete().catch(() => {}); }, 5000);
+      return;
+    }
+
+    // Ticket — abrir ticket via botão
+    if (interaction.customId === 'ticket_open') {
+      await handleTicketOpen(interaction, null);
+      return;
+    }
     return;
+  }
+
+  // ── Select Menu (ticket categories) ────────────────────────────────────────
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'ticket_select') {
+      const selected = interaction.values[0];
+      const config   = await mongoDB?.collection('guild_configs').findOne({ guildId: interaction.guild.id });
+      const cat      = (config?.ticketCategories || []).find(c => c.name.toLowerCase().replace(/\s+/g,'_') === selected);
+      await handleTicketOpen(interaction, cat?.name || selected);
+      return;
+    }
   }
 
   if (!interaction.isChatInputCommand()) return;
@@ -2384,22 +2485,28 @@ app.get('/api/guild/:id', requireAuth, async (req, res) => {
     res.json({
       id:          guild.id,
       name:        guild.name,
-      icon:        guild.iconURL({ dynamic: true }) || null,
+      icon:        guild.icon || null,
       memberCount: guild.memberCount,
       isPremium,
       config: {
-        antiNuke:     config.antiNuke || false,
-        welcomeMsg:   config.welcomeMsg || '',
-        welcomeCh:    config.welcomeCh || '',
-        ticketCh:     config.ticketCh || '',
-        ticketRole:   config.ticketRole || '',
-        logCh:        config.logCh || '',
-        lang:         config.lang || 'pt',
+        antiNuke:         config.antiNuke         || false,
+        welcomeMsg:       config.welcomeMsg       || '',
+        welcomeCh:        config.welcomeCh        || '',
+        logCh:            config.logCh            || '',
+        lang:             config.lang             || 'pt',
+        ticketPanelCh:    config.ticketPanelCh    || '',
+        ticketCategoryCh: config.ticketCategoryCh || '',
+        ticketRole:       config.ticketRole       || '',
+        ticketMsg:        config.ticketMsg        || '',
+        ticketCategories: config.ticketCategories || [],
       },
-      hasBackup: !!backupDoc,
+      hasBackup:  !!backupDoc,
       backupDate: backupDoc?.savedAt || null,
-      roles:      guild.roles.cache.map(r => ({ id: r.id, name: r.name, color: r.hexColor })),
-      channels:   guild.channels.cache.filter(c => c.type === 0 || c.type === 2).map(c => ({ id: c.id, name: c.name, type: c.type })),
+      roles:    guild.roles.cache.map(r => ({ id: r.id, name: r.name, color: r.hexColor })),
+      channels: guild.channels.cache
+        .filter(c => [0, 2, 4].includes(c.type))
+        .map(c => ({ id: c.id, name: c.name, type: c.type }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
     });
   } catch (e) {
     console.error('[API /guild]', e.message);
@@ -2415,8 +2522,11 @@ app.post('/api/guild/:id/config', requireAuth, async (req, res) => {
     if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
       return res.status(403).json({ error: 'Forbidden' });
 
-    const allowed = ['antiNuke','welcomeMsg','welcomeCh','ticketCh','ticketRole','logCh','lang'];
-    const update  = {};
+    const allowed = [
+      'antiNuke','welcomeMsg','welcomeCh','logCh','lang',
+      'ticketPanelCh','ticketCategoryCh','ticketRole','ticketMsg','ticketCategories',
+    ];
+    const update = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) update[key] = req.body[key];
     }
@@ -2427,6 +2537,82 @@ app.post('/api/guild/:id/config', requireAuth, async (req, res) => {
     );
     res.json({ ok: true });
   } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/guild/:id/restore — restore backup
+app.post('/api/guild/:id/restore', requireAuth, async (req, res) => {
+  try {
+    const guild = client.guilds.cache.get(req.params.id);
+    if (!guild) return res.status(404).json({ error: 'Guild not found' });
+    const userGuilds = req.session.userGuilds || [];
+    const userGuild  = userGuilds.find(g => g.id === req.params.id);
+    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
+      return res.status(403).json({ error: 'Forbidden' });
+    const backupDoc = await mongoDB?.collection('backups').findOne({ guildId: req.params.id });
+    if (!backupDoc) return res.status(404).json({ error: 'Nenhum backup encontrado.' });
+    await applyStructure(guild, backupDoc.structure);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/guild/:id/ticket/deploy — send ticket panel to channel
+app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
+  try {
+    const guild = client.guilds.cache.get(req.params.id);
+    if (!guild) return res.status(404).json({ error: 'Guild not found' });
+    const userGuilds = req.session.userGuilds || [];
+    const userGuild  = userGuilds.find(g => g.id === req.params.id);
+    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
+      return res.status(403).json({ error: 'Forbidden' });
+
+    const config = await mongoDB?.collection('guild_configs').findOne({ guildId: req.params.id });
+    if (!config?.ticketPanelCh) return res.status(400).json({ error: 'Canal do painel não configurado.' });
+
+    const channel = guild.channels.cache.get(config.ticketPanelCh);
+    if (!channel) return res.status(404).json({ error: 'Canal não encontrado no servidor.' });
+
+    const cats = config.ticketCategories || [];
+
+    // Build select menu or buttons
+    const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+
+    const embed = new EmbedBuilder()
+      .setColor(0xf26c1e)
+      .setAuthor({ name: 'Central de Suporte', iconURL: guild.iconURL() || undefined })
+      .setDescription(config.ticketMsg || 'Clique no botão abaixo para abrir um ticket de suporte.')
+      .setFooter({ text: `${guild.name} · Architect` })
+      .setTimestamp();
+
+    let components = [];
+    if (cats.length > 1) {
+      // Select menu with categories
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('ticket_select')
+        .setPlaceholder('Selecione o tipo de suporte…')
+        .addOptions(cats.map(c => ({
+          label: c.name,
+          value: c.name.toLowerCase().replace(/\s+/g, '_'),
+          emoji: c.emoji || '🎫',
+        })));
+      components.push(new ActionRowBuilder().addComponents(menu));
+    } else {
+      // Single button
+      const btn = new ButtonBuilder()
+        .setCustomId('ticket_open')
+        .setLabel(cats[0]?.name || 'Abrir Ticket')
+        .setEmoji(cats[0]?.emoji || '🎫')
+        .setStyle(ButtonStyle.Primary);
+      components.push(new ActionRowBuilder().addComponents(btn));
+    }
+
+    await channel.send({ embeds: [embed], components });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[API /ticket/deploy]', e.message);
     res.status(500).json({ error: e.message });
   }
 });
