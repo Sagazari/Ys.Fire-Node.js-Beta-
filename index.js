@@ -659,7 +659,7 @@ async function handleTicketOpen(interaction, categoryName) {
       (c.topic && c.topic.includes(member.id))
     );
     if (existingCh) {
-      return interaction.editReply({ content: `Você já tem um ticket aberto: <#${existingCh.id}>` });
+      return interaction.editReply(v2Simple(C_YELLOW, '🎫 Ticket já aberto', `Você já tem um ticket aberto: <#${existingCh.id}>`, `Architect ${VERSION}`));
     }
 
     // Find or use configured category
@@ -707,22 +707,23 @@ async function handleTicketOpen(interaction, categoryName) {
         .setStyle(ButtonStyle.Primary),
     );
 
+    const staffMentionText = config?.ticketRole ? `<@&${config.ticketRole}> — novo ticket aberto!\n\n` : '';
+
     const ticketV2 = v2Simple(C_ORANGE,
       `🎫 Ticket — ${categoryName || 'Suporte'}`,
-      `Olá, <@${member.id}>! Descreva seu problema e a equipe responderá em breve.\n\n**Usuário:** ${member.user.tag}\n**Categoria:** ${categoryName || 'Suporte'}\n**Aberto em:** ${new Date().toLocaleString('pt-BR')}`,
+      `${staffMentionText}Olá, <@${member.id}>! Descreva seu problema e a equipe responderá em breve.\n\n**Usuário:** ${member.user.tag}\n**Categoria:** ${categoryName || 'Suporte'}\n**Aberto em:** ${new Date().toLocaleString('pt-BR')}`,
       `Architect ${VERSION}`
     );
 
     await ticketCh.send({
-      content: config?.ticketRole ? `<@&${config.ticketRole}>` : '',
-      ...ticketV2,
-      components: [...(ticketV2.components || []), ticketRow],
+      flags: ticketV2.flags,
+      components: [...ticketV2.components, ticketRow],
     });
 
-    await interaction.editReply({ content: `Seu ticket foi aberto: <#${ticketCh.id}>` });
+    await interaction.editReply(v2Simple(C_GREEN, '🎫 Ticket Aberto!', `Seu ticket foi criado em <#${ticketCh.id}>`, `Architect ${VERSION}`));
   } catch (e) {
     console.error('[TICKET]', e.message);
-    await interaction.editReply({ content: `Erro ao criar ticket: ${e.message}` });
+    await interaction.editReply(errorEmbed(`Erro ao criar ticket: ${e.message}`));
   }
 }
 
@@ -1635,7 +1636,7 @@ function startCountdown(interaction, confirmId, prompt, structure, tipo = null) 
       if (pendingCreate.has(confirmId)) {
         pendingCreate.delete(confirmId);
         const expiredPayload = v2Simple(C_RED, '⏱️ Tempo esgotado', 'A confirmação expirou. Use o comando novamente.', `Architect ${VERSION}`);
-        await interaction.editReply({ ...expiredPayload, components: [] }).catch(async () => {
+        await interaction.editReply(expiredPayload).catch(async () => {
           await interaction.user.send(expiredPayload).catch(() => {});
         });
       }
@@ -1732,10 +1733,9 @@ client.on('interactionCreate', async interaction => {
       const { prompt, structure, isPremium } = pendingCreate.get(id);
       pendingCreate.delete(id);
       const steps = [];
-      await interaction.update({
-        ...buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps),
-        components: [],
-      }).catch(() => {});
+      await interaction.update(
+        buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
+      ).catch(() => {});
 
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
@@ -1765,7 +1765,7 @@ client.on('interactionCreate', async interaction => {
           prompt,
         });
 
-        const replyPayload = { ...successEmbed, components: [] };
+        const replyPayload = { ...successEmbed };
         if (imageBuffer) {
           replyPayload.files = [{ attachment: imageBuffer, name: 'architect-resultado.png' }];
         }
@@ -1776,7 +1776,7 @@ client.on('interactionCreate', async interaction => {
         });
       } catch (e) {
         const errEmbed = errorEmbed(e.message);
-        await interaction.editReply({ ...errEmbed, components: [] }).catch(async () => {
+        await interaction.editReply(errEmbed).catch(async () => {
           await interaction.user.send(errEmbed).catch(() => {});
         });
       }
@@ -1789,10 +1789,9 @@ client.on('interactionCreate', async interaction => {
       pendingRestore.delete(id);
       const steps = [];
       const label = new Date(backup.savedAt).toLocaleString('pt-BR');
-      await interaction.update({
-        ...buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps),
-        components: [],
-      }).catch(() => {});
+      await interaction.update(
+        buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
+      ).catch(() => {});
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
         await interaction.editReply({
@@ -1803,7 +1802,7 @@ client.on('interactionCreate', async interaction => {
         await applyStructure(interaction.guild, backup.structure, update);
         await update(E.sucesso, 'Servidor restaurado com sucesso!');
       } catch (e) {
-        await interaction.editReply({ ...errorEmbed(e.message), components: [] }).catch(() => {});
+        await interaction.editReply(errorEmbed(e.message)).catch(() => {});
       }
       return;
     }
@@ -1812,10 +1811,9 @@ client.on('interactionCreate', async interaction => {
     if (action === 'delete' && pendingCreate.has(`del_${id}`)) {
       const { acao, alvo } = pendingCreate.get(`del_${id}`);
       pendingCreate.delete(`del_${id}`);
-      await interaction.update({
-        ...v2Simple(C_RED, `${E.loading} Deletando...`, 'Processando...', `Architect ${VERSION}`),
-        components: [],
-      });
+      await interaction.update(
+        v2Simple(C_RED, `${E.loading} Deletando...`, 'Processando...', `Architect ${VERSION}`)
+      );
       try {
         let deletedCount = 0;
         if (acao === 'delete_all') {
@@ -1836,8 +1834,8 @@ client.on('interactionCreate', async interaction => {
           const names = alvo.replace(/<@&\d+>/g, m => { const r = interaction.guild.roles.cache.get(m.replace(/\D/g, '')); return r ? r.name : ''; }).split(/[\s,]+/).filter(Boolean);
           for (const name of names) { const role = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === name.toLowerCase()); if (role && !role.managed && role.name !== '@everyone') { await role.delete().catch(() => {}); deletedCount++; } }
         }
-        await interaction.editReply({ ...v2Simple(C_GREEN, `${E.sucesso} Deleção Concluída`, `**${deletedCount}** item(s) deletado(s)!`, `Architect ${VERSION}`), components: [] });
-      } catch (e) { await interaction.editReply({ ...errorEmbed(e.message), components: [] }); }
+        await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Deleção Concluída`, `**${deletedCount}** item(s) deletado(s)!`, `Architect ${VERSION}`));
+      } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
       return;
     }
 
@@ -1845,7 +1843,7 @@ client.on('interactionCreate', async interaction => {
     if (action === 'cancel') {
       pendingCreate.delete(id);
       pendingRestore.delete(id);
-      await interaction.update({ ...v2Simple(C_GREY, '🚫 Cancelado', 'Operação cancelada.', `Architect ${VERSION}`), components: [] });
+      await interaction.update(v2Simple(C_GREY, '🚫 Cancelado', 'Operação cancelada.', `Architect ${VERSION}`));
       return;
     }
 
@@ -1907,19 +1905,23 @@ client.on('interactionCreate', async interaction => {
 
       if (remaining > 0) {
         const mins = Math.ceil(remaining / 60000);
-        return interaction.reply({
-          content: `${E.erro} Você já chamou a staff recentemente. Aguarde **${mins} minuto(s)** para chamar novamente.`,
-          ephemeral: true,
-        });
+        // ephemeral puro sem V2 — sem conflito
+        return interaction.reply({ content: `${E.erro} Aguarde **${mins} minuto(s)** para chamar a staff novamente.`, ephemeral: true });
       }
 
       chCooldown.set(uid, now);
 
       const config       = await mongoDB?.collection('guild_configs').findOne({ guildId: interaction.guild.id });
-      const staffMention = config?.ticketRole ? `<@&${config.ticketRole}>` : '@Staff';
+      const staffMention = config?.ticketRole ? `<@&${config.ticketRole}>` : '';
 
+      // Primeiro: ping real em mensagem separada (sem V2, para o Discord processar a menção)
+      if (staffMention) {
+        await interaction.channel?.send({ content: staffMention, allowedMentions: { roles: [config.ticketRole] } }).catch(() => {});
+      }
+
+      // Depois: resposta V2 confirmando
       await interaction.reply({
-        ...v2Simple(C_YELLOW, '🔔 Staff chamada!', `${staffMention} — <@${uid}> está precisando de ajuda neste ticket.`, `Architect ${VERSION}`),
+        ...v2Simple(C_YELLOW, '🔔 Staff Chamada!', `<@${uid}> está precisando de ajuda neste ticket.\n\nA equipe foi notificada e responderá em breve.`, `Architect ${VERSION}`),
       });
       return;
     }
@@ -1931,10 +1933,8 @@ client.on('interactionCreate', async interaction => {
 
       const already = ticketClaimed.get(chId);
       if (already) {
-        return interaction.reply({
-          content: `${E.erro} Este ticket já foi reivindicado por <@${already.staffId}>.`,
-          ephemeral: true,
-        });
+        // ephemeral puro — sem V2
+        return interaction.reply({ content: `${E.erro} Este ticket já foi reivindicado por <@${already.staffId}>.`, ephemeral: true });
       }
 
       ticketClaimed.set(chId, {
@@ -1946,7 +1946,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.reply({
         ...v2Simple(C_GREEN,
           '✋ Ticket Reivindicado',
-          `<@${interaction.user.id}> está atendendo este ticket.\n\nApenas este membro da staff é responsável agora.`,
+          `<@${interaction.user.id}> está atendendo este ticket.\nApenas este membro da staff é responsável agora.`,
           `Architect ${VERSION}`
         ),
       });
@@ -2204,11 +2204,11 @@ client.on('interactionCreate', async interaction => {
       new ButtonBuilder().setCustomId(`restore_confirm_${confirmId}`).setLabel('🔄  Restaurar').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('❌  Cancelar').setStyle(ButtonStyle.Danger),
     );
-    await interaction.reply({ ...v2Simple(C_BLUE,
+    await interaction.reply(v2WithRow(v2Simple(C_BLUE,
       `${E.backup} Restaurar Backup`,
       `> ⚠️ **Isso irá apagar TUDO e restaurar o backup.**\n\n**${E.data} Backup de:** ${new Date(backup.savedAt).toLocaleString('pt-BR')}`,
       `Architect ${VERSION}`
-    ), components: [row] });
+    ), row));
   }
 
   // ── /proteger ────────────────────────────────────────────────────────────────
@@ -2250,7 +2250,7 @@ client.on('interactionCreate', async interaction => {
       new ButtonBuilder().setCustomId(`delete_confirm_${confirmId}`).setLabel('🗑️  Deletar').setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('❌  Cancelar').setStyle(ButtonStyle.Secondary),
     );
-    await interaction.reply({ ...v2Simple(C_RED, '⚠️ Confirmar Deleção', `> ⚠️ **Esta ação é irreversível!**\n\n${descricao}`, `Architect ${VERSION}`), components: [row] });
+    await interaction.reply(v2WithRow(v2Simple(C_RED, '⚠️ Confirmar Deleção', `> ⚠️ **Esta ação é irreversível!**\n\n${descricao}`, `Architect ${VERSION}`), row));
   }
 
   // ── /cargo_criar ─────────────────────────────────────────────────────────────
@@ -2421,7 +2421,8 @@ client.on('interactionCreate', async interaction => {
     if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
     try {
       const anuncioV2 = v2Simple(C_ORANGE, `📢 ${titulo}`, mensagem, `Anúncio por ${member.user.tag} · Architect ${VERSION}`);
-      await canal.send({ content: marcar ? '@everyone' : null, ...anuncioV2 });
+      if (marcar) await canal.send({ content: '@everyone', allowedMentions: { parse: ['everyone'] } }).catch(() => {});
+      await canal.send(anuncioV2);
       await interaction.reply({ content: `${E.sucesso} Anúncio enviado em <#${canal.id}>!`, ephemeral: true });
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
   }
@@ -2896,7 +2897,10 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
       components.push(new ActionRowBuilder().addComponents(btn));
     }
 
-    await channel.send({ ...deployV2, components });
+    await channel.send({
+      flags: deployV2.flags,
+      components: [...deployV2.components, ...components],
+    });
     res.json({ ok: true });
   } catch (e) {
     console.error('[API /ticket/deploy]', e.message);
