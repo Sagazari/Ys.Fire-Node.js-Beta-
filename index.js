@@ -1529,26 +1529,30 @@ function formatETA(secs) {
 
 function buildQueueEmbed(prompt, laneName, position, secsAhead) {
   const isPrem    = laneName === 'premium';
-  const laneLabel = isPrem ? 'Premium' : 'Normal';
-  const maxDisplay = 10;
+  const laneLabel = isPrem ? '✦ Premium' : 'Normal';
+  const maxDisplay = 12;
   const filled = Math.max(0, maxDisplay - Math.min(position - 1, maxDisplay));
   const bar = `\`[${'█'.repeat(filled)}${'░'.repeat(maxDisplay - filled)}]\``;
 
   const normalQ  = lanes.normal.queue.filter(e => e.userId !== null).length;
   const premiumQ = lanes.premium.queue.filter(e => e.userId !== null).length;
 
+  // Ícone dinâmico por posição
+  const posIcon = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `#${position}`;
+
   const content = [
-    `## ${isPrem ? '<:vip:1500524460221005854>' : '🟦'} Fila ${laneLabel} — Posição #${position}`,
-    `> **${prompt.substring(0, 80)}${prompt.length > 80 ? '…' : ''}**`,
-    `> Aguardando na fila. Este painel atualiza automaticamente.`,
+    `## ${isPrem ? E.premium : '🟦'} Fila ${laneLabel} — Posição ${posIcon}`,
+    `> *${prompt.substring(0, 80)}${prompt.length > 80 ? '…' : ''}*`,
     ``,
-    `**Posição:** #${position}   **Tempo estimado:** ${formatETA(secsAhead)}   **Tipo:** ${laneLabel}`,
+    `**⏳ Tempo estimado:** ${formatETA(secsAhead)}`,
+    `**Tipo de fila:** ${isPrem ? `${E.premium} Premium` : '🟦 Normal'}`,
     `**Progresso:** ${bar}`,
     ``,
-    `🟦 **Fila Normal** ${lanes.normal.busy ? '<:configuracao:1500524495562215455>' : '<:aceitar:1500524505746116800>'} — ${normalQ} aguardando`,
-    `<:vip:1500524460221005854> **Fila Premium** ${lanes.premium.busy ? '<:configuracao:1500524495562215455>' : '<:aceitar:1500524505746116800>'} — ${premiumQ} aguardando`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `🟦 **Fila Normal** ${lanes.normal.busy ? E.loading : E.sucesso} — ${normalQ} na fila`,
+    `${E.premium} **Fila Premium** ${lanes.premium.busy ? E.loading : E.sucesso} — ${premiumQ} na fila`,
     ``,
-    `-# Architect ${VERSION} · architect.velroc.workers.dev`,
+    `-# Architect ${VERSION} · Este painel atualiza automaticamente`,
   ].join('\n');
 
   return {
@@ -1564,14 +1568,20 @@ function buildAnalysisEmbed(prompt, logs) {
       : `${E.check} \`${l.tag}\` ${l.msg}`
     ).join('\n') || `${E.gerando} \`INIT\` Iniciando análise...`;
 
-  const lastTag = logs.length > 0 ? logs[logs.length - 1].tag : '';
-  const done = lastTag === 'CONCLUÍDO';
+  const lastTag  = logs.length > 0 ? logs[logs.length - 1].tag : '';
+  const done     = lastTag === 'CONCLUÍDO';
+  const total    = 5; // etapas: ANÁLISE, MISTRAL, CARGOS, CATEGORIAS, BOAS-VINDAS/REGRAS
+  const progress = done ? total : Math.min(logs.length, total);
+  const barFilled = Math.round((progress / total) * 16);
+  const bar = `\`[${'█'.repeat(barFilled)}${'░'.repeat(16 - barFilled)}] ${Math.round((progress / total) * 100)}%\``;
 
   const content = [
-    `## ${done ? '<:aceitar:1500524505746116800> Geração concluída' : `${E.gerando} Gerando estrutura…`}`,
-    `> ${prompt.substring(0, 150)}${prompt.length > 150 ? '…' : ''}`,
+    `## ${done ? `${E.sucesso} Geração concluída!` : `${E.gerando} Gerando estrutura…`}`,
+    `> *${prompt.substring(0, 150)}${prompt.length > 150 ? '…' : ''}*`,
     ``,
-    `**Log de progresso:**`,
+    `**Progresso:** ${bar}`,
+    ``,
+    `**Log em tempo real:**`,
     logLines,
     ``,
     `-# Architect ${VERSION} · Powered by Mistral AI`,
@@ -1590,41 +1600,62 @@ function buildCountdownBar(seconds, total) {
 
 function buildConfirmEmbed(prompt, structure, secondsLeft) {
   const totalChannels = structure.categories.reduce((a, c) => a + (c.channels?.length || 0), 0);
-  const urgent = secondsLeft <= 20;
+  const urgent  = secondsLeft <= 20;
+  const warning = secondsLeft <= 40 && secondsLeft > 20;
+
+  // Barra de progresso colorida por urgência
+  const barIcon = urgent ? '🔴' : warning ? '🟡' : '🟢';
+
+  // Preview de categorias (máx 4)
+  const catPreview = (structure.categories || []).slice(0, 4)
+    .map(c => `> ${E.cats} **${c.name}** — ${c.channels?.length || 0} canais`)
+    .join('\n');
+  const moreCount = Math.max(0, (structure.categories?.length || 0) - 4);
 
   const content = [
-    `## <:atencao:1500524473827459263> Confirmar criação do servidor`,
-    `> Essa ação vai **apagar toda a estrutura atual** e recriar do zero. Revise antes de confirmar.`,
+    `## <:atencao:1500524473827459263> Confirmação de Criação`,
+    `> ⚠️ Esta ação **apagará toda a estrutura atual** e recriará do zero.`,
     ``,
-    `**Prompt:** ${prompt.substring(0, 200)}`,
+    `**<:lista:1500524503778988072> Prompt:**`,
+    `> *${prompt.substring(0, 180)}${prompt.length > 180 ? '…' : ''}*`,
     ``,
-    `**Cargos:** ${structure.roles?.length || 0}   **Categorias:** ${structure.categories?.length || 0}   **Canais:** ${totalChannels}`,
+    `**${E.servidores} Resumo da estrutura:**`,
+    `> ${E.cargos} **${structure.roles?.length || 0}** cargos  ·  ${E.cats} **${structure.categories?.length || 0}** categorias  ·  ${E.canais} **${totalChannels}** canais`,
     ``,
-    `**<:time:1500524456840400999> Expira em ${secondsLeft}s:** ${buildCountdownBar(secondsLeft, 60)}`,
+    ...(catPreview ? [`**Categorias:**`, catPreview, ...(moreCount > 0 ? [`> *… e mais ${moreCount} categoria(s)*`] : []), ``] : []),
+    `**${barIcon} Expira em ${secondsLeft}s:** ${buildCountdownBar(secondsLeft, 60)}`,
     ``,
-    `-# Architect ${VERSION} · Confirme antes do tempo acabar`,
+    `-# Architect ${VERSION} · Confirme ou cancele antes do tempo acabar`,
   ].join('\n');
 
   return {
     flags: MessageFlags.IsComponentsV2,
-    components: [v2Container(urgent ? C_RED : C_ORANGE, content)],
+    components: [v2Container(urgent ? C_RED : warning ? C_YELLOW : C_ORANGE, content)],
   };
 }
 
 function buildProgressEmbed(title, info, steps) {
-  const last = steps.slice(-8);
+  const last = steps.slice(-10);
   const log  = last.length > 0
     ? last.map((s, i) => i === last.length - 1 ? `${E.gerando} ${s}` : `${E.check} ${s}`).join('\n')
     : `${E.gerando} Iniciando...`;
 
+  // Estima progresso pelo número de steps
+  const estimatedTotal = 40;
+  const pct  = Math.min(100, Math.round((steps.length / estimatedTotal) * 100));
+  const barF = Math.round(pct / 6.25); // 16 blocos
+  const bar  = `\`[${'█'.repeat(barF)}${'░'.repeat(16 - barF)}] ${pct}%\``;
+
   const content = [
     `## ${title}`,
-    `> ${info.substring(0, 150)}`,
+    `> *${info.substring(0, 150)}*`,
     ``,
-    `**Progresso:**`,
+    `**Construção:** ${bar}`,
+    ``,
+    `**Log:**`,
     log,
     ``,
-    `-# Architect ${VERSION}`,
+    `-# Architect ${VERSION} · Não feche o Discord durante a construção`,
   ].join('\n');
 
   return {
@@ -1645,8 +1676,16 @@ function errPayload(msg) { return errorEmbed(msg); }
 
 function buildConfirmRow(confirmId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`create_confirm_${confirmId}`).setLabel('<:aceitar:1500524505746116800> Confirmar').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('<:negar:1500524485231509785> Cancelar').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`create_confirm_${confirmId}`)
+      .setLabel('Confirmar')
+      .setEmoji({ id: '1500524505746116800', name: 'aceitar' })
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`cancel_confirm_${confirmId}`)
+      .setLabel('Cancelar')
+      .setEmoji({ id: '1500524485231509785', name: 'negar' })
+      .setStyle(ButtonStyle.Danger),
   );
 }
 
@@ -1766,9 +1805,15 @@ client.on('interactionCreate', async interaction => {
       const { prompt, structure, isPremium } = pendingCreate.get(id);
       pendingCreate.delete(id);
       const steps = [];
-      await interaction.update(
-        buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
-      ).catch(() => {});
+
+      // FIX: tenta update, se falhar usa deferUpdate para garantir resposta ao Discord
+      try {
+        await interaction.update(
+          buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
+        );
+      } catch (_) {
+        try { await interaction.deferUpdate(); } catch (__) {}
+      }
 
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
@@ -1780,11 +1825,31 @@ client.on('interactionCreate', async interaction => {
       try {
         await applyStructure(interaction.guild, structure, update);
         const totalChannels = structure.categories?.reduce((a, c) => a + (c.channels?.length || 0), 0) || 0;
-        const successEmbed  = v2Simple(C_GREEN,
-          `${E.sucesso} Servidor criado com sucesso!`,
-          `**Cargos:** ${structure.roles?.length || 0}   **Categorias:** ${structure.categories?.length || 0}   **Canais:** ${totalChannels}`,
-          `Architect ${VERSION} · architect.velroc.workers.dev`
-        );
+
+        // Resumo de tipos de canais
+        const allChannels = (structure.categories || []).flatMap(c => c.channels || []);
+        const countByType = allChannels.reduce((acc, ch) => { acc[ch.type || 'text'] = (acc[ch.type || 'text'] || 0) + 1; return acc; }, {});
+        const typeLines = Object.entries(countByType)
+          .map(([t, n]) => {
+            const icons = { text: '<:canal:1500524470270562304>', voice: '🔊', forum: '<:lista:1500524503778988072>', announcement: '<:avisos:1500524507171918006>', stage: '🎙️' };
+            return `${icons[t] || '📌'} **${n}** ${t}`;
+          }).join('  ·  ');
+
+        const successContent = [
+          `## ${E.sucesso} Servidor criado com sucesso!`,
+          ``,
+          `> Toda a estrutura foi aplicada com sucesso no servidor.`,
+          ``,
+          `**${E.cargos} Cargos:** ${structure.roles?.length || 0}  ·  **${E.cats} Categorias:** ${structure.categories?.length || 0}  ·  **${E.canais} Canais:** ${totalChannels}`,
+          ...(typeLines ? [`**Distribuição:** ${typeLines}`] : []),
+          ``,
+          `-# Architect ${VERSION} · architect.velroc.workers.dev`,
+        ].join('\n');
+
+        const successEmbed = {
+          flags: MessageFlags.IsComponentsV2,
+          components: [v2Container(C_GREEN, successContent)],
+        };
 
         // Gera o card de imagem
         const guild = interaction.guild;
@@ -1822,9 +1887,14 @@ client.on('interactionCreate', async interaction => {
       pendingRestore.delete(id);
       const steps = [];
       const label = new Date(backup.savedAt).toLocaleString('pt-BR');
-      await interaction.update(
-        buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
-      ).catch(() => {});
+      // FIX: tenta update, se falhar usa deferUpdate
+      try {
+        await interaction.update(
+          buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
+        );
+      } catch (_) {
+        try { await interaction.deferUpdate(); } catch (__) {}
+      }
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
         await interaction.editReply({
@@ -1876,7 +1946,11 @@ client.on('interactionCreate', async interaction => {
     if (action === 'cancel') {
       pendingCreate.delete(id);
       pendingRestore.delete(id);
-      await interaction.update(v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada.', `Architect ${VERSION}`));
+      try {
+        await interaction.update(v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada pelo usuário.', `Architect ${VERSION}`));
+      } catch (_) {
+        try { await interaction.reply({ ...v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada.', `Architect ${VERSION}`), flags: MessageFlags.Ephemeral }); } catch (__) {}
+      }
       return;
     }
 
