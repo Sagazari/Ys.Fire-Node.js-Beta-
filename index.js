@@ -2308,8 +2308,16 @@ client.on('interactionCreate', async interaction => {
     pendingRestore.set(confirmId, { backup });
     setTimeout(() => pendingRestore.delete(confirmId), 60000);
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`restore_confirm_${confirmId}`).setLabel('<:recarregando:1500524465249845368>  Restaurar').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('<:negar:1500524485231509785>  Cancelar').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`restore_confirm_${confirmId}`)
+        .setLabel('Restaurar')
+        .setEmoji({ id: '1500524465249845368', name: 'recarregando' })
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`cancel_confirm_${confirmId}`)
+        .setLabel('Cancelar')
+        .setEmoji({ id: '1500524485231509785', name: 'negar' })
+        .setStyle(ButtonStyle.Danger),
     );
     await interaction.reply(v2WithRow(v2Simple(C_BLUE,
       `${E.backup} Restaurar Backup`,
@@ -2354,8 +2362,16 @@ client.on('interactionCreate', async interaction => {
     setTimeout(() => pendingCreate.delete(`del_${confirmId}`), 60000);
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`delete_confirm_${confirmId}`).setLabel('<:deletar:1500524511081140384>  Deletar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('<:negar:1500524485231509785>  Cancelar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`delete_confirm_${confirmId}`)
+        .setLabel('Deletar')
+        .setEmoji({ id: '1500524511081140384', name: 'deletar' })
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`cancel_confirm_${confirmId}`)
+        .setLabel('Cancelar')
+        .setEmoji({ id: '1500524485231509785', name: 'negar' })
+        .setStyle(ButtonStyle.Secondary),
     );
     await interaction.reply(v2WithRow(v2Simple(C_RED, '<:atencao:1500524473827459263> Confirmar Deleção', `> <:atencao:1500524473827459263> **Esta ação é irreversível!**\n\n${descricao}`, `Architect ${VERSION}`), row));
   }
@@ -2715,11 +2731,19 @@ client.on('interactionCreate', async interaction => {
   }
 
   } catch (err) {
-    console.error('[INTERACTION] Uncaught error:', err?.message || err);
-    const errMsg = { ...errorEmbed('Ocorreu um erro inesperado. Por favor, tente novamente.'), flags: MessageFlags.Ephemeral };
+    // Ignora silenciosamente erros de "já confirmada" — não há nada a fazer
+    const ALREADY_REPLIED = ['InteractionAlreadyReplied', 'already been acknowledged'];
+    if (ALREADY_REPLIED.some(s => err?.message?.includes(s) || err?.name?.includes(s))) return;
+
+    console.error('[INTERAÇÃO] Erro não detectado:', err?.message || err);
+
+    // Só tenta responder se a interaction ainda não foi respondida
+    if (interaction.replied || interaction.deferred) return;
     try {
-      if (interaction.deferred || interaction.replied) await interaction.editReply(errMsg).catch(() => {});
-      else await interaction.reply(errMsg).catch(() => {});
+      await interaction.reply({
+        ...errorEmbed('Ocorreu um erro inesperado. Tente novamente.'),
+        flags: MessageFlags.Ephemeral,
+      });
     } catch (_) {}
   }
 });
