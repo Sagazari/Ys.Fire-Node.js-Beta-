@@ -116,10 +116,10 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
 
     // ── Cards de estatísticas ──────────────────────────────────────────────────
     const stats = [
-      { label: 'Cargos',      value: String(roles),      emoji: '🏷️' },
-      { label: 'Categorias',  value: String(categories), emoji: '📂' },
-      { label: 'Canais',      value: String(channels),   emoji: '💬' },
-      { label: 'Tipo',        value: isPremium ? 'Premium' : 'Normal', emoji: isPremium ? '👑' : '🔷' },
+      { label: 'Cargos',      value: String(roles),      emoji: '<:roles:1500524514470133853>' },
+      { label: 'Categorias',  value: String(categories), emoji: '<:categoria:1500524490214473758>' },
+      { label: 'Canais',      value: String(channels),   emoji: '<:canal:1500524470270562304>' },
+      { label: 'Tipo',        value: isPremium ? 'Premium' : 'Normal', emoji: isPremium ? '<:vip:1500524460221005854>' : '🔷' },
     ];
 
     const cardW   = 180;
@@ -213,14 +213,14 @@ const MISTRAL_KEYS = {
 };
 
 if (!MISTRAL_KEYS.normal) {
-  console.error('❌ MISTRAL_KEY_A não encontrada! Defina no .env.');
+  console.error('<:negar:1500524485231509785> MISTRAL_KEY_A não encontrada! Defina no .env.');
   process.exit(1);
 }
 if (!MISTRAL_KEYS.premium) {
-  console.warn('⚠️  MISTRAL_KEY_B não encontrada — Premium usará a fila normal.');
+  console.warn('<:atencao:1500524473827459263>  MISTRAL_KEY_B não encontrada — Premium usará a fila normal.');
   MISTRAL_KEYS.premium = MISTRAL_KEYS.normal;
 }
-console.log(`✅ Filas Mistral ativas: Normal (KEY_A) | Premium (KEY_B)`);
+console.log(`<:aceitar:1500524505746116800> Filas Mistral ativas: Normal (KEY_A) | Premium (KEY_B)`);
 
 // ── Sistema de 2 Filas ────────────────────────────────────────────────────────
 const SECS_PER_GENERATION = 12;
@@ -271,7 +271,7 @@ async function processLane(laneName) {
   let taskDone = false;
   const safetyTimeout = setTimeout(() => {
     if (!taskDone) {
-      console.error(`[LANE/${laneName}] ⚠️ Timeout de segurança acionado — lane desbloqueada forçadamente.`);
+      console.error(`[LANE/${laneName}] <:atencao:1500524473827459263> Timeout de segurança acionado — lane desbloqueada forçadamente.`);
       entry.reject(new Error('Timeout de segurança da lane.'));
       lane.busy = false;
       processLane(laneName);
@@ -294,31 +294,31 @@ async function processLane(laneName) {
 
 // ── Custom Emojis ──────────────────────────────────────────────────────────────
 const E = {
-  check:      '<a:deucerto:1487554877986050099>',
+  check:      '<:aceitar:1500524505746116800>',
   aguardando: '<:construcao_aguardando:1493438811965882408>',
-  sucesso:    '<:construcao_sucesso:1493438814532927651>',
-  cargos:     '<:cargos:1493438816214585354>',
-  canais:     '<:canais:1493438818152616196>',
-  loading:    '<a:carregando:1493438820077666476>',
-  config:     '<:config:1493438822103650525>',
-  servidores: '<:servidores:1493438824041156702>',
-  erro:       '<:construcao_erro:1493438826163601408>',
-  backup:     '<:backup:1493438828206358660>',
-  banido:     '<:banido:1493438843574292611>',
-  mutado:     '<:mutado:1493438846288003102>',
-  lock:       '<a:lock:1493438851648196750>',
-  unlock:     '<a:unlock:1493438855448105133>',
-  premium:    '<a:premium:1493438858413477938>',
-  data:       '<:data:1493438862158991551>',
-  membros:    '<:membros:1493438860187926698>',
+  sucesso:    '<:aceitar:1500524505746116800>',
+  cargos:     '<:roles:1500524514470133853>',
+  canais:     '<:canal:1500524470270562304>',
+  loading:    '<:recarregando:1500524465249845368>',
+  config:     '<:configuracao:1500524495562215455>',
+  servidores: '<:system:1500524458467918027>',
+  erro:       '<:erro:1500524467648991252>',
+  backup:     '<:download:1500524477078044672>',
+  banido:     '<:ban:1500524478805971006>',
+  mutado:     '<:mutad9:1500524453992333484>',
+  lock:       '<:lockcanal:1500524516324147470>',
+  unlock:     '<:unlockcanal:1500524519612485853>',
+  premium:    '<:vip:1500524460221005854>',
+  data:       '<:time:1500524456840400999>',
+  membros:    '<:members:1500524517775245445>',
   // ── Novos emojis Velroc ───────────────────────────────────────────────────
-  velroc:     '<:velroc:1495983146162852071>',
-  bot:        '<:architect_bot:1495983143918768309>',
+  velroc:     '<:desenvolvedor:1500524499508920572>',
+  bot:        '<:system:1500524458467918027>',
   no:         '<:no:1495982751281578110>',
-  gerando:    '<a:gerandomelhor:1495982749654323340>',
-  cats:       '<:categorias:1495982744608444537>',
-  info:       '<:info:1495982742884712498>',
-  total:      '<a:total:1495982740871581726>',
+  gerando:    '<:recarregando:1500524465249845368>',
+  cats:       '<:categoria:1500524490214473758>',
+  info:       '<:informacao:1500524487177801788>',
+  total:      '<:lista:1500524503778988072>',
   dev:        '<a:dev:1495982732981829763>',
 };
 
@@ -394,9 +394,9 @@ async function getGuildLang(guildId) {
 // ── Premium System ─────────────────────────────────────────────────────────────
 const PREMIUM_OWNERS = ['1449734825819897936', '1307428996337897553'];
 const PREMIUM_PLANS  = {
-  semanal: { label: 'Semanal', days: 7,   emoji: '⚡' },
-  mensal:  { label: 'Mensal',  days: 30,  emoji: '💎' },
-  anual:   { label: 'Anual',   days: 365, emoji: '👑' },
+  semanal: { label: 'Semanal', days: 7,   emoji: '<:system:1500524458467918027>' },
+  mensal:  { label: 'Mensal',  days: 30,  emoji: '<:nitro:1500524497688723566>' },
+  anual:   { label: 'Anual',   days: 365, emoji: '<:vip:1500524460221005854>' },
 };
 
 async function getPremium(userId) {
@@ -604,7 +604,7 @@ async function connectDB() {
   const mc = new MongoClient(process.env.MONGO_URI);
   await mc.connect();
   mongoDB = mc.db('architect');
-  console.log('✅ MongoDB conectado!');
+  console.log('<:aceitar:1500524505746116800> MongoDB conectado!');
 }
 
 async function saveBackup(guildId, guildName, structure) {
@@ -647,7 +647,7 @@ function trackNukeAction(guildId, userId) {
 
 // ── Ticket Handler ────────────────────────────────────────────────────────────
 async function handleTicketOpen(interaction, categoryName) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   try {
     const guild  = interaction.guild;
     const member = interaction.member;
@@ -659,7 +659,7 @@ async function handleTicketOpen(interaction, categoryName) {
       (c.topic && c.topic.includes(member.id))
     );
     if (existingCh) {
-      return interaction.editReply(v2Simple(C_YELLOW, '🎫 Ticket já aberto', `Você já tem um ticket aberto: <#${existingCh.id}>`, `Architect ${VERSION}`));
+      return interaction.editReply(v2Simple(C_YELLOW, '<:ticket:1500524512607862884> Ticket já aberto', `Você já tem um ticket aberto: <#${existingCh.id}>`, `Architect ${VERSION}`));
     }
 
     // Find or use configured category
@@ -693,24 +693,24 @@ async function handleTicketOpen(interaction, categoryName) {
       new ButtonBuilder()
         .setCustomId(`ticket_close_${ticketCh.id}`)
         .setLabel('Fechar Ticket')
-        .setEmoji('🔒')
+        .setEmoji('<:lockcanal:1500524516324147470>')
         .setStyle(ButtonStyle.Danger),
       new ButtonBuilder()
         .setCustomId(`ticket_call_staff_${ticketCh.id}`)
         .setLabel('Chamar Staff')
-        .setEmoji('🔔')
+        .setEmoji('<:notificacao:1500524483801251890>')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`ticket_claim_${ticketCh.id}`)
         .setLabel('Reivindicar')
-        .setEmoji('✋')
+        .setEmoji({ id: '1500524517775245445', name: 'members' })
         .setStyle(ButtonStyle.Primary),
     );
 
     const staffMentionText = config?.ticketRole ? `<@&${config.ticketRole}> — novo ticket aberto!\n\n` : '';
 
     const ticketV2 = v2Simple(C_ORANGE,
-      `🎫 Ticket — ${categoryName || 'Suporte'}`,
+      `<:ticket:1500524512607862884> Ticket — ${categoryName || 'Suporte'}`,
       `${staffMentionText}Olá, <@${member.id}>! Descreva seu problema e a equipe responderá em breve.\n\n**Usuário:** ${member.user.tag}\n**Categoria:** ${categoryName || 'Suporte'}\n**Aberto em:** ${new Date().toLocaleString('pt-BR')}`,
       `Architect ${VERSION}`
     );
@@ -720,7 +720,7 @@ async function handleTicketOpen(interaction, categoryName) {
       components: [...ticketV2.components, ticketRow],
     });
 
-    await interaction.editReply(v2Simple(C_GREEN, '🎫 Ticket Aberto!', `Seu ticket foi criado em <#${ticketCh.id}>`, `Architect ${VERSION}`));
+    await interaction.editReply(v2Simple(C_GREEN, '<:ticket:1500524512607862884> Ticket Aberto!', `Seu ticket foi criado em <#${ticketCh.id}>`, `Architect ${VERSION}`));
   } catch (e) {
     console.error('[TICKET]', e.message);
     await interaction.editReply(errorEmbed(`Erro ao criar ticket: ${e.message}`));
@@ -732,7 +732,7 @@ async function generateStructure(prompt, onLog, isPremium = false) {
   const laneName = getLaneName(isPremium);
   prompt = prompt.replace(/"/g, "'").replace(/`/g, "'").trim();
 
-  await onLog(E.gerando, 'ANÁLISE',  `Interpretando prompt${isPremium ? ' (Premium ✨)' : ''}...`);
+  await onLog(E.gerando, 'ANÁLISE',  `Interpretando prompt${isPremium ? ' (Premium <:nitro:1500524497688723566>)' : ''}...`);
   await onLog(E.loading, 'MISTRAL',  `Conectando via Fila ${isPremium ? 'Premium' : 'Normal'}...`);
 
   // ─── ETAPA 1: Cargos ───────────────────────────────────────────────────────
@@ -786,8 +786,8 @@ THINK before generating:
 Generate the complete role hierarchy. Every role must serve a clear purpose and feel like it was designed by a human expert for this specific community.
 
 Return ONLY a raw JSON array (no markdown, no backticks):
-[{"name":"👑 Proprietário","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Silenciado","color":"#636e72","hoist":false,"mentionable":false,"permissions":[]}]`
-    : `Server: "${prompt}"\n\nReturn JSON array:\n[{"name":"👑 Dono","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Mutado","color":"#7f8c8d","hoist":false,"mentionable":false,"permissions":[]}]\nGenerate all ${minRoles}–${maxRoles} roles. Return only the JSON array.`;
+[{"name":"<:vip:1500524460221005854> Proprietário","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"<:mutad9:1500524453992333484> Silenciado","color":"#636e72","hoist":false,"mentionable":false,"permissions":[]}]`
+    : `Server: "${prompt}"\n\nReturn JSON array:\n[{"name":"<:vip:1500524460221005854> Dono","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"<:mutad9:1500524453992333484> Mutado","color":"#7f8c8d","hoist":false,"mentionable":false,"permissions":[]}]\nGenerate all ${minRoles}–${maxRoles} roles. Return only the JSON array.`;
 
   let roles;
   try {
@@ -854,14 +854,14 @@ RULES:
   // ── Sorteia estilos UMA VEZ aqui no código — a IA recebe apenas o escolhido ──
   // Isso garante que TODOS os canais e categorias usem exatamente 1 estilo cada.
   const CAT_STYLES = [
-    { id: 'A', pattern: 'EMOJI ✦ NAME',  example: '╭──── 📋 ✦ Informações' },
+    { id: 'A', pattern: 'EMOJI ✦ NAME',  example: '╭──── <:lista:1500524503778988072> ✦ Informações' },
     { id: 'B', pattern: '➢ NAME',        example: '➢ INFORMAÇÕES' },
-    { id: 'C', pattern: '╭⎯⎯⎯╴ ✦ EMOJI NAME', example: '╭⎯⎯⎯╴ ✦ 📋 Informações' },
+    { id: 'C', pattern: '╭⎯⎯⎯╴ ✦ EMOJI NAME', example: '╭⎯⎯⎯╴ ✦ <:lista:1500524503778988072> Informações' },
   ];
   const CH_STYLES = [
-    { id: '1', sep: '┃',  example: '📢┃avisos' },
-    { id: '2', sep: '」', example: '「📢」avisos' },
-    { id: '3', sep: '╺╸', example: '📢╺╸avisos' },
+    { id: '1', sep: '┃',  example: '<:avisos:1500524507171918006>┃avisos' },
+    { id: '2', sep: '」', example: '「<:avisos:1500524507171918006>」avisos' },
+    { id: '3', sep: '╺╸', example: '<:avisos:1500524507171918006>╺╸avisos' },
   ];
   const chosenCatStyle = CAT_STYLES[Math.floor(Math.random() * CAT_STYLES.length)];
   const chosenChStyle  = CH_STYLES[Math.floor(Math.random() * CH_STYLES.length)];
@@ -962,8 +962,8 @@ ANTI-PATTERNS TO AVOID:
 REMINDER: Category style is ${chosenCatStyle.id}, channel style is ${chosenChStyle.id}. Apply to 100% of items.
 
 Return ONLY a raw JSON array:
-[{"name":"${chosenCatStyle.example.replace('Informações','Informações')}","allowedRoles":["👑 Proprietário","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais da equipe. Apenas a staff publica aqui.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Leia antes de participar. O descumprimento resulta em punição.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]`
-    : `Server: "${prompt}"\nRoles: ${roleNames}\n\nSTYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.\n\nReturn JSON array:\n[{"name":"${chosenCatStyle.example}","allowedRoles":["👑 Dono","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nVary channel counts. Return only the JSON array.`;
+[{"name":"${chosenCatStyle.example.replace('Informações','Informações')}","allowedRoles":["<:vip:1500524460221005854> Proprietário","<:aceitar:1500524505746116800> Membro"],"channels":[{"name":"<:avisos:1500524507171918006>${chSep}avisos","type":"announcement","topic":"Comunicados oficiais da equipe. Apenas a staff publica aqui.","allowedRoles":["<:vip:1500524460221005854> Proprietário","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Leia antes de participar. O descumprimento resulta em punição.","allowedRoles":["<:vip:1500524460221005854> Proprietário","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false}]}]`
+    : `Server: "${prompt}"\nRoles: ${roleNames}\n\nSTYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.\n\nReturn JSON array:\n[{"name":"${chosenCatStyle.example}","allowedRoles":["<:vip:1500524460221005854> Dono","<:aceitar:1500524505746116800> Membro"],"channels":[{"name":"<:avisos:1500524507171918006>${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["<:vip:1500524460221005854> Dono","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["<:vip:1500524460221005854> Dono","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nVary channel counts. Return only the JSON array.`;
 
   let categories;
   try {
@@ -1016,9 +1016,9 @@ Return ONLY a raw JSON array:
             // Remove 「 」 soltos
             bare = bare.replace(/^「/, '').replace(/」$/, '').trim();
             // Reconstrói com o separador correto
-            if (chosenChStyle.id === '1') chName = emoji ? `${emoji}┃${bare}` : `📌┃${bare}`;
-            else if (chosenChStyle.id === '2') chName = emoji ? `「${emoji}」${bare}` : `「📌」${bare}`;
-            else chName = emoji ? `${emoji}╺╸${bare}` : `📌╺╸${bare}`;
+            if (chosenChStyle.id === '1') chName = emoji ? `${emoji}┃${bare}` : `<:fixar:1500524455514865776>┃${bare}`;
+            else if (chosenChStyle.id === '2') chName = emoji ? `「${emoji}」${bare}` : `「<:fixar:1500524455514865776>」${bare}`;
+            else chName = emoji ? `${emoji}╺╸${bare}` : `<:fixar:1500524455514865776>╺╸${bare}`;
 
             return {
               name:             chName.substring(0, 100),
@@ -1222,6 +1222,7 @@ async function captureStructure(guild) {
 // ── Apply Structure ────────────────────────────────────────────────────────────
 // FIX: valida estrutura antes de deletar qualquer coisa
 async function applyStructure(guild, structure, onStep) {
+  const step = typeof onStep === 'function' ? onStep : async () => {};
   // Garante que temos dados válidos antes de qualquer deleção
   if (!structure.roles?.length && !structure.categories?.length) {
     throw new Error('Estrutura inválida: sem cargos nem categorias para criar. Operação cancelada.');
@@ -1230,7 +1231,7 @@ async function applyStructure(guild, structure, onStep) {
   console.log(`[APPLY] Iniciando — roles: ${structure.roles?.length}, categories: ${structure.categories?.length}`);
 
   // 1. Remover canais
-  await onStep(E.canais, 'Removendo canais existentes...');
+  await step(E.canais, 'Removendo canais existentes...');
   const existingChannels = await guild.channels.fetch();
   for (const [, ch] of existingChannels) {
     await ch.delete().catch(e => console.error('[APPLY] Erro ao deletar canal:', e.message));
@@ -1238,7 +1239,7 @@ async function applyStructure(guild, structure, onStep) {
   await new Promise(r => setTimeout(r, 1000));
 
   // 2. Remover cargos
-  await onStep(E.cargos, 'Removendo cargos existentes...');
+  await step(E.cargos, 'Removendo cargos existentes...');
   const existingRoles = await guild.roles.fetch();
   for (const [, role] of existingRoles) {
     if (!role.managed && role.name !== '@everyone') {
@@ -1255,7 +1256,7 @@ async function applyStructure(guild, structure, onStep) {
   // 4. Restaurar configurações do servidor
   if (structure.server) {
     try {
-      await onStep(E.config, 'Restaurando configurações do servidor...');
+      await step(E.config, 'Restaurando configurações do servidor...');
       await guild.edit({
         name:                       structure.server.name,
         description:                structure.server.description || structure.serverDescription || null,
@@ -1268,7 +1269,7 @@ async function applyStructure(guild, structure, onStep) {
   }
 
   // 5. Criar cargos
-  await onStep(E.cargos, 'Criando cargos...');
+  await step(E.cargos, 'Criando cargos...');
   const createdRoles  = new Map();
   const rolesToCreate = [...(structure.roles || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
   console.log(`[APPLY] Criando ${rolesToCreate.length} cargos...`);
@@ -1278,7 +1279,7 @@ async function applyStructure(guild, structure, onStep) {
       const safeColor = /^#[0-9A-Fa-f]{6}$/.test(r.color) ? r.color : '#99aab5';
       const roleData  = {
         name:        r.name,
-        color:       safeColor,
+        colors:      [safeColor],   // discord.js v14.16+ usa "colors" (array)
         hoist:       r.hoist       || false,
         mentionable: r.mentionable || false,
         permissions: Array.isArray(r.permissions) ? buildPermissions(r.permissions) : (r.permissions || 0n),
@@ -1287,7 +1288,7 @@ async function applyStructure(guild, structure, onStep) {
       const role = await guild.roles.create(roleData);
       createdRoles.set(r.name, role);
       console.log(`[APPLY] Cargo criado: ${r.name}`);
-      await onStep(E.sucesso, `Cargo: **${r.name}**`);
+      await step(E.sucesso, `Cargo: **${r.name}**`);
       await new Promise(r => setTimeout(r, 250));
     } catch (e) { console.error(`[APPLY] Cargo "${r.name}":`, e.message); }
   }
@@ -1330,6 +1331,33 @@ async function applyStructure(guild, structure, onStep) {
     text:         ChannelType.GuildText,
   };
 
+  // Tipos que exigem boost ou permissão especial — fallback para text/voice se falhar
+  const FALLBACK = {
+    [ChannelType.GuildAnnouncement]: ChannelType.GuildText,
+    [ChannelType.GuildForum]:        ChannelType.GuildText,
+    [ChannelType.GuildStageVoice]:   ChannelType.GuildVoice,
+  };
+
+  /** Cria canal com fallback automático se tipo não for suportado */
+  async function safeCreateChannel(data) {
+    try {
+      return await guild.channels.create(data);
+    } catch (e) {
+      const fallbackType = FALLBACK[data.type];
+      if (fallbackType !== undefined) {
+        console.warn(`[APPLY] Tipo ${data.type} não suportado, fallback → ${fallbackType} para "${data.name}"`);
+        try {
+          return await guild.channels.create({ ...data, type: fallbackType });
+        } catch (e2) {
+          console.error('[APPLY] Fallback também falhou:', data.name, e2.message);
+          return null;
+        }
+      }
+      console.error('[APPLY] Canal falhou:', data.name, e.message);
+      return null;
+    }
+  }
+
   let systemChannelId = null;
   let afkChannelId    = null;
 
@@ -1346,11 +1374,13 @@ async function applyStructure(guild, structure, onStep) {
       };
       if (type === ChannelType.GuildText || type === ChannelType.GuildAnnouncement)
         channelData.topic = ch.topic?.substring(0, 1024) || '';
-      const created = await guild.channels.create(channelData).catch(e => { console.error('[APPLY] Orphan canal:', e.message); return null; });
+      if (type === ChannelType.GuildForum)
+        channelData.topic = ch.topic?.substring(0, 4096) || '';
+      const created = await safeCreateChannel(channelData);
       if (!created) continue;
       if (ch.isSystemChannel) systemChannelId = created.id;
       if (ch.isAfkChannel)    afkChannelId    = created.id;
-      await onStep(E.canais, `Canal: **${ch.name}**`);
+      await step(E.canais, `Canal: **${ch.name}**`);
       await new Promise(r => setTimeout(r, 300));
     } catch (e) { console.error('[APPLY] Orphan canal exception:', ch.name, e.message); }
   }
@@ -1359,7 +1389,7 @@ async function applyStructure(guild, structure, onStep) {
   console.log(`[APPLY] Criando ${structure.categories?.length || 0} categorias...`);
   for (const category of structure.categories || []) {
     try {
-      await onStep(E.canais, `Categoria: **${category.name}**`);
+      await step(E.canais, `Categoria: **${category.name}**`);
       const cat = await guild.channels.create({
         name:                 category.name.substring(0, 100),
         type:                 ChannelType.GuildCategory,
@@ -1382,12 +1412,14 @@ async function applyStructure(guild, structure, onStep) {
           };
           if (type === ChannelType.GuildText || type === ChannelType.GuildAnnouncement)
             channelData.topic = ch.topic?.substring(0, 1024) || '';
-          const created = await guild.channels.create(channelData).catch(e => { console.error('[APPLY] Canal:', ch.name, e.message); return null; });
+          if (type === ChannelType.GuildForum)
+            channelData.topic = ch.topic?.substring(0, 4096) || '';
+          const created = await safeCreateChannel(channelData);
           if (!created) continue;
           console.log(`[APPLY] Canal criado: ${ch.name}`);
           if (ch.isSystemChannel) systemChannelId = created.id;
           if (ch.isAfkChannel)    afkChannelId    = created.id;
-          await onStep(E.canais, `Canal: **${ch.name}**`);
+          await step(E.canais, `Canal: **${ch.name}**`);
           await new Promise(r => setTimeout(r, 300));
         } catch (e) { console.error('[APPLY] Canal exception:', ch.name, e.message); }
       }
@@ -1487,7 +1519,7 @@ function v2Container(accentColor, content) {
 
 // ── Queue ───────────────────────────────────────────────────────────────────────
 function formatETA(secs) {
-  if (secs <= 0)   return '⚡ Quase na sua vez!';
+  if (secs <= 0)   return '<:system:1500524458467918027> Quase na sua vez!';
   if (secs < 60)   return `~${secs}s`;
   if (secs < 3600) return `~${Math.floor(secs / 60)}min ${secs % 60}s`;
   const h = Math.floor(secs / 3600);
@@ -1497,26 +1529,30 @@ function formatETA(secs) {
 
 function buildQueueEmbed(prompt, laneName, position, secsAhead) {
   const isPrem    = laneName === 'premium';
-  const laneLabel = isPrem ? 'Premium' : 'Normal';
-  const maxDisplay = 10;
+  const laneLabel = isPrem ? '✦ Premium' : 'Normal';
+  const maxDisplay = 12;
   const filled = Math.max(0, maxDisplay - Math.min(position - 1, maxDisplay));
   const bar = `\`[${'█'.repeat(filled)}${'░'.repeat(maxDisplay - filled)}]\``;
 
   const normalQ  = lanes.normal.queue.filter(e => e.userId !== null).length;
   const premiumQ = lanes.premium.queue.filter(e => e.userId !== null).length;
 
+  // Ícone dinâmico por posição
+  const posIcon = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `#${position}`;
+
   const content = [
-    `## ${isPrem ? '👑' : '🟦'} Fila ${laneLabel} — Posição #${position}`,
-    `> **${prompt.substring(0, 80)}${prompt.length > 80 ? '…' : ''}**`,
-    `> Aguardando na fila. Este painel atualiza automaticamente.`,
+    `## ${isPrem ? E.premium : '🟦'} Fila ${laneLabel} — Posição ${posIcon}`,
+    `> *${prompt.substring(0, 80)}${prompt.length > 80 ? '…' : ''}*`,
     ``,
-    `**Posição:** #${position}   **Tempo estimado:** ${formatETA(secsAhead)}   **Tipo:** ${laneLabel}`,
+    `**⏳ Tempo estimado:** ${formatETA(secsAhead)}`,
+    `**Tipo de fila:** ${isPrem ? `${E.premium} Premium` : '🟦 Normal'}`,
     `**Progresso:** ${bar}`,
     ``,
-    `🟦 **Fila Normal** ${lanes.normal.busy ? '⚙️' : '✅'} — ${normalQ} aguardando`,
-    `👑 **Fila Premium** ${lanes.premium.busy ? '⚙️' : '✅'} — ${premiumQ} aguardando`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `🟦 **Fila Normal** ${lanes.normal.busy ? E.loading : E.sucesso} — ${normalQ} na fila`,
+    `${E.premium} **Fila Premium** ${lanes.premium.busy ? E.loading : E.sucesso} — ${premiumQ} na fila`,
     ``,
-    `-# Architect ${VERSION} · architect.velroc.workers.dev`,
+    `-# Architect ${VERSION} · Este painel atualiza automaticamente`,
   ].join('\n');
 
   return {
@@ -1532,14 +1568,20 @@ function buildAnalysisEmbed(prompt, logs) {
       : `${E.check} \`${l.tag}\` ${l.msg}`
     ).join('\n') || `${E.gerando} \`INIT\` Iniciando análise...`;
 
-  const lastTag = logs.length > 0 ? logs[logs.length - 1].tag : '';
-  const done = lastTag === 'CONCLUÍDO';
+  const lastTag  = logs.length > 0 ? logs[logs.length - 1].tag : '';
+  const done     = lastTag === 'CONCLUÍDO';
+  const total    = 5; // etapas: ANÁLISE, MISTRAL, CARGOS, CATEGORIAS, BOAS-VINDAS/REGRAS
+  const progress = done ? total : Math.min(logs.length, total);
+  const barFilled = Math.round((progress / total) * 16);
+  const bar = `\`[${'█'.repeat(barFilled)}${'░'.repeat(16 - barFilled)}] ${Math.round((progress / total) * 100)}%\``;
 
   const content = [
-    `## ${done ? '✅ Geração concluída' : `${E.gerando} Gerando estrutura…`}`,
-    `> ${prompt.substring(0, 150)}${prompt.length > 150 ? '…' : ''}`,
+    `## ${done ? `${E.sucesso} Geração concluída!` : `${E.gerando} Gerando estrutura…`}`,
+    `> *${prompt.substring(0, 150)}${prompt.length > 150 ? '…' : ''}*`,
     ``,
-    `**Log de progresso:**`,
+    `**Progresso:** ${bar}`,
+    ``,
+    `**Log em tempo real:**`,
     logLines,
     ``,
     `-# Architect ${VERSION} · Powered by Mistral AI`,
@@ -1558,41 +1600,62 @@ function buildCountdownBar(seconds, total) {
 
 function buildConfirmEmbed(prompt, structure, secondsLeft) {
   const totalChannels = structure.categories.reduce((a, c) => a + (c.channels?.length || 0), 0);
-  const urgent = secondsLeft <= 20;
+  const urgent  = secondsLeft <= 20;
+  const warning = secondsLeft <= 40 && secondsLeft > 20;
+
+  // Barra de progresso colorida por urgência
+  const barIcon = urgent ? '🔴' : warning ? '🟡' : '🟢';
+
+  // Preview de categorias (máx 4)
+  const catPreview = (structure.categories || []).slice(0, 4)
+    .map(c => `> ${E.cats} **${c.name}** — ${c.channels?.length || 0} canais`)
+    .join('\n');
+  const moreCount = Math.max(0, (structure.categories?.length || 0) - 4);
 
   const content = [
-    `## ⚠️ Confirmar criação do servidor`,
-    `> Essa ação vai **apagar toda a estrutura atual** e recriar do zero. Revise antes de confirmar.`,
+    `## <:atencao:1500524473827459263> Confirmação de Criação`,
+    `> ⚠️ Esta ação **apagará toda a estrutura atual** e recriará do zero.`,
     ``,
-    `**Prompt:** ${prompt.substring(0, 200)}`,
+    `**<:lista:1500524503778988072> Prompt:**`,
+    `> *${prompt.substring(0, 180)}${prompt.length > 180 ? '…' : ''}*`,
     ``,
-    `**Cargos:** ${structure.roles?.length || 0}   **Categorias:** ${structure.categories?.length || 0}   **Canais:** ${totalChannels}`,
+    `**${E.servidores} Resumo da estrutura:**`,
+    `> ${E.cargos} **${structure.roles?.length || 0}** cargos  ·  ${E.cats} **${structure.categories?.length || 0}** categorias  ·  ${E.canais} **${totalChannels}** canais`,
     ``,
-    `**⏱️ Expira em ${secondsLeft}s:** ${buildCountdownBar(secondsLeft, 60)}`,
+    ...(catPreview ? [`**Categorias:**`, catPreview, ...(moreCount > 0 ? [`> *… e mais ${moreCount} categoria(s)*`] : []), ``] : []),
+    `**${barIcon} Expira em ${secondsLeft}s:** ${buildCountdownBar(secondsLeft, 60)}`,
     ``,
-    `-# Architect ${VERSION} · Confirme antes do tempo acabar`,
+    `-# Architect ${VERSION} · Confirme ou cancele antes do tempo acabar`,
   ].join('\n');
 
   return {
     flags: MessageFlags.IsComponentsV2,
-    components: [v2Container(urgent ? C_RED : C_ORANGE, content)],
+    components: [v2Container(urgent ? C_RED : warning ? C_YELLOW : C_ORANGE, content)],
   };
 }
 
 function buildProgressEmbed(title, info, steps) {
-  const last = steps.slice(-8);
+  const last = steps.slice(-10);
   const log  = last.length > 0
     ? last.map((s, i) => i === last.length - 1 ? `${E.gerando} ${s}` : `${E.check} ${s}`).join('\n')
     : `${E.gerando} Iniciando...`;
 
+  // Estima progresso pelo número de steps
+  const estimatedTotal = 40;
+  const pct  = Math.min(100, Math.round((steps.length / estimatedTotal) * 100));
+  const barF = Math.round(pct / 6.25); // 16 blocos
+  const bar  = `\`[${'█'.repeat(barF)}${'░'.repeat(16 - barF)}] ${pct}%\``;
+
   const content = [
     `## ${title}`,
-    `> ${info.substring(0, 150)}`,
+    `> *${info.substring(0, 150)}*`,
     ``,
-    `**Progresso:**`,
+    `**Construção:** ${bar}`,
+    ``,
+    `**Log:**`,
     log,
     ``,
-    `-# Architect ${VERSION}`,
+    `-# Architect ${VERSION} · Não feche o Discord durante a construção`,
   ].join('\n');
 
   return {
@@ -1613,8 +1676,16 @@ function errPayload(msg) { return errorEmbed(msg); }
 
 function buildConfirmRow(confirmId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`create_confirm_${confirmId}`).setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`create_confirm_${confirmId}`)
+      .setLabel('Confirmar')
+      .setEmoji({ id: '1500524505746116800', name: 'aceitar' })
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`cancel_confirm_${confirmId}`)
+      .setLabel('Cancelar')
+      .setEmoji({ id: '1500524485231509785', name: 'negar' })
+      .setStyle(ButtonStyle.Danger),
   );
 }
 
@@ -1635,7 +1706,7 @@ function startCountdown(interaction, confirmId, prompt, structure, tipo = null) 
       clearInterval(interval);
       if (pendingCreate.has(confirmId)) {
         pendingCreate.delete(confirmId);
-        const expiredPayload = v2Simple(C_RED, '⏱️ Tempo esgotado', 'A confirmação expirou. Use o comando novamente.', `Architect ${VERSION}`);
+        const expiredPayload = v2Simple(C_RED, '<:time:1500524456840400999> Tempo esgotado', 'A confirmação expirou. Use o comando novamente.', `Architect ${VERSION}`);
         await interaction.editReply(expiredPayload).catch(async () => {
           await interaction.user.send(expiredPayload).catch(() => {});
         });
@@ -1664,7 +1735,7 @@ client.on('guildCreate', async guild => {
 
 // ── Ready ──────────────────────────────────────────────────────────────────────
 client.once('ready', async () => {
-  console.log(`✅ Architect ${VERSION} online como ${client.user.tag}`);
+  console.log(`<:aceitar:1500524505746116800> Architect ${VERSION} online como ${client.user.tag}`);
 
   const statuses = [
     { text: 'Building your server...', type: ActivityType.Watching },
@@ -1683,14 +1754,14 @@ client.once('ready', async () => {
 
   const commands = [
     new SlashCommandBuilder().setName('criar_servidor').setDescription('Cria servidor completo com IA').addStringOption(o => o.setName('prompt').setDescription('Descreva o servidor').setRequired(true)),
-    new SlashCommandBuilder().setName('template').setDescription('Aplica template pronto').addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(true).addChoices({ name: '🌐 Comunidade', value: 'comunidade' }, { name: '🎮 Gaming', value: 'gaming' }, { name: '🪖 Militar', value: 'militar' }, { name: '🛒 Loja', value: 'loja' }, { name: '🎌 Anime', value: 'anime' }, { name: '📚 Educacional', value: 'educacional' })),
+    new SlashCommandBuilder().setName('template').setDescription('Aplica template pronto').addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(true).addChoices({ name: '<:linked:1500524472229433404> Comunidade', value: 'comunidade' }, { name: '🎮 Gaming', value: 'gaming' }, { name: '🪖 Militar', value: 'militar' }, { name: '🛒 Loja', value: 'loja' }, { name: '🎌 Anime', value: 'anime' }, { name: '📚 Educacional', value: 'educacional' })),
     new SlashCommandBuilder().setName('backup').setDescription('Salva estrutura do servidor'),
     new SlashCommandBuilder().setName('restaurar').setDescription('Restaura servidor do backup'),
     new SlashCommandBuilder().setName('proteger').setDescription('Ativa/desativa anti-nuke').addBooleanOption(o => o.setName('ativo').setDescription('Ativar ou desativar').setRequired(true)),
-    new SlashCommandBuilder().setName('deletar').setDescription('Deleta canais, cargos ou tudo').addStringOption(o => o.setName('tipo').setDescription('O que deletar').setRequired(true).addChoices({ name: '🎭 Cargos', value: 'cargos' }, { name: '💬 Canais', value: 'canais' }, { name: '🗑️ Tudo', value: 'tudo' })).addStringOption(o => o.setName('alvo').setDescription('Quais ou "everyone"').setRequired(false)).addBooleanOption(o => o.setName('tudo').setDescription('Deletar tudo?').setRequired(false)),
+    new SlashCommandBuilder().setName('deletar').setDescription('Deleta canais, cargos ou tudo').addStringOption(o => o.setName('tipo').setDescription('O que deletar').setRequired(true).addChoices({ name: '🎭 Cargos', value: 'cargos' }, { name: '<:canal:1500524470270562304> Canais', value: 'canais' }, { name: '<:deletar:1500524511081140384> Tudo', value: 'tudo' })).addStringOption(o => o.setName('alvo').setDescription('Quais ou "everyone"').setRequired(false)).addBooleanOption(o => o.setName('tudo').setDescription('Deletar tudo?').setRequired(false)),
     new SlashCommandBuilder().setName('status').setDescription('Informações do servidor'),
     new SlashCommandBuilder().setName('cargo_criar').setDescription('Cria um cargo').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('cor').setDescription('Cor hex').setRequired(false)).addBooleanOption(o => o.setName('admin').setDescription('Admin?').setRequired(false)),
-    new SlashCommandBuilder().setName('canal_criar').setDescription('Cria um canal').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(false).addChoices({ name: '💬 Texto', value: 'text' }, { name: '🔊 Voz', value: 'voice' }, { name: '📋 Fórum', value: 'forum' }, { name: '📢 Announcement', value: 'announcement' }, { name: '🎙️ Palco', value: 'stage' })).addStringOption(o => o.setName('topico').setDescription('Tópico').setRequired(false)),
+    new SlashCommandBuilder().setName('canal_criar').setDescription('Cria um canal').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(false).addChoices({ name: '<:canal:1500524470270562304> Texto', value: 'text' }, { name: '<:unlockcanal:1500524519612485853> Voz', value: 'voice' }, { name: '<:lista:1500524503778988072> Fórum', value: 'forum' }, { name: '<:avisos:1500524507171918006> Announcement', value: 'announcement' }, { name: '🎙️ Palco', value: 'stage' })).addStringOption(o => o.setName('topico').setDescription('Tópico').setRequired(false)),
     new SlashCommandBuilder().setName('ban').setDescription('Bane um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)).addIntegerOption(o => o.setName('dias').setDescription('Dias (0-7)').setMinValue(0).setMaxValue(7).setRequired(false)),
     new SlashCommandBuilder().setName('kick').setDescription('Expulsa um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
     new SlashCommandBuilder().setName('mute').setDescription('Muta um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addIntegerOption(o => o.setName('duracao').setDescription('Duração em minutos').setRequired(true).setMinValue(1).setMaxValue(10080)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
@@ -1705,7 +1776,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('idioma').setDescription('Altera o idioma do bot no servidor').addStringOption(o => o.setName('lang').setDescription('Idioma').setRequired(true).addChoices({ name: '🇧🇷 Português', value: 'pt' }, { name: '🇺🇸 English', value: 'en' }, { name: '🇪🇸 Español', value: 'es' }, { name: '🇫🇷 Français', value: 'fr' }, { name: '🇩🇪 Deutsch', value: 'de' })),
     new SlashCommandBuilder().setName('doar').setDescription('Apoie o desenvolvimento do Architect'),
     new SlashCommandBuilder().setName('dm').setDescription('Enviar mensagem oficial').addStringOption(o => o.setName('mensagem').setDescription('Mensagem').setRequired(true)),
-    new SlashCommandBuilder().setName('premium').setDescription('Gerenciar Premium do Architect').addUserOption(o => o.setName('usuario').setDescription('Usuário').setRequired(true)).addStringOption(o => o.setName('plano').setDescription('Plano').setRequired(true).addChoices({ name: '⚡ Semanal (7 dias)', value: 'semanal' }, { name: '💎 Mensal (30 dias)', value: 'mensal' }, { name: '👑 Anual (365 dias)', value: 'anual' }, { name: '❌ Remover', value: 'remover' })),
+    new SlashCommandBuilder().setName('premium').setDescription('Gerenciar Premium do Architect').addUserOption(o => o.setName('usuario').setDescription('Usuário').setRequired(true)).addStringOption(o => o.setName('plano').setDescription('Plano').setRequired(true).addChoices({ name: '<:system:1500524458467918027> Semanal (7 dias)', value: 'semanal' }, { name: '<:nitro:1500524497688723566> Mensal (30 dias)', value: 'mensal' }, { name: '<:vip:1500524460221005854> Anual (365 dias)', value: 'anual' }, { name: '<:negar:1500524485231509785> Remover', value: 'remover' })),
     new SlashCommandBuilder().setName('info').setDescription('Informações do Architect'),
     new SlashCommandBuilder().setName('help').setDescription('Lista de comandos'),
     new SlashCommandBuilder().setName('usuarios').setDescription('Estatísticas de uso do Architect hoje').addStringOption(o => o.setName('data').setDescription('Data no formato YYYY-MM-DD (padrão: hoje)').setRequired(false)),
@@ -1715,8 +1786,8 @@ client.once('ready', async () => {
   try {
     const rest = new REST().setToken(process.env.DISCORD_TOKEN);
     await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-    console.log(`✅ ${commands.length} comandos registrados!`);
-  } catch (e) { console.error('❌ Erro ao registrar comandos:', e.message); }
+    console.log(`<:aceitar:1500524505746116800> ${commands.length} comandos registrados!`);
+  } catch (e) { console.error('<:negar:1500524485231509785> Erro ao registrar comandos:', e.message); }
 });
 
 // ── Interaction Handler ────────────────────────────────────────────────────────
@@ -1724,7 +1795,8 @@ client.on('interactionCreate', async interaction => {
   // ── Global error boundary ─────────────────────────────────────────────────
   try {
 
-  // ── Botões ─────────────────────────────────────────────────────────────────
+  // ── Guard: ignora interações fora de servidor (DMs, etc.) ────────────────
+  if (!interaction.guild || !interaction.guildId) return;
   if (interaction.isButton()) {
     const [action, id] = interaction.customId.split('_confirm_');
 
@@ -1733,9 +1805,15 @@ client.on('interactionCreate', async interaction => {
       const { prompt, structure, isPremium } = pendingCreate.get(id);
       pendingCreate.delete(id);
       const steps = [];
-      await interaction.update(
-        buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
-      ).catch(() => {});
+
+      // FIX: tenta update, se falhar usa deferUpdate para garantir resposta ao Discord
+      try {
+        await interaction.update(
+          buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
+        );
+      } catch (_) {
+        try { await interaction.deferUpdate(); } catch (__) {}
+      }
 
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
@@ -1747,11 +1825,31 @@ client.on('interactionCreate', async interaction => {
       try {
         await applyStructure(interaction.guild, structure, update);
         const totalChannels = structure.categories?.reduce((a, c) => a + (c.channels?.length || 0), 0) || 0;
-        const successEmbed  = v2Simple(C_GREEN,
-          `${E.sucesso} Servidor criado com sucesso!`,
-          `**Cargos:** ${structure.roles?.length || 0}   **Categorias:** ${structure.categories?.length || 0}   **Canais:** ${totalChannels}`,
-          `Architect ${VERSION} · architect.velroc.workers.dev`
-        );
+
+        // Resumo de tipos de canais
+        const allChannels = (structure.categories || []).flatMap(c => c.channels || []);
+        const countByType = allChannels.reduce((acc, ch) => { acc[ch.type || 'text'] = (acc[ch.type || 'text'] || 0) + 1; return acc; }, {});
+        const typeLines = Object.entries(countByType)
+          .map(([t, n]) => {
+            const icons = { text: '<:canal:1500524470270562304>', voice: '🔊', forum: '<:lista:1500524503778988072>', announcement: '<:avisos:1500524507171918006>', stage: '🎙️' };
+            return `${icons[t] || '📌'} **${n}** ${t}`;
+          }).join('  ·  ');
+
+        const successContent = [
+          `## ${E.sucesso} Servidor criado com sucesso!`,
+          ``,
+          `> Toda a estrutura foi aplicada com sucesso no servidor.`,
+          ``,
+          `**${E.cargos} Cargos:** ${structure.roles?.length || 0}  ·  **${E.cats} Categorias:** ${structure.categories?.length || 0}  ·  **${E.canais} Canais:** ${totalChannels}`,
+          ...(typeLines ? [`**Distribuição:** ${typeLines}`] : []),
+          ``,
+          `-# Architect ${VERSION} · architect.velroc.workers.dev`,
+        ].join('\n');
+
+        const successEmbed = {
+          flags: MessageFlags.IsComponentsV2,
+          components: [v2Container(C_GREEN, successContent)],
+        };
 
         // Gera o card de imagem
         const guild = interaction.guild;
@@ -1789,9 +1887,14 @@ client.on('interactionCreate', async interaction => {
       pendingRestore.delete(id);
       const steps = [];
       const label = new Date(backup.savedAt).toLocaleString('pt-BR');
-      await interaction.update(
-        buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
-      ).catch(() => {});
+      // FIX: tenta update, se falhar usa deferUpdate
+      try {
+        await interaction.update(
+          buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
+        );
+      } catch (_) {
+        try { await interaction.deferUpdate(); } catch (__) {}
+      }
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
         await interaction.editReply({
@@ -1843,7 +1946,11 @@ client.on('interactionCreate', async interaction => {
     if (action === 'cancel') {
       pendingCreate.delete(id);
       pendingRestore.delete(id);
-      await interaction.update(v2Simple(C_GREY, '🚫 Cancelado', 'Operação cancelada.', `Architect ${VERSION}`));
+      try {
+        await interaction.update(v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada pelo usuário.', `Architect ${VERSION}`));
+      } catch (_) {
+        try { await interaction.reply({ ...v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada.', `Architect ${VERSION}`), flags: MessageFlags.Ephemeral }); } catch (__) {}
+      }
       return;
     }
 
@@ -1856,18 +1963,18 @@ client.on('interactionCreate', async interaction => {
       if (!member) return false;
       const hasRole = member.roles.cache.has(ticketRoleId);
       if (!hasRole) {
-        await intr.reply({ content: `${E.erro} Somente <@&${ticketRoleId}> pode usar este botão.`, ephemeral: true });
+        await intr.reply({ content: `${E.erro} Somente <@&${ticketRoleId}> pode usar este botão.`, flags: MessageFlags.Ephemeral });
         return false;
       }
       return true;
     }
 
-    // ── Ticket — 🔒 Fechar ──────────────────────────────────────────────────────
+    // ── Ticket — <:lockcanal:1500524516324147470> Fechar ──────────────────────────────────────────────────────
     if (interaction.customId.startsWith('ticket_close_')) {
       if (!await assertTicketStaffPermission(interaction)) return;
       const chId = interaction.customId.replace('ticket_close_', '');
       const ch   = interaction.guild.channels.cache.get(chId);
-      if (!ch) return interaction.reply({ content: 'Canal não encontrado.', ephemeral: true });
+      if (!ch) return interaction.reply({ content: 'Canal não encontrado.', flags: MessageFlags.Ephemeral });
 
       // Se estava reivindicado, incrementa stats do staff
       const claim = ticketClaimed.get(chId);
@@ -1885,13 +1992,13 @@ client.on('interactionCreate', async interaction => {
       staffCallCooldown.delete(chId);
 
       await interaction.reply({
-        ...v2Simple(C_RED, '🔒 Ticket Fechado', `Ticket encerrado por <@${interaction.user.id}>. O canal será deletado em 5 segundos.`, `Architect ${VERSION}`),
+        ...v2Simple(C_RED, '<:lockcanal:1500524516324147470> Ticket Fechado', `Ticket encerrado por <@${interaction.user.id}>. O canal será deletado em 5 segundos.`, `Architect ${VERSION}`),
       });
       setTimeout(async () => { await ch.delete().catch(() => {}); }, 5000);
       return;
     }
 
-    // ── Ticket — 🔔 Chamar Staff (cooldown 30min) ───────────────────────────────
+    // ── Ticket — <:notificacao:1500524483801251890> Chamar Staff (cooldown 30min) ───────────────────────────────
     if (interaction.customId.startsWith('ticket_call_staff_')) {
       const chId  = interaction.customId.replace('ticket_call_staff_', '');
       const uid   = interaction.user.id;
@@ -1906,7 +2013,7 @@ client.on('interactionCreate', async interaction => {
       if (remaining > 0) {
         const mins = Math.ceil(remaining / 60000);
         // ephemeral puro sem V2 — sem conflito
-        return interaction.reply({ content: `${E.erro} Aguarde **${mins} minuto(s)** para chamar a staff novamente.`, ephemeral: true });
+        return interaction.reply({ content: `${E.erro} Aguarde **${mins} minuto(s)** para chamar a staff novamente.`, flags: MessageFlags.Ephemeral });
       }
 
       chCooldown.set(uid, now);
@@ -1921,12 +2028,12 @@ client.on('interactionCreate', async interaction => {
 
       // Depois: resposta V2 confirmando
       await interaction.reply({
-        ...v2Simple(C_YELLOW, '🔔 Staff Chamada!', `<@${uid}> está precisando de ajuda neste ticket.\n\nA equipe foi notificada e responderá em breve.`, `Architect ${VERSION}`),
+        ...v2Simple(C_YELLOW, '<:notificacao:1500524483801251890> Staff Chamada!', `<@${uid}> está precisando de ajuda neste ticket.\n\nA equipe foi notificada e responderá em breve.`, `Architect ${VERSION}`),
       });
       return;
     }
 
-    // ── Ticket — ✋ Reivindicar ──────────────────────────────────────────────────
+    // ── Ticket — Reivindicar ──────────────────────────────────────────────────
     if (interaction.customId.startsWith('ticket_claim_')) {
       if (!await assertTicketStaffPermission(interaction)) return;
       const chId = interaction.customId.replace('ticket_claim_', '');
@@ -1934,7 +2041,7 @@ client.on('interactionCreate', async interaction => {
       const already = ticketClaimed.get(chId);
       if (already) {
         // ephemeral puro — sem V2
-        return interaction.reply({ content: `${E.erro} Este ticket já foi reivindicado por <@${already.staffId}>.`, ephemeral: true });
+        return interaction.reply({ content: `${E.erro} Este ticket já foi reivindicado por <@${already.staffId}>.`, flags: MessageFlags.Ephemeral });
       }
 
       ticketClaimed.set(chId, {
@@ -1945,7 +2052,7 @@ client.on('interactionCreate', async interaction => {
 
       await interaction.reply({
         ...v2Simple(C_GREEN,
-          '✋ Ticket Reivindicado',
+          '<:aceitar:1500524505746116800> Ticket Reivindicado',
           `<@${interaction.user.id}> está atendendo este ticket.\nApenas este membro da staff é responsável agora.`,
           `Architect ${VERSION}`
         ),
@@ -1979,7 +2086,7 @@ client.on('interactionCreate', async interaction => {
   const publicCmds = ['info', 'help', 'status', 'doar', 'idioma'];
 
   if (!publicCmds.includes(commandName) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
   }
 
   // Rastreia uso do comando
@@ -1999,7 +2106,7 @@ client.on('interactionCreate', async interaction => {
         `${E.erro} Limite Diário Atingido`,
         `Você já usou suas **${limitCheck.limit} criações gratuitas** de hoje.\n\n> Volte amanhã ou adquira o ${E.premium} **Premium** para criações ilimitadas!\n\n**Uso hoje:** ${limitCheck.used}/${limitCheck.limit} criações`,
         `Architect ${VERSION}`
-      ), ephemeral: true });
+      ), flags: MessageFlags.Ephemeral });
     }
 
     await interaction.deferReply();
@@ -2102,7 +2209,7 @@ client.on('interactionCreate', async interaction => {
         `${E.erro} Limite Diário Atingido`,
         `Você já usou suas **${limitCheck.limit} criações gratuitas** de hoje.\n\n> Volte amanhã ou adquira o ${E.premium} **Premium** para criações ilimitadas!\n\n**Uso hoje:** ${limitCheck.used}/${limitCheck.limit} criações`,
         `Architect ${VERSION}`
-      ), ephemeral: true });
+      ), flags: MessageFlags.Ephemeral });
     }
 
     await interaction.deferReply();
@@ -2178,7 +2285,7 @@ client.on('interactionCreate', async interaction => {
 
   // ── /backup ──────────────────────────────────────────────────────────────────
   else if (commandName === 'backup') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
       const structure = await captureStructure(guild);
       await saveBackup(guild.id, guild.name, structure);
@@ -2196,17 +2303,17 @@ client.on('interactionCreate', async interaction => {
   // ── /restaurar ───────────────────────────────────────────────────────────────
   else if (commandName === 'restaurar') {
     const backup = await getBackup(guild.id);
-    if (!backup) return interaction.reply({ content: lang.noBackup, ephemeral: true });
+    if (!backup) return interaction.reply({ content: lang.noBackup, flags: MessageFlags.Ephemeral });
     const confirmId = `${interaction.id}`;
     pendingRestore.set(confirmId, { backup });
     setTimeout(() => pendingRestore.delete(confirmId), 60000);
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`restore_confirm_${confirmId}`).setLabel('🔄  Restaurar').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('❌  Cancelar').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`restore_confirm_${confirmId}`).setLabel('<:recarregando:1500524465249845368>  Restaurar').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('<:negar:1500524485231509785>  Cancelar').setStyle(ButtonStyle.Danger),
     );
     await interaction.reply(v2WithRow(v2Simple(C_BLUE,
       `${E.backup} Restaurar Backup`,
-      `> ⚠️ **Isso irá apagar TUDO e restaurar o backup.**\n\n**${E.data} Backup de:** ${new Date(backup.savedAt).toLocaleString('pt-BR')}`,
+      `> <:atencao:1500524473827459263> **Isso irá apagar TUDO e restaurar o backup.**\n\n**${E.data} Backup de:** ${new Date(backup.savedAt).toLocaleString('pt-BR')}`,
       `Architect ${VERSION}`
     ), row));
   }
@@ -2215,7 +2322,7 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'proteger') {
     const ativo  = interaction.options.getBoolean('ativo');
     const backup = await getBackup(guild.id);
-    if (ativo && !backup) return interaction.reply({ content: `${E.erro} Faça um **/backup** primeiro!`, ephemeral: true });
+    if (ativo && !backup) return interaction.reply({ content: `${E.erro} Faça um **/backup** primeiro!`, flags: MessageFlags.Ephemeral });
     if (backup) await setProtection(guild.id, ativo);
     await interaction.reply(v2Simple(
       ativo ? C_GREEN : C_RED,
@@ -2233,13 +2340,13 @@ client.on('interactionCreate', async interaction => {
     let descricao = '', acao = '';
 
     if (tipo === 'cargos') {
-      if (tudo || alvo.toLowerCase() === 'everyone') { descricao = '🗑️ Todos os cargos serão deletados.'; acao = 'delete_roles_all'; }
-      else { descricao = `🗑️ Cargos: ${alvo}`; acao = 'delete_roles_specific'; }
+      if (tudo || alvo.toLowerCase() === 'everyone') { descricao = '<:deletar:1500524511081140384> Todos os cargos serão deletados.'; acao = 'delete_roles_all'; }
+      else { descricao = `<:deletar:1500524511081140384> Cargos: ${alvo}`; acao = 'delete_roles_specific'; }
     } else if (tipo === 'canais') {
-      if (tudo || alvo.toLowerCase() === 'everyone') { descricao = '🗑️ Todos os canais serão deletados.'; acao = 'delete_channels_all'; }
-      else { descricao = `🗑️ Canais: ${alvo}`; acao = 'delete_channels_specific'; }
+      if (tudo || alvo.toLowerCase() === 'everyone') { descricao = '<:deletar:1500524511081140384> Todos os canais serão deletados.'; acao = 'delete_channels_all'; }
+      else { descricao = `<:deletar:1500524511081140384> Canais: ${alvo}`; acao = 'delete_channels_specific'; }
     } else {
-      descricao = '🗑️ TUDO será deletado.'; acao = 'delete_all';
+      descricao = '<:deletar:1500524511081140384> TUDO será deletado.'; acao = 'delete_all';
     }
 
     const confirmId = `${interaction.id}`;
@@ -2247,10 +2354,10 @@ client.on('interactionCreate', async interaction => {
     setTimeout(() => pendingCreate.delete(`del_${confirmId}`), 60000);
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`delete_confirm_${confirmId}`).setLabel('🗑️  Deletar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('❌  Cancelar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`delete_confirm_${confirmId}`).setLabel('<:deletar:1500524511081140384>  Deletar').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`cancel_confirm_${confirmId}`).setLabel('<:negar:1500524485231509785>  Cancelar').setStyle(ButtonStyle.Secondary),
     );
-    await interaction.reply(v2WithRow(v2Simple(C_RED, '⚠️ Confirmar Deleção', `> ⚠️ **Esta ação é irreversível!**\n\n${descricao}`, `Architect ${VERSION}`), row));
+    await interaction.reply(v2WithRow(v2Simple(C_RED, '<:atencao:1500524473827459263> Confirmar Deleção', `> <:atencao:1500524473827459263> **Esta ação é irreversível!**\n\n${descricao}`, `Architect ${VERSION}`), row));
   }
 
   // ── /cargo_criar ─────────────────────────────────────────────────────────────
@@ -2261,7 +2368,7 @@ client.on('interactionCreate', async interaction => {
     try {
       const role = await guild.roles.create({ name: nome, color: cor, permissions: adm ? [PermissionFlagsBits.Administrator] : [] });
       await interaction.reply(v2Simple(role.color, `${E.sucesso} Cargo Criado!`, `**${E.cargos} Nome:** ${role.name}   **🎨 Cor:** ${cor}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /canal_criar ─────────────────────────────────────────────────────────────
@@ -2274,8 +2381,8 @@ client.on('interactionCreate', async interaction => {
       const channelData = { name: nome, type: typeMap[tipo] || ChannelType.GuildText };
       if (topico) channelData.topic = topico;
       const ch = await guild.channels.create(channelData);
-      await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Canal Criado!`, `**${E.canais} Nome:** ${ch.name}   **📂 Tipo:** ${tipo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Canal Criado!`, `**${E.canais} Nome:** ${ch.name}   **<:categoria:1500524490214473758> Tipo:** ${tipo}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /status ──────────────────────────────────────────────────────────────────
@@ -2295,26 +2402,26 @@ client.on('interactionCreate', async interaction => {
     const target = interaction.options.getMember('membro');
     const motivo = interaction.options.getString('motivo') || 'Sem motivo informado';
     const dias   = interaction.options.getInteger('dias') || 0;
-    if (!member.permissions.has(PermissionFlagsBits.BanMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target || !target.bannable) return interaction.reply({ content: `${E.erro} Não consigo banir este membro!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.BanMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target || !target.bannable) return interaction.reply({ content: `${E.erro} Não consigo banir este membro!`, flags: MessageFlags.Ephemeral });
     try {
       await target.send(v2Simple(C_RED, `${E.banido} Você foi banido!`, `Você foi banido de **${guild.name}**\n\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
       await target.ban({ reason: motivo, deleteMessageDays: dias });
-      await interaction.reply(v2Simple(C_RED, `${E.banido} Membro Banido!`, `**${E.membros} Membro:** ${target.user.tag}   **📋 Motivo:** ${motivo}\n**🗑️ Mensagens deletadas:** ${dias} dia(s)`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply(v2Simple(C_RED, `${E.banido} Membro Banido!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**<:deletar:1500524511081140384> Mensagens deletadas:** ${dias} dia(s)`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /kick ────────────────────────────────────────────────────────────────────
   else if (commandName === 'kick') {
     const target = interaction.options.getMember('membro');
     const motivo = interaction.options.getString('motivo') || 'Sem motivo informado';
-    if (!member.permissions.has(PermissionFlagsBits.KickMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target || !target.kickable) return interaction.reply({ content: `${E.erro} Não consigo expulsar este membro!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.KickMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target || !target.kickable) return interaction.reply({ content: `${E.erro} Não consigo expulsar este membro!`, flags: MessageFlags.Ephemeral });
     try {
       await target.send(v2Simple(C_YELLOW, `${E.membros} Você foi expulso!`, `Você foi expulso de **${guild.name}**\n\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
       await target.kick(motivo);
-      await interaction.reply(v2Simple(C_YELLOW, `${E.membros} Membro Expulso!`, `**${E.membros} Membro:** ${target.user.tag}   **📋 Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply(v2Simple(C_YELLOW, `${E.membros} Membro Expulso!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /mute ────────────────────────────────────────────────────────────────────
@@ -2322,75 +2429,75 @@ client.on('interactionCreate', async interaction => {
     const target  = interaction.options.getMember('membro');
     const motivo  = interaction.options.getString('motivo') || 'Sem motivo informado';
     const duracao = interaction.options.getInteger('duracao') || 10;
-    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
     try {
       await target.timeout(duracao * 60 * 1000, motivo);
-      await interaction.reply(v2Simple(C_YELLOW, `${E.mutado} Membro Mutado!`, `**${E.membros} Membro:** ${target.user.tag}   **⏱️ Duração:** ${duracao} min   **📋 Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply(v2Simple(C_YELLOW, `${E.mutado} Membro Mutado!`, `**${E.membros} Membro:** ${target.user.tag}   **<:time:1500524456840400999> Duração:** ${duracao} min   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /unmute ──────────────────────────────────────────────────────────────────
   else if (commandName === 'unmute') {
     const target = interaction.options.getMember('membro');
-    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
     try {
       await target.timeout(null);
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Membro Desmutado!`, `**${E.membros} Membro:** ${target.user.tag}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /warn ────────────────────────────────────────────────────────────────────
   else if (commandName === 'warn') {
     const target = interaction.options.getMember('membro');
     const motivo = interaction.options.getString('motivo') || 'Sem motivo informado';
-    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
     try {
-      await target.send(v2Simple(C_YELLOW, '⚠️ Advertência Recebida', `**Servidor:** ${guild.name}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
-      await interaction.reply(v2Simple(C_YELLOW, '⚠️ Advertência Enviada!', `**${E.membros} Membro:** ${target.user.tag}   **📋 Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await target.send(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Recebida', `**Servidor:** ${guild.name}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
+      await interaction.reply(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Enviada!', `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /lock ────────────────────────────────────────────────────────────────────
   else if (commandName === 'lock') {
     const canal  = interaction.options.getChannel('canal') || interaction.channel;
     const motivo = interaction.options.getString('motivo') || 'Canal trancado';
-    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
-      await interaction.reply(v2Simple(C_RED, `${E.lock} Canal Trancado!`, `**${E.canais} Canal:** <#${canal.id}>   **📋 Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply(v2Simple(C_RED, `${E.lock} Canal Trancado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /unlock ──────────────────────────────────────────────────────────────────
   else if (commandName === 'unlock') {
     const canal = interaction.options.getChannel('canal') || interaction.channel;
-    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: null });
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Canal Destrancado!`, `**${E.canais} Canal:** <#${canal.id}>`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /slowmode ────────────────────────────────────────────────────────────────
   else if (commandName === 'slowmode') {
     const segundos = interaction.options.getInteger('segundos');
     const canal    = interaction.options.getChannel('canal') || interaction.channel;
-    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       await canal.setRateLimitPerUser(segundos);
-      await interaction.reply(v2Simple(C_BLUE, `${E.config} Slowmode Configurado!`, `**${E.canais} Canal:** <#${canal.id}>   **⏱️ Intervalo:** ${segundos === 0 ? 'Desativado' : `${segundos}s`}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply(v2Simple(C_BLUE, `${E.config} Slowmode Configurado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:time:1500524456840400999> Intervalo:** ${segundos === 0 ? 'Desativado' : `${segundos}s`}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /clear ───────────────────────────────────────────────────────────────────
   else if (commandName === 'clear') {
     const quantidade = interaction.options.getInteger('quantidade');
-    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const msgs = await interaction.channel.bulkDelete(Math.min(quantidade, 100), true);
       await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Mensagens Deletadas!`, `**${msgs.size}** mensagem(s) deletada(s)!`, `Architect ${VERSION}`));
     } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
@@ -2404,12 +2511,12 @@ client.on('interactionCreate', async interaction => {
     const canal     = interaction.options.getChannel('canal') || interaction.channel;
     const imagem    = interaction.options.getString('imagem') || null;
     const rodape    = interaction.options.getString('rodape') || null;
-    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       const customV2 = v2Simple(hex(cor.replace('#','').length === 6 ? cor : '#9b59b6'), titulo, descricao + (imagem ? `\n${imagem}` : ''), rodape || null);
       await canal.send(customV2);
-      await interaction.reply({ content: `${E.sucesso} Embed enviado em <#${canal.id}>!`, ephemeral: true });
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply({ content: `${E.sucesso} Embed enviado em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /anuncio ─────────────────────────────────────────────────────────────────
@@ -2418,19 +2525,19 @@ client.on('interactionCreate', async interaction => {
     const mensagem = interaction.options.getString('mensagem');
     const canal    = interaction.options.getChannel('canal');
     const marcar   = interaction.options.getBoolean('marcar_everyone') || false;
-    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
-      const anuncioV2 = v2Simple(C_ORANGE, `📢 ${titulo}`, mensagem, `Anúncio por ${member.user.tag} · Architect ${VERSION}`);
+      const anuncioV2 = v2Simple(C_ORANGE, `<:avisos:1500524507171918006> ${titulo}`, mensagem, `Anúncio por ${member.user.tag} · Architect ${VERSION}`);
       if (marcar) await canal.send({ content: '@everyone', allowedMentions: { parse: ['everyone'] } }).catch(() => {});
       await canal.send(anuncioV2);
-      await interaction.reply({ content: `${E.sucesso} Anúncio enviado em <#${canal.id}>!`, ephemeral: true });
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply({ content: `${E.sucesso} Anúncio enviado em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /idioma ───────────────────────────────────────────────────────────────────
   else if (commandName === 'idioma') {
     if (!member.permissions.has(PermissionFlagsBits.Administrator))
-      return interaction.reply({ content: lang.noPermission, ephemeral: true });
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     const langKey = interaction.options.getString('lang');
     const newLang = LANGS[langKey];
     await mongoDB.collection('settings').updateOne(
@@ -2439,16 +2546,16 @@ client.on('interactionCreate', async interaction => {
       { upsert: true }
     );
     guildLangCache.set(guild.id, newLang);
-    await interaction.reply(v2Simple(C_GREEN, newLang.langTitle, `${newLang.langChanged(newLang.name)}\n\n**🌐 Idioma:** ${newLang.flag} ${newLang.name}`, `Architect ${VERSION}`));
+    await interaction.reply(v2Simple(C_GREEN, newLang.langTitle, `${newLang.langChanged(newLang.name)}\n\n**<:linked:1500524472229433404> Idioma:** ${newLang.flag} ${newLang.name}`, `Architect ${VERSION}`));
   }
 
   // ── /doar ────────────────────────────────────────────────────────────────────
   else if (commandName === 'doar') {
     await interaction.reply({ ...v2Simple(C_ORANGE,
       lang.doarTitle,
-      `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**👨‍💻 Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
+      `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
       `Architect ${VERSION} • ${lang.doarThanks}`
-    ), ephemeral: true });
+    ), flags: MessageFlags.Ephemeral });
   }
 
   // ── /info ────────────────────────────────────────────────────────────────────
@@ -2467,9 +2574,9 @@ client.on('interactionCreate', async interaction => {
   // ── /dm ──────────────────────────────────────────────────────────────────────
   else if (commandName === 'dm') {
     if (interaction.user.id !== process.env.OWNER_ID)
-      return interaction.reply({ content: `${E.erro} Sem permissão.`, ephemeral: true });
+      return interaction.reply({ content: `${E.erro} Sem permissão.`, flags: MessageFlags.Ephemeral });
     const mensagem = interaction.options.getString('mensagem');
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     let enviados = 0, falhas = 0;
     const contatados = new Set(); // evita mensagens duplicadas para o mesmo dono
     for (const [, g] of client.guilds.cache) {
@@ -2487,10 +2594,10 @@ client.on('interactionCreate', async interaction => {
   // ── /premium ──────────────────────────────────────────────────────────────────
   else if (commandName === 'premium') {
     if (!PREMIUM_OWNERS.includes(interaction.user.id))
-      return interaction.reply({ content: `${E.erro} Sem permissão.`, ephemeral: true });
+      return interaction.reply({ content: `${E.erro} Sem permissão.`, flags: MessageFlags.Ephemeral });
     const target = interaction.options.getUser('usuario');
     const plano  = interaction.options.getString('plano');
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     if (plano === 'remover') {
       await mongoDB.collection('premium').deleteOne({ userId: target.id });
@@ -2505,7 +2612,7 @@ client.on('interactionCreate', async interaction => {
       `${E.velroc} Architect Premium ativado!`,
       `Olá, **${target.username}**! Você recebeu acesso **Premium** ao Architect.\n\n` +
       `**${plan.emoji} Plano:** ${plan.label}   **${E.data} Expira em:** ${expiresAt.toLocaleDateString('pt-BR')}\n\n` +
-      `**✨ Benefícios:**\n• Criação de servidores mais detalhada\n• Backup automático a cada 30 min\n• Geração com mais cargos e canais\n• Prioridade na fila de geração`,
+      `**<:nitro:1500524497688723566> Benefícios:**\n• Criação de servidores mais detalhada\n• Backup automático a cada 30 min\n• Geração com mais cargos e canais\n• Prioridade na fila de geração`,
       `Architect ${VERSION} • Create. Protect. Restore.`
     )).catch(() => {});
 
@@ -2518,7 +2625,7 @@ client.on('interactionCreate', async interaction => {
 
   // ── /usuarios ────────────────────────────────────────────────────────────────
   else if (commandName === 'usuarios') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
       const dataParam = interaction.options.getString('data');
       const today     = dataParam || getTodayKey();
@@ -2574,13 +2681,13 @@ client.on('interactionCreate', async interaction => {
       `**Geral:** \`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\` \`/tickets\`\n\n` +
       `**Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
       `Architect ${VERSION} · architect.velroc.workers.dev`
-    ), ephemeral: true });
+    ), flags: MessageFlags.Ephemeral });
   }
 
   // ── /tickets ──────────────────────────────────────────────────────────────────
   else if (commandName === 'tickets') {
     if (!member.permissions.has(PermissionFlagsBits.ManageMessages) && interaction.user.id !== process.env.OWNER_ID)
-      return interaction.reply({ content: lang.noPermission, ephemeral: true });
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
     try {
       const docs = await mongoDB?.collection('ticket_stats')
@@ -2590,7 +2697,7 @@ client.on('interactionCreate', async interaction => {
         .toArray() || [];
 
       if (docs.length === 0) {
-        return interaction.editReply(v2Simple(C_GREY, '🎫 Ranking de Tickets', 'Nenhum ticket foi reivindicado e fechado ainda neste servidor.', `Architect ${VERSION}`));
+        return interaction.editReply(v2Simple(C_GREY, '<:ticket:1500524512607862884> Ranking de Tickets', 'Nenhum ticket foi reivindicado e fechado ainda neste servidor.', `Architect ${VERSION}`));
       }
 
       const medals = ['🥇', '🥈', '🥉'];
@@ -2600,7 +2707,7 @@ client.on('interactionCreate', async interaction => {
       }).join('\n');
 
       await interaction.editReply(v2Simple(C_ORANGE,
-        `🎫 Ranking de Atendimentos — ${guild.name}`,
+        `<:ticket:1500524512607862884> Ranking de Atendimentos — ${guild.name}`,
         lines,
         `Architect ${VERSION} · Tickets reivindicados e fechados`
       ));
@@ -2609,7 +2716,7 @@ client.on('interactionCreate', async interaction => {
 
   } catch (err) {
     console.error('[INTERACTION] Uncaught error:', err?.message || err);
-    const errMsg = { ...errorEmbed('Ocorreu um erro inesperado. Por favor, tente novamente.'), ephemeral: true };
+    const errMsg = { ...errorEmbed('Ocorreu um erro inesperado. Por favor, tente novamente.'), flags: MessageFlags.Ephemeral };
     try {
       if (interaction.deferred || interaction.replied) await interaction.editReply(errMsg).catch(() => {});
       else await interaction.reply(errMsg).catch(() => {});
@@ -2631,7 +2738,7 @@ client.on('channelDelete', async channel => {
         c.type === ChannelType.GuildText &&
         c.permissionsFor(channel.guild.roles.everyone)?.has(PermissionFlagsBits.ViewChannel)
       );
-      if (alertCh) await alertCh.send(v2Simple(C_RED, '🚨 Alerta Anti-Nuke', `**${entry.executor.tag}** deletou **${count} canais** em menos de 10 segundos.\n\nUse **/restaurar** imediatamente para reverter.`, `Architect ${VERSION}`));
+      if (alertCh) await alertCh.send(v2Simple(C_RED, '<:atencao:1500524473827459263> Alerta Anti-Nuke', `**${entry.executor.tag}** deletou **${count} canais** em menos de 10 segundos.\n\nUse **/restaurar** imediatamente para reverter.`, `Architect ${VERSION}`));
     }
   } catch (e) { console.error('[ANTI-NUKE] channelDelete:', e.message); }
 });
@@ -2646,7 +2753,7 @@ client.on('roleDelete', async role => {
     const count = trackNukeAction(role.guild.id, entry.executor.id);
     if (count >= 3) {
       const alertCh = role.guild.channels.cache.find(c => c.type === ChannelType.GuildText);
-      if (alertCh) await alertCh.send(v2Simple(C_RED, '🚨 Alerta Anti-Nuke', `**${entry.executor.tag}** deletou **${count} cargos** em menos de 10 segundos.\n\nUse **/restaurar** imediatamente para reverter.`, `Architect ${VERSION}`));
+      if (alertCh) await alertCh.send(v2Simple(C_RED, '<:atencao:1500524473827459263> Alerta Anti-Nuke', `**${entry.executor.tag}** deletou **${count} cargos** em menos de 10 segundos.\n\nUse **/restaurar** imediatamente para reverter.`, `Architect ${VERSION}`));
     }
   } catch (e) { console.error('[ANTI-NUKE] roleDelete:', e.message); }
 });
@@ -2792,6 +2899,7 @@ app.get('/api/guild/:id', requireAuth, async (req, res) => {
         ticketRole:       config.ticketRole       || '',
         ticketMsg:        config.ticketMsg        || '',
         ticketCategories: config.ticketCategories || [],
+        ticketBanner:     config.ticketBanner     || '',
       },
       hasBackup:  !!backupDoc,
       backupDate: backupDoc?.savedAt || null,
@@ -2817,7 +2925,7 @@ app.post('/api/guild/:id/config', requireAuth, async (req, res) => {
 
     const allowed = [
       'antiNuke','welcomeMsg','welcomeCh','logCh','lang',
-      'ticketPanelCh','ticketCategoryCh','ticketRole','ticketMsg','ticketCategories',
+      'ticketPanelCh','ticketCategoryCh','ticketRole','ticketMsg','ticketCategories','ticketBanner',
     ];
     const update = {};
     for (const key of allowed) {
@@ -2873,7 +2981,35 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
     // Build select menu or buttons
     const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 
-    const deployV2 = v2Simple(C_ORANGE, '🎫 Central de Suporte', config.ticketMsg || 'Clique no botão abaixo para abrir um ticket de suporte.', `${guild.name} · Architect`);
+    const deployComponents = [];
+
+    // Banner (imagem no topo do painel)
+    if (config.ticketBanner) {
+      deployComponents.push({
+        type: 11, // MediaGallery — exibe imagem dentro do container V2
+        items: [{ media: { url: config.ticketBanner } }],
+      });
+      deployComponents.push({ type: 14, divider: true, spacing: 1 }); // Separator
+    }
+
+    deployComponents.push({
+      type: 10, // TextDisplay
+      content: [
+        `## <:ticket:1500524512607862884> Central de Suporte`,
+        config.ticketMsg || 'Clique no botão abaixo para abrir um ticket de suporte.',
+        ``,
+        `-# ${guild.name} · Architect ${VERSION}`,
+      ].join('\n'),
+    });
+
+    const deployV2 = {
+      flags: MessageFlags.IsComponentsV2,
+      components: [{
+        type: 17, // Container
+        accent_color: C_ORANGE,
+        components: deployComponents,
+      }],
+    };
 
     let components = [];
     if (cats.length > 1) {
@@ -2884,7 +3020,7 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
         .addOptions(cats.map(c => ({
           label: c.name,
           value: c.name.toLowerCase().replace(/\s+/g, '_'),
-          emoji: c.emoji || '🎫',
+          emoji: c.emoji || '<:ticket:1500524512607862884>',
         })));
       components.push(new ActionRowBuilder().addComponents(menu));
     } else {
@@ -2892,7 +3028,7 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
       const btn = new ButtonBuilder()
         .setCustomId('ticket_open')
         .setLabel(cats[0]?.name || 'Abrir Ticket')
-        .setEmoji(cats[0]?.emoji || '🎫')
+        .setEmoji(cats[0]?.emoji || '<:ticket:1500524512607862884>')
         .setStyle(ButtonStyle.Primary);
       components.push(new ActionRowBuilder().addComponents(btn));
     }
@@ -3007,39 +3143,39 @@ app.get('/', (req, res) => {
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log(`✅ Dashboard server na porta ${process.env.PORT || 3000}`);
+  console.log(`<:aceitar:1500524505746116800> Dashboard server na porta ${process.env.PORT || 3000}`);
 });
 
 // ── Global Error Handlers ──────────────────────────────────────────────────────
-client.on('error', e => console.error('❌ Client error:', e.message));
-process.on('unhandledRejection', reason => console.error('❌ Unhandled rejection:', reason?.message || reason));
-process.on('uncaughtException',  e      => console.error('❌ Uncaught exception:',  e?.message    || e));
+client.on('error', e => console.error('<:negar:1500524485231509785> Client error:', e.message));
+process.on('unhandledRejection', reason => console.error('<:negar:1500524485231509785> Unhandled rejection:', reason?.message || reason));
+process.on('uncaughtException',  e      => console.error('<:negar:1500524485231509785> Uncaught exception:',  e?.message    || e));
 
 // ── Startup ────────────────────────────────────────────────────────────────────
 async function startup() {
   const missing = ['DISCORD_TOKEN', 'CLIENT_ID', 'MONGO_URI'].filter(k => !process.env[k]);
   if (missing.length) {
-    console.error(`❌ Variáveis de ambiente faltando: ${missing.join(', ')}`);
+    console.error(`<:negar:1500524485231509785> Variáveis de ambiente faltando: ${missing.join(', ')}`);
     process.exit(1);
   }
   console.log(`[STARTUP] TOKEN: ${process.env.DISCORD_TOKEN?.slice(0,10)}... CLIENT_ID: ${process.env.CLIENT_ID}`);
 
   try { await connectDB(); }
-  catch (e) { console.error('❌ Erro MongoDB:', e.message); process.exit(1); }
+  catch (e) { console.error('<:negar:1500524485231509785> Erro MongoDB:', e.message); process.exit(1); }
 
   console.log('[STARTUP] Fazendo login no Discord...');
   const loginTimeout = setTimeout(() => {
-    console.error('❌ Discord login TIMEOUT (30s) — verifique o DISCORD_TOKEN no Render.');
+    console.error('<:negar:1500524485231509785> Discord login TIMEOUT (30s) — verifique o DISCORD_TOKEN no Render.');
     process.exit(1);
   }, 30000);
 
   try {
     await client.login(process.env.DISCORD_TOKEN);
     clearTimeout(loginTimeout);
-    console.log('✅ Discord login OK');
+    console.log('<:aceitar:1500524505746116800> Discord login OK');
   } catch (e) {
     clearTimeout(loginTimeout);
-    console.error('❌ Discord login FALHOU:', e.message);
+    console.error('<:negar:1500524485231509785> Discord login FALHOU:', e.message);
     process.exit(1);
   }
 
