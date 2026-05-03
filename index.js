@@ -647,7 +647,7 @@ function trackNukeAction(guildId, userId) {
 
 // ── Ticket Handler ────────────────────────────────────────────────────────────
 async function handleTicketOpen(interaction, categoryName) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   try {
     const guild  = interaction.guild;
     const member = interaction.member;
@@ -1222,6 +1222,7 @@ async function captureStructure(guild) {
 // ── Apply Structure ────────────────────────────────────────────────────────────
 // FIX: valida estrutura antes de deletar qualquer coisa
 async function applyStructure(guild, structure, onStep) {
+  const step = typeof onStep === 'function' ? onStep : async () => {};
   // Garante que temos dados válidos antes de qualquer deleção
   if (!structure.roles?.length && !structure.categories?.length) {
     throw new Error('Estrutura inválida: sem cargos nem categorias para criar. Operação cancelada.');
@@ -1230,7 +1231,7 @@ async function applyStructure(guild, structure, onStep) {
   console.log(`[APPLY] Iniciando — roles: ${structure.roles?.length}, categories: ${structure.categories?.length}`);
 
   // 1. Remover canais
-  await onStep(E.canais, 'Removendo canais existentes...');
+  await step(E.canais, 'Removendo canais existentes...');
   const existingChannels = await guild.channels.fetch();
   for (const [, ch] of existingChannels) {
     await ch.delete().catch(e => console.error('[APPLY] Erro ao deletar canal:', e.message));
@@ -1238,7 +1239,7 @@ async function applyStructure(guild, structure, onStep) {
   await new Promise(r => setTimeout(r, 1000));
 
   // 2. Remover cargos
-  await onStep(E.cargos, 'Removendo cargos existentes...');
+  await step(E.cargos, 'Removendo cargos existentes...');
   const existingRoles = await guild.roles.fetch();
   for (const [, role] of existingRoles) {
     if (!role.managed && role.name !== '@everyone') {
@@ -1255,7 +1256,7 @@ async function applyStructure(guild, structure, onStep) {
   // 4. Restaurar configurações do servidor
   if (structure.server) {
     try {
-      await onStep(E.config, 'Restaurando configurações do servidor...');
+      await step(E.config, 'Restaurando configurações do servidor...');
       await guild.edit({
         name:                       structure.server.name,
         description:                structure.server.description || structure.serverDescription || null,
@@ -1268,7 +1269,7 @@ async function applyStructure(guild, structure, onStep) {
   }
 
   // 5. Criar cargos
-  await onStep(E.cargos, 'Criando cargos...');
+  await step(E.cargos, 'Criando cargos...');
   const createdRoles  = new Map();
   const rolesToCreate = [...(structure.roles || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
   console.log(`[APPLY] Criando ${rolesToCreate.length} cargos...`);
@@ -1278,7 +1279,7 @@ async function applyStructure(guild, structure, onStep) {
       const safeColor = /^#[0-9A-Fa-f]{6}$/.test(r.color) ? r.color : '#99aab5';
       const roleData  = {
         name:        r.name,
-        color:       safeColor,
+        colors:      [safeColor],   // discord.js v14.16+ usa "colors" (array)
         hoist:       r.hoist       || false,
         mentionable: r.mentionable || false,
         permissions: Array.isArray(r.permissions) ? buildPermissions(r.permissions) : (r.permissions || 0n),
@@ -1287,7 +1288,7 @@ async function applyStructure(guild, structure, onStep) {
       const role = await guild.roles.create(roleData);
       createdRoles.set(r.name, role);
       console.log(`[APPLY] Cargo criado: ${r.name}`);
-      await onStep(E.sucesso, `Cargo: **${r.name}**`);
+      await step(E.sucesso, `Cargo: **${r.name}**`);
       await new Promise(r => setTimeout(r, 250));
     } catch (e) { console.error(`[APPLY] Cargo "${r.name}":`, e.message); }
   }
@@ -1330,6 +1331,33 @@ async function applyStructure(guild, structure, onStep) {
     text:         ChannelType.GuildText,
   };
 
+  // Tipos que exigem boost ou permissão especial — fallback para text/voice se falhar
+  const FALLBACK = {
+    [ChannelType.GuildAnnouncement]: ChannelType.GuildText,
+    [ChannelType.GuildForum]:        ChannelType.GuildText,
+    [ChannelType.GuildStageVoice]:   ChannelType.GuildVoice,
+  };
+
+  /** Cria canal com fallback automático se tipo não for suportado */
+  async function safeCreateChannel(data) {
+    try {
+      return await guild.channels.create(data);
+    } catch (e) {
+      const fallbackType = FALLBACK[data.type];
+      if (fallbackType !== undefined) {
+        console.warn(`[APPLY] Tipo ${data.type} não suportado, fallback → ${fallbackType} para "${data.name}"`);
+        try {
+          return await guild.channels.create({ ...data, type: fallbackType });
+        } catch (e2) {
+          console.error('[APPLY] Fallback também falhou:', data.name, e2.message);
+          return null;
+        }
+      }
+      console.error('[APPLY] Canal falhou:', data.name, e.message);
+      return null;
+    }
+  }
+
   let systemChannelId = null;
   let afkChannelId    = null;
 
@@ -1346,11 +1374,13 @@ async function applyStructure(guild, structure, onStep) {
       };
       if (type === ChannelType.GuildText || type === ChannelType.GuildAnnouncement)
         channelData.topic = ch.topic?.substring(0, 1024) || '';
-      const created = await guild.channels.create(channelData).catch(e => { console.error('[APPLY] Orphan canal:', e.message); return null; });
+      if (type === ChannelType.GuildForum)
+        channelData.topic = ch.topic?.substring(0, 4096) || '';
+      const created = await safeCreateChannel(channelData);
       if (!created) continue;
       if (ch.isSystemChannel) systemChannelId = created.id;
       if (ch.isAfkChannel)    afkChannelId    = created.id;
-      await onStep(E.canais, `Canal: **${ch.name}**`);
+      await step(E.canais, `Canal: **${ch.name}**`);
       await new Promise(r => setTimeout(r, 300));
     } catch (e) { console.error('[APPLY] Orphan canal exception:', ch.name, e.message); }
   }
@@ -1359,7 +1389,7 @@ async function applyStructure(guild, structure, onStep) {
   console.log(`[APPLY] Criando ${structure.categories?.length || 0} categorias...`);
   for (const category of structure.categories || []) {
     try {
-      await onStep(E.canais, `Categoria: **${category.name}**`);
+      await step(E.canais, `Categoria: **${category.name}**`);
       const cat = await guild.channels.create({
         name:                 category.name.substring(0, 100),
         type:                 ChannelType.GuildCategory,
@@ -1382,12 +1412,14 @@ async function applyStructure(guild, structure, onStep) {
           };
           if (type === ChannelType.GuildText || type === ChannelType.GuildAnnouncement)
             channelData.topic = ch.topic?.substring(0, 1024) || '';
-          const created = await guild.channels.create(channelData).catch(e => { console.error('[APPLY] Canal:', ch.name, e.message); return null; });
+          if (type === ChannelType.GuildForum)
+            channelData.topic = ch.topic?.substring(0, 4096) || '';
+          const created = await safeCreateChannel(channelData);
           if (!created) continue;
           console.log(`[APPLY] Canal criado: ${ch.name}`);
           if (ch.isSystemChannel) systemChannelId = created.id;
           if (ch.isAfkChannel)    afkChannelId    = created.id;
-          await onStep(E.canais, `Canal: **${ch.name}**`);
+          await step(E.canais, `Canal: **${ch.name}**`);
           await new Promise(r => setTimeout(r, 300));
         } catch (e) { console.error('[APPLY] Canal exception:', ch.name, e.message); }
       }
@@ -1724,7 +1756,8 @@ client.on('interactionCreate', async interaction => {
   // ── Global error boundary ─────────────────────────────────────────────────
   try {
 
-  // ── Botões ─────────────────────────────────────────────────────────────────
+  // ── Guard: ignora interações fora de servidor (DMs, etc.) ────────────────
+  if (!interaction.guild || !interaction.guildId) return;
   if (interaction.isButton()) {
     const [action, id] = interaction.customId.split('_confirm_');
 
@@ -1856,7 +1889,7 @@ client.on('interactionCreate', async interaction => {
       if (!member) return false;
       const hasRole = member.roles.cache.has(ticketRoleId);
       if (!hasRole) {
-        await intr.reply({ content: `${E.erro} Somente <@&${ticketRoleId}> pode usar este botão.`, ephemeral: true });
+        await intr.reply({ content: `${E.erro} Somente <@&${ticketRoleId}> pode usar este botão.`, flags: MessageFlags.Ephemeral });
         return false;
       }
       return true;
@@ -1867,7 +1900,7 @@ client.on('interactionCreate', async interaction => {
       if (!await assertTicketStaffPermission(interaction)) return;
       const chId = interaction.customId.replace('ticket_close_', '');
       const ch   = interaction.guild.channels.cache.get(chId);
-      if (!ch) return interaction.reply({ content: 'Canal não encontrado.', ephemeral: true });
+      if (!ch) return interaction.reply({ content: 'Canal não encontrado.', flags: MessageFlags.Ephemeral });
 
       // Se estava reivindicado, incrementa stats do staff
       const claim = ticketClaimed.get(chId);
@@ -1906,7 +1939,7 @@ client.on('interactionCreate', async interaction => {
       if (remaining > 0) {
         const mins = Math.ceil(remaining / 60000);
         // ephemeral puro sem V2 — sem conflito
-        return interaction.reply({ content: `${E.erro} Aguarde **${mins} minuto(s)** para chamar a staff novamente.`, ephemeral: true });
+        return interaction.reply({ content: `${E.erro} Aguarde **${mins} minuto(s)** para chamar a staff novamente.`, flags: MessageFlags.Ephemeral });
       }
 
       chCooldown.set(uid, now);
@@ -1934,7 +1967,7 @@ client.on('interactionCreate', async interaction => {
       const already = ticketClaimed.get(chId);
       if (already) {
         // ephemeral puro — sem V2
-        return interaction.reply({ content: `${E.erro} Este ticket já foi reivindicado por <@${already.staffId}>.`, ephemeral: true });
+        return interaction.reply({ content: `${E.erro} Este ticket já foi reivindicado por <@${already.staffId}>.`, flags: MessageFlags.Ephemeral });
       }
 
       ticketClaimed.set(chId, {
@@ -1979,7 +2012,7 @@ client.on('interactionCreate', async interaction => {
   const publicCmds = ['info', 'help', 'status', 'doar', 'idioma'];
 
   if (!publicCmds.includes(commandName) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
   }
 
   // Rastreia uso do comando
@@ -1999,7 +2032,7 @@ client.on('interactionCreate', async interaction => {
         `${E.erro} Limite Diário Atingido`,
         `Você já usou suas **${limitCheck.limit} criações gratuitas** de hoje.\n\n> Volte amanhã ou adquira o ${E.premium} **Premium** para criações ilimitadas!\n\n**Uso hoje:** ${limitCheck.used}/${limitCheck.limit} criações`,
         `Architect ${VERSION}`
-      ), ephemeral: true });
+      ), flags: MessageFlags.Ephemeral });
     }
 
     await interaction.deferReply();
@@ -2102,7 +2135,7 @@ client.on('interactionCreate', async interaction => {
         `${E.erro} Limite Diário Atingido`,
         `Você já usou suas **${limitCheck.limit} criações gratuitas** de hoje.\n\n> Volte amanhã ou adquira o ${E.premium} **Premium** para criações ilimitadas!\n\n**Uso hoje:** ${limitCheck.used}/${limitCheck.limit} criações`,
         `Architect ${VERSION}`
-      ), ephemeral: true });
+      ), flags: MessageFlags.Ephemeral });
     }
 
     await interaction.deferReply();
@@ -2178,7 +2211,7 @@ client.on('interactionCreate', async interaction => {
 
   // ── /backup ──────────────────────────────────────────────────────────────────
   else if (commandName === 'backup') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
       const structure = await captureStructure(guild);
       await saveBackup(guild.id, guild.name, structure);
@@ -2196,7 +2229,7 @@ client.on('interactionCreate', async interaction => {
   // ── /restaurar ───────────────────────────────────────────────────────────────
   else if (commandName === 'restaurar') {
     const backup = await getBackup(guild.id);
-    if (!backup) return interaction.reply({ content: lang.noBackup, ephemeral: true });
+    if (!backup) return interaction.reply({ content: lang.noBackup, flags: MessageFlags.Ephemeral });
     const confirmId = `${interaction.id}`;
     pendingRestore.set(confirmId, { backup });
     setTimeout(() => pendingRestore.delete(confirmId), 60000);
@@ -2215,7 +2248,7 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'proteger') {
     const ativo  = interaction.options.getBoolean('ativo');
     const backup = await getBackup(guild.id);
-    if (ativo && !backup) return interaction.reply({ content: `${E.erro} Faça um **/backup** primeiro!`, ephemeral: true });
+    if (ativo && !backup) return interaction.reply({ content: `${E.erro} Faça um **/backup** primeiro!`, flags: MessageFlags.Ephemeral });
     if (backup) await setProtection(guild.id, ativo);
     await interaction.reply(v2Simple(
       ativo ? C_GREEN : C_RED,
@@ -2261,7 +2294,7 @@ client.on('interactionCreate', async interaction => {
     try {
       const role = await guild.roles.create({ name: nome, color: cor, permissions: adm ? [PermissionFlagsBits.Administrator] : [] });
       await interaction.reply(v2Simple(role.color, `${E.sucesso} Cargo Criado!`, `**${E.cargos} Nome:** ${role.name}   **🎨 Cor:** ${cor}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /canal_criar ─────────────────────────────────────────────────────────────
@@ -2275,7 +2308,7 @@ client.on('interactionCreate', async interaction => {
       if (topico) channelData.topic = topico;
       const ch = await guild.channels.create(channelData);
       await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Canal Criado!`, `**${E.canais} Nome:** ${ch.name}   **<:categoria:1500524490214473758> Tipo:** ${tipo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /status ──────────────────────────────────────────────────────────────────
@@ -2295,26 +2328,26 @@ client.on('interactionCreate', async interaction => {
     const target = interaction.options.getMember('membro');
     const motivo = interaction.options.getString('motivo') || 'Sem motivo informado';
     const dias   = interaction.options.getInteger('dias') || 0;
-    if (!member.permissions.has(PermissionFlagsBits.BanMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target || !target.bannable) return interaction.reply({ content: `${E.erro} Não consigo banir este membro!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.BanMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target || !target.bannable) return interaction.reply({ content: `${E.erro} Não consigo banir este membro!`, flags: MessageFlags.Ephemeral });
     try {
       await target.send(v2Simple(C_RED, `${E.banido} Você foi banido!`, `Você foi banido de **${guild.name}**\n\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
       await target.ban({ reason: motivo, deleteMessageDays: dias });
       await interaction.reply(v2Simple(C_RED, `${E.banido} Membro Banido!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**<:deletar:1500524511081140384> Mensagens deletadas:** ${dias} dia(s)`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /kick ────────────────────────────────────────────────────────────────────
   else if (commandName === 'kick') {
     const target = interaction.options.getMember('membro');
     const motivo = interaction.options.getString('motivo') || 'Sem motivo informado';
-    if (!member.permissions.has(PermissionFlagsBits.KickMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target || !target.kickable) return interaction.reply({ content: `${E.erro} Não consigo expulsar este membro!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.KickMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target || !target.kickable) return interaction.reply({ content: `${E.erro} Não consigo expulsar este membro!`, flags: MessageFlags.Ephemeral });
     try {
       await target.send(v2Simple(C_YELLOW, `${E.membros} Você foi expulso!`, `Você foi expulso de **${guild.name}**\n\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
       await target.kick(motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.membros} Membro Expulso!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /mute ────────────────────────────────────────────────────────────────────
@@ -2322,75 +2355,75 @@ client.on('interactionCreate', async interaction => {
     const target  = interaction.options.getMember('membro');
     const motivo  = interaction.options.getString('motivo') || 'Sem motivo informado';
     const duracao = interaction.options.getInteger('duracao') || 10;
-    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
     try {
       await target.timeout(duracao * 60 * 1000, motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.mutado} Membro Mutado!`, `**${E.membros} Membro:** ${target.user.tag}   **<:time:1500524456840400999> Duração:** ${duracao} min   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /unmute ──────────────────────────────────────────────────────────────────
   else if (commandName === 'unmute') {
     const target = interaction.options.getMember('membro');
-    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
     try {
       await target.timeout(null);
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Membro Desmutado!`, `**${E.membros} Membro:** ${target.user.tag}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /warn ────────────────────────────────────────────────────────────────────
   else if (commandName === 'warn') {
     const target = interaction.options.getMember('membro');
     const motivo = interaction.options.getString('motivo') || 'Sem motivo informado';
-    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
-    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
     try {
       await target.send(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Recebida', `**Servidor:** ${guild.name}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
       await interaction.reply(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Enviada!', `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /lock ────────────────────────────────────────────────────────────────────
   else if (commandName === 'lock') {
     const canal  = interaction.options.getChannel('canal') || interaction.channel;
     const motivo = interaction.options.getString('motivo') || 'Canal trancado';
-    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
       await interaction.reply(v2Simple(C_RED, `${E.lock} Canal Trancado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /unlock ──────────────────────────────────────────────────────────────────
   else if (commandName === 'unlock') {
     const canal = interaction.options.getChannel('canal') || interaction.channel;
-    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: null });
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Canal Destrancado!`, `**${E.canais} Canal:** <#${canal.id}>`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /slowmode ────────────────────────────────────────────────────────────────
   else if (commandName === 'slowmode') {
     const segundos = interaction.options.getInteger('segundos');
     const canal    = interaction.options.getChannel('canal') || interaction.channel;
-    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       await canal.setRateLimitPerUser(segundos);
       await interaction.reply(v2Simple(C_BLUE, `${E.config} Slowmode Configurado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:time:1500524456840400999> Intervalo:** ${segundos === 0 ? 'Desativado' : `${segundos}s`}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /clear ───────────────────────────────────────────────────────────────────
   else if (commandName === 'clear') {
     const quantidade = interaction.options.getInteger('quantidade');
-    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const msgs = await interaction.channel.bulkDelete(Math.min(quantidade, 100), true);
       await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Mensagens Deletadas!`, `**${msgs.size}** mensagem(s) deletada(s)!`, `Architect ${VERSION}`));
     } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
@@ -2404,12 +2437,12 @@ client.on('interactionCreate', async interaction => {
     const canal     = interaction.options.getChannel('canal') || interaction.channel;
     const imagem    = interaction.options.getString('imagem') || null;
     const rodape    = interaction.options.getString('rodape') || null;
-    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       const customV2 = v2Simple(hex(cor.replace('#','').length === 6 ? cor : '#9b59b6'), titulo, descricao + (imagem ? `\n${imagem}` : ''), rodape || null);
       await canal.send(customV2);
-      await interaction.reply({ content: `${E.sucesso} Embed enviado em <#${canal.id}>!`, ephemeral: true });
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply({ content: `${E.sucesso} Embed enviado em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /anuncio ─────────────────────────────────────────────────────────────────
@@ -2418,19 +2451,19 @@ client.on('interactionCreate', async interaction => {
     const mensagem = interaction.options.getString('mensagem');
     const canal    = interaction.options.getChannel('canal');
     const marcar   = interaction.options.getBoolean('marcar_everyone') || false;
-    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
       const anuncioV2 = v2Simple(C_ORANGE, `<:avisos:1500524507171918006> ${titulo}`, mensagem, `Anúncio por ${member.user.tag} · Architect ${VERSION}`);
       if (marcar) await canal.send({ content: '@everyone', allowedMentions: { parse: ['everyone'] } }).catch(() => {});
       await canal.send(anuncioV2);
-      await interaction.reply({ content: `${E.sucesso} Anúncio enviado em <#${canal.id}>!`, ephemeral: true });
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), ephemeral: true }); }
+      await interaction.reply({ content: `${E.sucesso} Anúncio enviado em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
   // ── /idioma ───────────────────────────────────────────────────────────────────
   else if (commandName === 'idioma') {
     if (!member.permissions.has(PermissionFlagsBits.Administrator))
-      return interaction.reply({ content: lang.noPermission, ephemeral: true });
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     const langKey = interaction.options.getString('lang');
     const newLang = LANGS[langKey];
     await mongoDB.collection('settings').updateOne(
@@ -2448,7 +2481,7 @@ client.on('interactionCreate', async interaction => {
       lang.doarTitle,
       `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
       `Architect ${VERSION} • ${lang.doarThanks}`
-    ), ephemeral: true });
+    ), flags: MessageFlags.Ephemeral });
   }
 
   // ── /info ────────────────────────────────────────────────────────────────────
@@ -2467,9 +2500,9 @@ client.on('interactionCreate', async interaction => {
   // ── /dm ──────────────────────────────────────────────────────────────────────
   else if (commandName === 'dm') {
     if (interaction.user.id !== process.env.OWNER_ID)
-      return interaction.reply({ content: `${E.erro} Sem permissão.`, ephemeral: true });
+      return interaction.reply({ content: `${E.erro} Sem permissão.`, flags: MessageFlags.Ephemeral });
     const mensagem = interaction.options.getString('mensagem');
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     let enviados = 0, falhas = 0;
     const contatados = new Set(); // evita mensagens duplicadas para o mesmo dono
     for (const [, g] of client.guilds.cache) {
@@ -2487,10 +2520,10 @@ client.on('interactionCreate', async interaction => {
   // ── /premium ──────────────────────────────────────────────────────────────────
   else if (commandName === 'premium') {
     if (!PREMIUM_OWNERS.includes(interaction.user.id))
-      return interaction.reply({ content: `${E.erro} Sem permissão.`, ephemeral: true });
+      return interaction.reply({ content: `${E.erro} Sem permissão.`, flags: MessageFlags.Ephemeral });
     const target = interaction.options.getUser('usuario');
     const plano  = interaction.options.getString('plano');
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     if (plano === 'remover') {
       await mongoDB.collection('premium').deleteOne({ userId: target.id });
@@ -2518,7 +2551,7 @@ client.on('interactionCreate', async interaction => {
 
   // ── /usuarios ────────────────────────────────────────────────────────────────
   else if (commandName === 'usuarios') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
       const dataParam = interaction.options.getString('data');
       const today     = dataParam || getTodayKey();
@@ -2574,13 +2607,13 @@ client.on('interactionCreate', async interaction => {
       `**Geral:** \`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\` \`/tickets\`\n\n` +
       `**Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
       `Architect ${VERSION} · architect.velroc.workers.dev`
-    ), ephemeral: true });
+    ), flags: MessageFlags.Ephemeral });
   }
 
   // ── /tickets ──────────────────────────────────────────────────────────────────
   else if (commandName === 'tickets') {
     if (!member.permissions.has(PermissionFlagsBits.ManageMessages) && interaction.user.id !== process.env.OWNER_ID)
-      return interaction.reply({ content: lang.noPermission, ephemeral: true });
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
     try {
       const docs = await mongoDB?.collection('ticket_stats')
@@ -2609,7 +2642,7 @@ client.on('interactionCreate', async interaction => {
 
   } catch (err) {
     console.error('[INTERACTION] Uncaught error:', err?.message || err);
-    const errMsg = { ...errorEmbed('Ocorreu um erro inesperado. Por favor, tente novamente.'), ephemeral: true };
+    const errMsg = { ...errorEmbed('Ocorreu um erro inesperado. Por favor, tente novamente.'), flags: MessageFlags.Ephemeral };
     try {
       if (interaction.deferred || interaction.replied) await interaction.editReply(errMsg).catch(() => {});
       else await interaction.reply(errMsg).catch(() => {});
