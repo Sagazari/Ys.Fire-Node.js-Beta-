@@ -11,6 +11,193 @@ const {
   MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
   SectionBuilder, ThumbnailBuilder,
 } = require('discord.js');
+
+// ── Canvas (geração de imagem do resultado) ────────────────────────────────────
+let canvasLib = null;
+try {
+  canvasLib = require('@napi-rs/canvas');
+  console.log('[CANVAS] @napi-rs/canvas carregado com sucesso.');
+} catch (_) {
+  try {
+    canvasLib = require('canvas');
+    console.log('[CANVAS] canvas carregado com sucesso.');
+  } catch (__) {
+    console.warn('[CANVAS] Nenhuma lib de canvas disponível. Imagens desativadas. Instale: npm install @napi-rs/canvas');
+  }
+}
+
+/**
+ * Gera um card visual (Buffer PNG) celebrando a criação do servidor.
+ * Retorna null se canvas não estiver disponível.
+ */
+async function generateServerCard({ guildName, guildIcon, roles, categories, channels, isPremium, prompt }) {
+  if (!canvasLib) return null;
+  try {
+    const { createCanvas, loadImage, GlobalFonts } = canvasLib;
+
+    const W = 900, H = 500;
+    const canvas  = createCanvas(W, H);
+    const ctx     = canvas.getContext('2d');
+
+    // ── Fundo gradiente escuro ─────────────────────────────────────────────────
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0,   '#0d1117');
+    bg.addColorStop(0.5, '#1a1f2e');
+    bg.addColorStop(1,   '#0d1117');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Decoração: círculo de brilho laranja no canto superior esquerdo ────────
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 300);
+    glow.addColorStop(0,   'rgba(242,108,30,0.18)');
+    glow.addColorStop(1,   'rgba(242,108,30,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Borda superior laranja ─────────────────────────────────────────────────
+    const borderGrad = ctx.createLinearGradient(0, 0, W, 0);
+    borderGrad.addColorStop(0,   'rgba(242,108,30,0)');
+    borderGrad.addColorStop(0.3, '#f26c1e');
+    borderGrad.addColorStop(0.7, '#f26c1e');
+    borderGrad.addColorStop(1,   'rgba(242,108,30,0)');
+    ctx.fillStyle = borderGrad;
+    ctx.fillRect(0, 0, W, 3);
+
+    // ── Ícone do servidor (avatar circular) ───────────────────────────────────
+    const avatarSize = 90;
+    const avatarX    = 60;
+    const avatarY    = 60;
+    if (guildIcon) {
+      try {
+        const img = await loadImage(guildIcon);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
+        ctx.restore();
+        // Borda do avatar
+        ctx.beginPath();
+        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f26c1e';
+        ctx.lineWidth   = 3;
+        ctx.stroke();
+      } catch (_) {}
+    }
+
+    // ── Nome do servidor ───────────────────────────────────────────────────────
+    const textX = guildIcon ? avatarX + avatarSize + 24 : 60;
+    ctx.font      = 'bold 36px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(guildName.substring(0, 28), textX, avatarY + 44);
+
+    // ── Badge Premium ──────────────────────────────────────────────────────────
+    if (isPremium) {
+      ctx.font      = 'bold 14px sans-serif';
+      ctx.fillStyle = '#f26c1e';
+      ctx.fillText('✦ PREMIUM', textX, avatarY + 68);
+    }
+
+    // ── Subtítulo "Servidor criado com sucesso" ────────────────────────────────
+    ctx.font      = '18px sans-serif';
+    ctx.fillStyle = '#8b949e';
+    ctx.fillText('Servidor criado com sucesso pelo Architect', 60, avatarY + avatarSize + 36);
+
+    // ── Linha separadora ───────────────────────────────────────────────────────
+    const sepY = avatarY + avatarSize + 56;
+    const lineGrad = ctx.createLinearGradient(0, 0, W, 0);
+    lineGrad.addColorStop(0,   'rgba(242,108,30,0)');
+    lineGrad.addColorStop(0.1, 'rgba(242,108,30,0.6)');
+    lineGrad.addColorStop(0.9, 'rgba(242,108,30,0.6)');
+    lineGrad.addColorStop(1,   'rgba(242,108,30,0)');
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(60, sepY, W - 120, 1);
+
+    // ── Cards de estatísticas ──────────────────────────────────────────────────
+    const stats = [
+      { label: 'Cargos',      value: String(roles),      emoji: '🏷️' },
+      { label: 'Categorias',  value: String(categories), emoji: '📂' },
+      { label: 'Canais',      value: String(channels),   emoji: '💬' },
+      { label: 'Tipo',        value: isPremium ? 'Premium' : 'Normal', emoji: isPremium ? '👑' : '🔷' },
+    ];
+
+    const cardW   = 180;
+    const cardH   = 110;
+    const cardY   = sepY + 20;
+    const gapX    = (W - 120 - stats.length * cardW) / (stats.length - 1);
+
+    for (let i = 0; i < stats.length; i++) {
+      const s  = stats[i];
+      const cx = 60 + i * (cardW + gapX);
+
+      // Card background
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      roundRect(ctx, cx, cardY, cardW, cardH, 14);
+      ctx.fill();
+
+      // Card border
+      ctx.strokeStyle = 'rgba(242,108,30,0.25)';
+      ctx.lineWidth   = 1;
+      roundRect(ctx, cx, cardY, cardW, cardH, 14);
+      ctx.stroke();
+
+      // Emoji
+      ctx.font      = '28px sans-serif';
+      ctx.fillStyle = '#f26c1e';
+      ctx.fillText(s.emoji, cx + 16, cardY + 40);
+
+      // Value
+      ctx.font      = 'bold 32px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(s.value, cx + 16, cardY + 76);
+
+      // Label
+      ctx.font      = '14px sans-serif';
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText(s.label, cx + 16, cardY + 98);
+    }
+
+    // ── Prompt resumido ────────────────────────────────────────────────────────
+    const promptY = cardY + cardH + 30;
+    ctx.font      = 'italic 15px sans-serif';
+    ctx.fillStyle = '#6e7681';
+    const promptShort = `"${(prompt || '').substring(0, 70)}${(prompt || '').length > 70 ? '…' : ''}"`;
+    ctx.fillText(promptShort, 60, promptY);
+
+    // ── Rodapé ─────────────────────────────────────────────────────────────────
+    const footerY = H - 28;
+    ctx.font      = '13px sans-serif';
+    ctx.fillStyle = '#484f58';
+    ctx.fillText(`Architect ${VERSION}  ·  architect.velroc.workers.dev  ·  ${new Date().toLocaleDateString('pt-BR')}`, 60, footerY);
+
+    // Dot laranja no rodapé
+    ctx.beginPath();
+    ctx.arc(W - 60, footerY - 5, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f26c1e';
+    ctx.fill();
+
+    return canvas.toBuffer('image/png');
+  } catch (e) {
+    console.error('[CANVAS] Erro ao gerar imagem:', e.message);
+    return null;
+  }
+}
+
+/** Helper para roundRect (compatível com Node Canvas e @napi-rs/canvas) */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
 const fetch  = require('node-fetch');
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
@@ -501,11 +688,24 @@ async function handleTicketOpen(interaction, categoryName) {
 
     // Send ticket embed in new channel
     const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-    const closeBtn = new ButtonBuilder()
-      .setCustomId(`ticket_close_${ticketCh.id}`)
-      .setLabel('Fechar ticket')
-      .setEmoji('🔒')
-      .setStyle(ButtonStyle.Danger);
+    // ── Painel do ticket com 3 botões (Fechar, Chamar Staff, Reivindicar) ────────
+    const ticketRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`ticket_close_${ticketCh.id}`)
+        .setLabel('Fechar Ticket')
+        .setEmoji('🔒')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`ticket_call_staff_${ticketCh.id}`)
+        .setLabel('Chamar Staff')
+        .setEmoji('🔔')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`ticket_claim_${ticketCh.id}`)
+        .setLabel('Reivindicar')
+        .setEmoji('✋')
+        .setStyle(ButtonStyle.Primary),
+    );
 
     const ticketV2 = v2Simple(C_ORANGE,
       `🎫 Ticket — ${categoryName || 'Suporte'}`,
@@ -516,7 +716,7 @@ async function handleTicketOpen(interaction, categoryName) {
     await ticketCh.send({
       content: config?.ticketRole ? `<@&${config.ticketRole}>` : '',
       ...ticketV2,
-      components: [...(ticketV2.components || []), new ActionRowBuilder().addComponents(closeBtn)],
+      components: [...(ticketV2.components || []), ticketRow],
     });
 
     await interaction.editReply({ content: `Seu ticket foi aberto: <#${ticketCh.id}>` });
@@ -1217,6 +1417,13 @@ async function applyStructure(guild, structure, onStep) {
 // ── Pending Maps ───────────────────────────────────────────────────────────────
 const pendingCreate  = new Map();
 const pendingRestore = new Map();
+// ── Ticket tracking ────────────────────────────────────────────────────────────
+// staffCallCooldown: Map<channelId, Map<userId, timestamp>>  (30min anti-spam)
+// ticketClaimed:     Map<channelId, { staffId, staffTag, claimedAt }>
+// ticketStats:       Map<staffId, count>  (persistido no mongo também)
+const staffCallCooldown = new Map();
+const ticketClaimed     = new Map();
+const ticketStats       = new Map();
 
 // ── Components V2 Helpers ───────────────────────────────────────────────────────
 // Retorna { flags, components } prontos para passar em reply/editReply
@@ -1501,6 +1708,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('info').setDescription('Informações do Architect'),
     new SlashCommandBuilder().setName('help').setDescription('Lista de comandos'),
     new SlashCommandBuilder().setName('usuarios').setDescription('Estatísticas de uso do Architect hoje').addStringOption(o => o.setName('data').setDescription('Data no formato YYYY-MM-DD (padrão: hoje)').setRequired(false)),
+    new SlashCommandBuilder().setName('tickets').setDescription('Mostra o ranking de atendimentos da staff neste servidor'),
   ].map(c => c.toJSON());
 
   try {
@@ -1521,7 +1729,7 @@ client.on('interactionCreate', async interaction => {
 
     // Confirmar criação
     if (action === 'create' && pendingCreate.has(id)) {
-      const { prompt, structure } = pendingCreate.get(id);
+      const { prompt, structure, isPremium } = pendingCreate.get(id);
       pendingCreate.delete(id);
       const steps = [];
       await interaction.update({
@@ -1544,9 +1752,27 @@ client.on('interactionCreate', async interaction => {
           `**Cargos:** ${structure.roles?.length || 0}   **Categorias:** ${structure.categories?.length || 0}   **Canais:** ${totalChannels}`,
           `Architect ${VERSION} · architect.velroc.workers.dev`
         );
+
+        // Gera o card de imagem
+        const guild = interaction.guild;
+        const imageBuffer = await generateServerCard({
+          guildName:  guild.name,
+          guildIcon:  guild.iconURL({ extension: 'png', size: 256 }),
+          roles:      structure.roles?.length || 0,
+          categories: structure.categories?.length || 0,
+          channels:   totalChannels,
+          isPremium:  !!isPremium,
+          prompt,
+        });
+
+        const replyPayload = { ...successEmbed, components: [] };
+        if (imageBuffer) {
+          replyPayload.files = [{ attachment: imageBuffer, name: 'architect-resultado.png' }];
+        }
+
         // FIX: se o canal foi deletado durante a criação, envia por DM
-        await interaction.editReply({ ...successEmbed, components: [] }).catch(async () => {
-          await interaction.user.send(successEmbed).catch(() => {});
+        await interaction.editReply(replyPayload).catch(async () => {
+          await interaction.user.send({ ...successEmbed, files: replyPayload.files || [] }).catch(() => {});
         });
       } catch (e) {
         const errEmbed = errorEmbed(e.message);
@@ -1623,13 +1849,107 @@ client.on('interactionCreate', async interaction => {
       return;
     }
 
-    // Ticket — fechar ticket
+    // ── Ticket — verificação de cargo helper ────────────────────────────────────
+    async function assertTicketStaffPermission(intr) {
+      const config = await mongoDB?.collection('guild_configs').findOne({ guildId: intr.guild.id });
+      const ticketRoleId = config?.ticketRole;
+      if (!ticketRoleId) return true; // sem cargo configurado = qualquer um pode
+      const member = intr.guild.members.cache.get(intr.user.id) || await intr.guild.members.fetch(intr.user.id).catch(() => null);
+      if (!member) return false;
+      const hasRole = member.roles.cache.has(ticketRoleId);
+      if (!hasRole) {
+        await intr.reply({ content: `${E.erro} Somente <@&${ticketRoleId}> pode usar este botão.`, ephemeral: true });
+        return false;
+      }
+      return true;
+    }
+
+    // ── Ticket — 🔒 Fechar ──────────────────────────────────────────────────────
     if (interaction.customId.startsWith('ticket_close_')) {
+      if (!await assertTicketStaffPermission(interaction)) return;
       const chId = interaction.customId.replace('ticket_close_', '');
       const ch   = interaction.guild.channels.cache.get(chId);
       if (!ch) return interaction.reply({ content: 'Canal não encontrado.', ephemeral: true });
-      await interaction.reply({ content: '🔒 Fechando ticket em 5 segundos…', ephemeral: false });
+
+      // Se estava reivindicado, incrementa stats do staff
+      const claim = ticketClaimed.get(chId);
+      if (claim) {
+        const prev = ticketStats.get(claim.staffId) || 0;
+        ticketStats.set(claim.staffId, prev + 1);
+        ticketClaimed.delete(chId);
+        // Persiste no mongo
+        await mongoDB?.collection('ticket_stats').updateOne(
+          { staffId: claim.staffId, guildId: interaction.guild.id },
+          { $inc: { count: 1 }, $set: { staffTag: claim.staffTag } },
+          { upsert: true }
+        ).catch(() => {});
+      }
+      staffCallCooldown.delete(chId);
+
+      await interaction.reply({
+        ...v2Simple(C_RED, '🔒 Ticket Fechado', `Ticket encerrado por <@${interaction.user.id}>. O canal será deletado em 5 segundos.`, `Architect ${VERSION}`),
+      });
       setTimeout(async () => { await ch.delete().catch(() => {}); }, 5000);
+      return;
+    }
+
+    // ── Ticket — 🔔 Chamar Staff (cooldown 30min) ───────────────────────────────
+    if (interaction.customId.startsWith('ticket_call_staff_')) {
+      const chId  = interaction.customId.replace('ticket_call_staff_', '');
+      const uid   = interaction.user.id;
+      const now   = Date.now();
+      const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutos
+
+      if (!staffCallCooldown.has(chId)) staffCallCooldown.set(chId, new Map());
+      const chCooldown = staffCallCooldown.get(chId);
+      const lastCall   = chCooldown.get(uid) || 0;
+      const remaining  = COOLDOWN_MS - (now - lastCall);
+
+      if (remaining > 0) {
+        const mins = Math.ceil(remaining / 60000);
+        return interaction.reply({
+          content: `${E.erro} Você já chamou a staff recentemente. Aguarde **${mins} minuto(s)** para chamar novamente.`,
+          ephemeral: true,
+        });
+      }
+
+      chCooldown.set(uid, now);
+
+      const config       = await mongoDB?.collection('guild_configs').findOne({ guildId: interaction.guild.id });
+      const staffMention = config?.ticketRole ? `<@&${config.ticketRole}>` : '@Staff';
+
+      await interaction.reply({
+        ...v2Simple(C_YELLOW, '🔔 Staff chamada!', `${staffMention} — <@${uid}> está precisando de ajuda neste ticket.`, `Architect ${VERSION}`),
+      });
+      return;
+    }
+
+    // ── Ticket — ✋ Reivindicar ──────────────────────────────────────────────────
+    if (interaction.customId.startsWith('ticket_claim_')) {
+      if (!await assertTicketStaffPermission(interaction)) return;
+      const chId = interaction.customId.replace('ticket_claim_', '');
+
+      const already = ticketClaimed.get(chId);
+      if (already) {
+        return interaction.reply({
+          content: `${E.erro} Este ticket já foi reivindicado por <@${already.staffId}>.`,
+          ephemeral: true,
+        });
+      }
+
+      ticketClaimed.set(chId, {
+        staffId:   interaction.user.id,
+        staffTag:  interaction.user.tag,
+        claimedAt: new Date().toISOString(),
+      });
+
+      await interaction.reply({
+        ...v2Simple(C_GREEN,
+          '✋ Ticket Reivindicado',
+          `<@${interaction.user.id}> está atendendo este ticket.\n\nApenas este membro da staff é responsável agora.`,
+          `Architect ${VERSION}`
+        ),
+      });
       return;
     }
 
@@ -1749,7 +2069,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply({ ...buildAnalysisEmbed(prompt, logs) });
 
       const confirmId = `${interaction.id}`;
-      pendingCreate.set(confirmId, { prompt, structure });
+      pendingCreate.set(confirmId, { prompt, structure, isPremium });
       await interaction.editReply(
         v2WithRow(buildConfirmEmbed(prompt, structure, 60), buildConfirmRow(confirmId))
       );
@@ -1845,7 +2165,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply({ ...buildAnalysisEmbed(prompt, logs) });
 
       const confirmId = `${interaction.id}`;
-      pendingCreate.set(confirmId, { prompt, structure });
+      pendingCreate.set(confirmId, { prompt, structure, isPremium });
       await interaction.editReply(
         v2WithRow(buildConfirmEmbed(prompt, structure, 60), buildConfirmRow(confirmId))
       );
@@ -2250,10 +2570,40 @@ client.on('interactionCreate', async interaction => {
       `**Backup:** \`/backup\` \`/restaurar\` \`/proteger\`\n` +
       `**Moderação:** \`/ban\` \`/kick\` \`/mute\` \`/unmute\` \`/warn\` \`/lock\` \`/unlock\` \`/slowmode\` \`/clear\`\n` +
       `**Servidor:** \`/cargo_criar\` \`/canal_criar\` \`/deletar\` \`/embed\` \`/anuncio\`\n` +
-      `**Geral:** \`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\`\n\n` +
+      `**Geral:** \`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\` \`/tickets\`\n\n` +
       `**Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
       `Architect ${VERSION} · architect.velroc.workers.dev`
     ), ephemeral: true });
+  }
+
+  // ── /tickets ──────────────────────────────────────────────────────────────────
+  else if (commandName === 'tickets') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages) && interaction.user.id !== process.env.OWNER_ID)
+      return interaction.reply({ content: lang.noPermission, ephemeral: true });
+    await interaction.deferReply();
+    try {
+      const docs = await mongoDB?.collection('ticket_stats')
+        .find({ guildId: guild.id })
+        .sort({ count: -1 })
+        .limit(10)
+        .toArray() || [];
+
+      if (docs.length === 0) {
+        return interaction.editReply(v2Simple(C_GREY, '🎫 Ranking de Tickets', 'Nenhum ticket foi reivindicado e fechado ainda neste servidor.', `Architect ${VERSION}`));
+      }
+
+      const medals = ['🥇', '🥈', '🥉'];
+      const lines  = docs.map((d, i) => {
+        const medal = medals[i] || `\`${i + 1}.\``;
+        return `${medal} <@${d.staffId}> — **${d.count}** ticket(s) atendido(s)`;
+      }).join('\n');
+
+      await interaction.editReply(v2Simple(C_ORANGE,
+        `🎫 Ranking de Atendimentos — ${guild.name}`,
+        lines,
+        `Architect ${VERSION} · Tickets reivindicados e fechados`
+      ));
+    } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
   }
 
   } catch (err) {
