@@ -116,10 +116,10 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
 
     // ── Cards de estatísticas ──────────────────────────────────────────────────
     const stats = [
-      { label: 'Cargos',      value: String(roles),      emoji: '<:roles:1500524514470133853>' },
-      { label: 'Categorias',  value: String(categories), emoji: '<:categoria:1500524490214473758>' },
-      { label: 'Canais',      value: String(channels),   emoji: '<:canal:1500524470270562304>' },
-      { label: 'Tipo',        value: isPremium ? 'Premium' : 'Normal', emoji: isPremium ? '<:vip:1500524460221005854>' : '🔷' },
+      { label: 'Cargos',      value: String(roles),      emoji: '🎭' },
+      { label: 'Categorias',  value: String(categories), emoji: '📁' },
+      { label: 'Canais',      value: String(channels),   emoji: '#️⃣' },
+      { label: 'Tipo',        value: isPremium ? 'Premium' : 'Normal', emoji: isPremium ? '⚡' : '🔷' },
     ];
 
     const cardW   = 180;
@@ -1873,14 +1873,18 @@ client.on('interactionCreate', async interaction => {
         });
 
         const replyPayload = { ...successEmbed };
-        if (imageBuffer) {
-          replyPayload.files = [{ attachment: imageBuffer, name: 'architect-resultado.png' }];
-        }
 
-        // FIX: se o canal foi deletado durante a criação, envia por DM
+        // Envia o embed de sucesso
         await interaction.editReply(replyPayload).catch(async () => {
-          await interaction.user.send({ ...successEmbed, files: replyPayload.files || [] }).catch(() => {});
+          await interaction.user.send(successEmbed).catch(() => {});
         });
+
+        // Envia a imagem como follow-up separado (ComponentsV2 + files não funcionam juntos)
+        if (imageBuffer) {
+          await interaction.followUp({
+            files: [{ attachment: imageBuffer, name: 'architect-resultado.png' }],
+          }).catch(() => {});
+        }
       } catch (e) {
         const errEmbed = errorEmbed(e.message);
         await interaction.editReply(errEmbed).catch(async () => {
