@@ -1878,9 +1878,9 @@ client.on('interactionCreate', async interaction => {
           await interaction.user.send(successEmbed).catch(() => {});
         });
 
-        // Envia a imagem como follow-up separado (ComponentsV2 + files não funcionam juntos)
+        // Envia a imagem direto no canal (followUp não funciona após deferUpdate)
         if (imageBuffer) {
-          await interaction.followUp({
+          await interaction.channel?.send({
             files: [{ attachment: imageBuffer, name: 'architect-resultado.png' }],
           }).catch(() => {});
         }
