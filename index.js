@@ -1871,19 +1871,28 @@ client.on('interactionCreate', async interaction => {
           prompt,
         });
 
+        const { AttachmentBuilder } = require('discord.js');
+        const containerComponents = [
+          { type: 10, content: successContent }, // TextDisplay
+        ];
+
+        if (imageBuffer) {
+          containerComponents.push({
+            type: 11, // MediaGallery
+            items: [{ media: { url: 'attachment://architect-resultado.png' } }],
+          });
+        }
+
         const replyPayload = {
           flags: MessageFlags.IsComponentsV2,
           components: [
             {
               type: 17, // Container
               accent_color: C_GREEN,
-              components: [
-                { type: 10, content: successContent }, // TextDisplay
-                ...(imageBuffer ? [{ type: 11, media: { url: 'attachment://architect-resultado.png' } }] : []), // MediaGallery item / Thumbnail
-              ],
+              components: containerComponents,
             },
           ],
-          ...(imageBuffer ? { files: [{ attachment: imageBuffer, name: 'architect-resultado.png' }] } : {}),
+          ...(imageBuffer ? { files: [new AttachmentBuilder(imageBuffer, { name: 'architect-resultado.png' })] } : {}),
         };
 
         await interaction.editReply(replyPayload).catch(async () => {
@@ -2107,21 +2116,23 @@ client.on('interactionCreate', async interaction => {
 
   // ── /criar_servidor ──────────────────────────────────────────────────────────
   if (commandName === 'criar_servidor') {
-    const prompt    = interaction.options.getString('prompt');
-    const userId    = interaction.user.id;
+    const prompt = interaction.options.getString('prompt');
+    const userId = interaction.user.id;
+
+    // Defer imediatamente — ANTES de qualquer await, para garantir resposta em <3s ao Discord
+    await interaction.deferReply();
+
     const isPremium = await resolveIsPremium(userId, guild);
 
     // ── Limite diário para usuários normais ──────────────────────────────────
     const limitCheck = await checkDailyLimit(userId, isPremium);
     if (!limitCheck.allowed) {
-      return interaction.reply({ ...v2Simple(C_RED,
+      return interaction.editReply({ ...v2Simple(C_RED,
         `${E.erro} Limite Diário Atingido`,
         `Você já usou suas **${limitCheck.limit} criações gratuitas** de hoje.\n\n> Volte amanhã ou adquira o ${E.premium} **Premium** para criações ilimitadas!\n\n**Uso hoje:** ${limitCheck.used}/${limitCheck.limit} criações`,
         `Architect ${VERSION}`
-      ), flags: MessageFlags.Ephemeral });
+      ) });
     }
-
-    await interaction.deferReply();
 
     // Escolhe a lane correta conforme Premium ou Normal
     const chosenLane = getLane(isPremium);
