@@ -746,6 +746,7 @@ async function generateStructure(prompt, onLog, isPremium = false) {
 OUTPUT CONTRACT:
 - Return ONLY a raw JSON array. No markdown, no backticks, no prose, no explanation.
 - All role names in Brazilian Portuguese with correct diacritics and a fitting emoji prefix.
+- CRITICAL: Use ONLY standard unicode emojis. NEVER use custom Discord emojis like <:name:id> — they will break the roles.
 - Generate exactly ${minRoles}–${maxRoles} roles — precision matters.
 - Each role MUST have a unique hex color — no duplicates allowed.
 - hoist:true for all ownership, staff, and highlighted community tiers.
@@ -786,8 +787,8 @@ THINK before generating:
 Generate the complete role hierarchy. Every role must serve a clear purpose and feel like it was designed by a human expert for this specific community.
 
 Return ONLY a raw JSON array (no markdown, no backticks):
-[{"name":"<:vip:1500524460221005854> Proprietário","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"<:mutad9:1500524453992333484> Silenciado","color":"#636e72","hoist":false,"mentionable":false,"permissions":[]}]`
-    : `Server: "${prompt}"\n\nReturn JSON array:\n[{"name":"<:vip:1500524460221005854> Dono","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"<:mutad9:1500524453992333484> Mutado","color":"#7f8c8d","hoist":false,"mentionable":false,"permissions":[]}]\nGenerate all ${minRoles}–${maxRoles} roles. Return only the JSON array.`;
+[{"name":"👑 Proprietário","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Silenciado","color":"#636e72","hoist":false,"mentionable":false,"permissions":[]}]`
+    : `Server: "${prompt}"\n\nReturn JSON array:\n[{"name":"👑 Dono","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Mutado","color":"#7f8c8d","hoist":false,"mentionable":false,"permissions":[]}]\nGenerate all ${minRoles}–${maxRoles} roles. Return only the JSON array.`;
 
   let roles;
   try {
@@ -797,10 +798,13 @@ Return ONLY a raw JSON array (no markdown, no backticks):
     ]);
     if (!Array.isArray(roles) || roles.length === 0)
       throw new Error('Resposta de cargos inválida — array vazio ou malformado.');
+    const stripCustomEmojiRole = str => String(str).replace(/<a?:\w+:\d+>/g, '').replace(/\s{2,}/g, ' ').trim();
     // Sanitize: remove duplicate names, ensure required fields
     const seen = new Set();
     roles = roles.filter(r => {
-      if (!r.name || seen.has(r.name)) return false;
+      if (!r.name) return false;
+      r.name = stripCustomEmojiRole(r.name).substring(0, 100);
+      if (seen.has(r.name)) return false;
       seen.add(r.name);
       r.color       = /^#[0-9A-Fa-f]{6}$/.test(r.color) ? r.color : '#99aab5';
       r.hoist       = !!r.hoist;
@@ -854,14 +858,14 @@ RULES:
   // ── Sorteia estilos UMA VEZ aqui no código — a IA recebe apenas o escolhido ──
   // Isso garante que TODOS os canais e categorias usem exatamente 1 estilo cada.
   const CAT_STYLES = [
-    { id: 'A', pattern: 'EMOJI ✦ NAME',  example: '╭──── <:lista:1500524503778988072> ✦ Informações' },
+    { id: 'A', pattern: 'EMOJI ✦ NAME',  example: '╭──── 📋 ✦ Informações' },
     { id: 'B', pattern: '➢ NAME',        example: '➢ INFORMAÇÕES' },
-    { id: 'C', pattern: '╭⎯⎯⎯╴ ✦ EMOJI NAME', example: '╭⎯⎯⎯╴ ✦ <:lista:1500524503778988072> Informações' },
+    { id: 'C', pattern: '╭⎯⎯⎯╴ ✦ EMOJI NAME', example: '╭⎯⎯⎯╴ ✦ 📋 Informações' },
   ];
   const CH_STYLES = [
-    { id: '1', sep: '┃',  example: '<:avisos:1500524507171918006>┃avisos' },
-    { id: '2', sep: '」', example: '「<:avisos:1500524507171918006>」avisos' },
-    { id: '3', sep: '╺╸', example: '<:avisos:1500524507171918006>╺╸avisos' },
+    { id: '1', sep: '┃',  example: '📢┃avisos' },
+    { id: '2', sep: '」', example: '「📢」avisos' },
+    { id: '3', sep: '╺╸', example: '📢╺╸avisos' },
   ];
   const chosenCatStyle = CAT_STYLES[Math.floor(Math.random() * CAT_STYLES.length)];
   const chosenChStyle  = CH_STYLES[Math.floor(Math.random() * CH_STYLES.length)];
@@ -882,6 +886,7 @@ THE CARDINAL SIN: Uniform channel counts. A real server has categories with 2 ch
 OUTPUT CONTRACT:
 - Return ONLY a raw JSON array. No markdown, no backticks, no prose, no explanation.
 - ALL names in Brazilian Portuguese with correct diacritics and fitting emojis.
+- CRITICAL: Use ONLY standard unicode emojis (e.g. 📢 🎮 🔊). NEVER use custom Discord emojis like <:name:id> or <a:name:id> — they will break the server.
 - Generate 8–13 categories total. ONLY what this server genuinely needs — no filler.
 - Channel counts PER category must VARY organically: some categories have 2–3 channels, others 6–9. Never uniform.
 - Channel types: use text, voice, forum, announcement, stage. Vary them meaningfully — not every category gets one of each.
@@ -962,8 +967,8 @@ ANTI-PATTERNS TO AVOID:
 REMINDER: Category style is ${chosenCatStyle.id}, channel style is ${chosenChStyle.id}. Apply to 100% of items.
 
 Return ONLY a raw JSON array:
-[{"name":"${chosenCatStyle.example.replace('Informações','Informações')}","allowedRoles":["<:vip:1500524460221005854> Proprietário","<:aceitar:1500524505746116800> Membro"],"channels":[{"name":"<:avisos:1500524507171918006>${chSep}avisos","type":"announcement","topic":"Comunicados oficiais da equipe. Apenas a staff publica aqui.","allowedRoles":["<:vip:1500524460221005854> Proprietário","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Leia antes de participar. O descumprimento resulta em punição.","allowedRoles":["<:vip:1500524460221005854> Proprietário","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false}]}]`
-    : `Server: "${prompt}"\nRoles: ${roleNames}\n\nSTYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.\n\nReturn JSON array:\n[{"name":"${chosenCatStyle.example}","allowedRoles":["<:vip:1500524460221005854> Dono","<:aceitar:1500524505746116800> Membro"],"channels":[{"name":"<:avisos:1500524507171918006>${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["<:vip:1500524460221005854> Dono","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["<:vip:1500524460221005854> Dono","<:aceitar:1500524505746116800> Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nVary channel counts. Return only the JSON array.`;
+[{"name":"${chosenCatStyle.example.replace('Informações','Informações')}","allowedRoles":["👑 Proprietário","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais da equipe. Apenas a staff publica aqui.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Leia antes de participar. O descumprimento resulta em punição.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]`
+    : `Server: "${prompt}"\nRoles: ${roleNames}\n\nSTYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.\n\nReturn JSON array:\n[{"name":"${chosenCatStyle.example}","allowedRoles":["👑 Dono","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nVary channel counts. Return only the JSON array.`;
 
   let categories;
   try {
@@ -973,12 +978,14 @@ Return ONLY a raw JSON array:
     ], isPremium ? 16000 : 8000);
     if (!Array.isArray(categories) || categories.length === 0)
       throw new Error('Resposta de categorias inválida — array vazio ou malformado.');
+    // Sanitize custom emojis from all names (last line of defense)
+    const stripCustomEmoji = str => String(str).replace(/<a?:\w+:\d+>/g, '').replace(/\s{2,}/g, ' ').trim();
     // Sanitize categories and channels
     categories = categories
       .filter(cat => cat.name && Array.isArray(cat.channels) && cat.channels.length > 0)
       .map(cat => {
         // ── Força o estilo de categoria sorteado ──────────────────────────────
-        let catName = String(cat.name).substring(0, 100).trim();
+        let catName = stripCustomEmoji(String(cat.name)).substring(0, 100).trim();
         // Remove qualquer prefixo de estilo existente e aplica o correto
         catName = catName
           .replace(/^╭────\s*/,  '')
@@ -1014,11 +1021,13 @@ Return ONLY a raw JSON array:
               }
             }
             // Remove 「 」 soltos
-            bare = bare.replace(/^「/, '').replace(/」$/, '').trim();
+            bare = stripCustomEmoji(bare).replace(/^「/, '').replace(/」$/, '').trim();
+            // Remove custom emoji from emoji part too
+            if (emoji) emoji = stripCustomEmoji(emoji);
             // Reconstrói com o separador correto
-            if (chosenChStyle.id === '1') chName = emoji ? `${emoji}┃${bare}` : `<:fixar:1500524455514865776>┃${bare}`;
-            else if (chosenChStyle.id === '2') chName = emoji ? `「${emoji}」${bare}` : `「<:fixar:1500524455514865776>」${bare}`;
-            else chName = emoji ? `${emoji}╺╸${bare}` : `<:fixar:1500524455514865776>╺╸${bare}`;
+            if (chosenChStyle.id === '1') chName = emoji ? `${emoji}┃${bare}` : `📌┃${bare}`;
+            else if (chosenChStyle.id === '2') chName = emoji ? `「${emoji}」${bare}` : `「📌」${bare}`;
+            else chName = emoji ? `${emoji}╺╸${bare}` : `📌╺╸${bare}`;
 
             return {
               name:             chName.substring(0, 100),
@@ -1806,20 +1815,20 @@ client.on('interactionCreate', async interaction => {
       pendingCreate.delete(id);
       const steps = [];
 
-      // FIX: tenta update, se falhar usa deferUpdate para garantir resposta ao Discord
-      try {
-        await interaction.update(
-          buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
-        );
-      } catch (_) {
-        try { await interaction.deferUpdate(); } catch (__) {}
-      }
+      // deferUpdate responde ao Discord imediatamente (<3s), depois editReply atualiza
+      await interaction.deferUpdate();
 
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
         await interaction.editReply({
           ...buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps),
         }).catch(() => {});
+      };
+
+      // Mostra o embed de progresso inicial
+      await interaction.editReply(
+        buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
+      ).catch(() => {});
       };
 
       try {
@@ -1887,19 +1896,19 @@ client.on('interactionCreate', async interaction => {
       pendingRestore.delete(id);
       const steps = [];
       const label = new Date(backup.savedAt).toLocaleString('pt-BR');
-      // FIX: tenta update, se falhar usa deferUpdate
-      try {
-        await interaction.update(
-          buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
-        );
-      } catch (_) {
-        try { await interaction.deferUpdate(); } catch (__) {}
-      }
+
+      await interaction.deferUpdate();
+
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
         await interaction.editReply({
           ...buildProgressEmbed(`${E.backup}  Restaurando...`, `Backup de ${label}`, steps),
         }).catch(() => {});
+      };
+
+      await interaction.editReply(
+        buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
+      ).catch(() => {});
       };
       try {
         await applyStructure(interaction.guild, backup.structure, update);
@@ -1914,13 +1923,7 @@ client.on('interactionCreate', async interaction => {
     if (action === 'delete' && pendingCreate.has(`del_${id}`)) {
       const { acao, alvo } = pendingCreate.get(`del_${id}`);
       pendingCreate.delete(`del_${id}`);
-      try {
-        await interaction.update(
-          v2Simple(C_RED, `${E.loading} Deletando...`, 'Processando...', `Architect ${VERSION}`)
-        );
-      } catch (_) {
-        try { await interaction.deferUpdate(); } catch (__) {}
-      }
+      await interaction.deferUpdate();
       try {
         let deletedCount = 0;
         if (acao === 'delete_all') {
@@ -1950,11 +1953,8 @@ client.on('interactionCreate', async interaction => {
     if (action === 'cancel') {
       pendingCreate.delete(id);
       pendingRestore.delete(id);
-      try {
-        await interaction.update(v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada pelo usuário.', `Architect ${VERSION}`));
-      } catch (_) {
-        try { await interaction.reply({ ...v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada.', `Architect ${VERSION}`), flags: MessageFlags.Ephemeral }); } catch (__) {}
-      }
+      await interaction.deferUpdate();
+      await interaction.editReply(v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada pelo usuário.', `Architect ${VERSION}`)).catch(() => {});
       return;
     }
 
