@@ -1288,7 +1288,7 @@ async function applyStructure(guild, structure, onStep) {
       const safeColor = /^#[0-9A-Fa-f]{6}$/.test(r.color) ? r.color : '#99aab5';
       const roleData  = {
         name:        r.name,
-        colors:      [safeColor],   // discord.js v14.16+ usa "colors" (array)
+        color:       safeColor,
         hoist:       r.hoist       || false,
         mentionable: r.mentionable || false,
         permissions: Array.isArray(r.permissions) ? buildPermissions(r.permissions) : (r.permissions || 0n),
