@@ -1871,19 +1871,24 @@ client.on('interactionCreate', async interaction => {
           prompt,
         });
 
-        const replyPayload = { ...successEmbed };
+        const replyPayload = {
+          flags: MessageFlags.IsComponentsV2,
+          components: [
+            {
+              type: 17, // Container
+              accent_color: C_GREEN,
+              components: [
+                { type: 10, content: successContent }, // TextDisplay
+                ...(imageBuffer ? [{ type: 11, media: { url: 'attachment://architect-resultado.png' } }] : []), // MediaGallery item / Thumbnail
+              ],
+            },
+          ],
+          ...(imageBuffer ? { files: [{ attachment: imageBuffer, name: 'architect-resultado.png' }] } : {}),
+        };
 
-        // Envia o embed de sucesso
         await interaction.editReply(replyPayload).catch(async () => {
-          await interaction.user.send(successEmbed).catch(() => {});
+          await interaction.user.send({ ...replyPayload }).catch(() => {});
         });
-
-        // Envia a imagem direto no canal (followUp não funciona após deferUpdate)
-        if (imageBuffer) {
-          await interaction.channel?.send({
-            files: [{ attachment: imageBuffer, name: 'architect-resultado.png' }],
-          }).catch(() => {});
-        }
       } catch (e) {
         const errEmbed = errorEmbed(e.message);
         await interaction.editReply(errEmbed).catch(async () => {
