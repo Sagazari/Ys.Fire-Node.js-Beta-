@@ -1806,20 +1806,20 @@ client.on('interactionCreate', async interaction => {
       pendingCreate.delete(id);
       const steps = [];
 
-      // deferUpdate responde ao Discord imediatamente (<3s), depois editReply atualiza
-      await interaction.deferUpdate();
+      // FIX: tenta update, se falhar usa deferUpdate para garantir resposta ao Discord
+      try {
+        await interaction.update(
+          buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
+        );
+      } catch (_) {
+        try { await interaction.deferUpdate(); } catch (__) {}
+      }
 
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
         await interaction.editReply({
           ...buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps),
         }).catch(() => {});
-      };
-
-      // Mostra o embed de progresso inicial
-      await interaction.editReply(
-        buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
-      ).catch(() => {});
       };
 
       try {
@@ -1887,19 +1887,19 @@ client.on('interactionCreate', async interaction => {
       pendingRestore.delete(id);
       const steps = [];
       const label = new Date(backup.savedAt).toLocaleString('pt-BR');
-
-      await interaction.deferUpdate();
-
+      // FIX: tenta update, se falhar usa deferUpdate
+      try {
+        await interaction.update(
+          buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
+        );
+      } catch (_) {
+        try { await interaction.deferUpdate(); } catch (__) {}
+      }
       const update = async (icon, msg) => {
         steps.push(`${icon} ${msg}`);
         await interaction.editReply({
           ...buildProgressEmbed(`${E.backup}  Restaurando...`, `Backup de ${label}`, steps),
         }).catch(() => {});
-      };
-
-      await interaction.editReply(
-        buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
-      ).catch(() => {});
       };
       try {
         await applyStructure(interaction.guild, backup.structure, update);
@@ -1914,7 +1914,13 @@ client.on('interactionCreate', async interaction => {
     if (action === 'delete' && pendingCreate.has(`del_${id}`)) {
       const { acao, alvo } = pendingCreate.get(`del_${id}`);
       pendingCreate.delete(`del_${id}`);
-      await interaction.deferUpdate();
+      try {
+        await interaction.update(
+          v2Simple(C_RED, `${E.loading} Deletando...`, 'Processando...', `Architect ${VERSION}`)
+        );
+      } catch (_) {
+        try { await interaction.deferUpdate(); } catch (__) {}
+      }
       try {
         let deletedCount = 0;
         if (acao === 'delete_all') {
@@ -1944,8 +1950,11 @@ client.on('interactionCreate', async interaction => {
     if (action === 'cancel') {
       pendingCreate.delete(id);
       pendingRestore.delete(id);
-      await interaction.deferUpdate();
-      await interaction.editReply(v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada pelo usuário.', `Architect ${VERSION}`)).catch(() => {});
+      try {
+        await interaction.update(v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada pelo usuário.', `Architect ${VERSION}`));
+      } catch (_) {
+        try { await interaction.reply({ ...v2Simple(C_GREY, '<:negar:1500524485231509785> Cancelado', 'Operação cancelada.', `Architect ${VERSION}`), flags: MessageFlags.Ephemeral }); } catch (__) {}
+      }
       return;
     }
 
