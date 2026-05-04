@@ -12,191 +12,137 @@ const {
   SectionBuilder, ThumbnailBuilder,
 } = require('discord.js');
 
-// ── Canvas (geração de imagem do resultado) ────────────────────────────────────
-let canvasLib = null;
+// ── Sharp (geração de imagem do resultado via SVG — sem deps nativas) ─────────
+let sharpLib = null;
 try {
-  canvasLib = require('@napi-rs/canvas');
-  console.log('[CANVAS] @napi-rs/canvas carregado com sucesso.');
+  sharpLib = require('sharp');
+  console.log('[SHARP] sharp carregado com sucesso.');
 } catch (_) {
-  try {
-    canvasLib = require('canvas');
-    console.log('[CANVAS] canvas carregado com sucesso.');
-  } catch (__) {
-    console.warn('[CANVAS] Nenhuma lib de canvas disponível. Imagens desativadas. Instale: npm install @napi-rs/canvas');
-  }
+  console.warn('[SHARP] sharp não disponível. Imagens desativadas. Instale: npm install sharp');
 }
 
 /**
  * Gera um card visual (Buffer PNG) celebrando a criação do servidor.
- * Retorna null se canvas não estiver disponível.
+ * Usa sharp + SVG — zero dependências nativas, funciona em qualquer hosting.
+ * Retorna null se sharp não estiver disponível.
  */
 async function generateServerCard({ guildName, guildIcon, roles, categories, channels, isPremium, prompt }) {
-  if (!canvasLib) return null;
+  if (!sharpLib) return null;
   try {
-    const { createCanvas, loadImage, GlobalFonts } = canvasLib;
-
     const W = 900, H = 500;
-    const canvas  = createCanvas(W, H);
-    const ctx     = canvas.getContext('2d');
 
-    // ── Fundo gradiente escuro ─────────────────────────────────────────────────
-    const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0,   '#0d1117');
-    bg.addColorStop(0.5, '#1a1f2e');
-    bg.addColorStop(1,   '#0d1117');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+    const safeName    = (guildName || 'Servidor').substring(0, 28).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+    const safePrompt  = `"${(prompt || '').substring(0, 72).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}"`;
+    const dateStr     = new Date().toLocaleDateString('pt-BR');
+    const typeLabel   = isPremium ? 'Premium' : 'Normal';
+    const typeEmoji   = isPremium ? '⚡' : '◆';
 
-    // ── Decoração: círculo de brilho laranja no canto superior esquerdo ────────
-    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 300);
-    glow.addColorStop(0,   'rgba(242,108,30,0.18)');
-    glow.addColorStop(1,   'rgba(242,108,30,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
+    // Cards de estatísticas (4 cards)
+    const stats = [
+      { label: 'Cargos',     value: String(roles),      icon: '◉' },
+      { label: 'Categorias', value: String(categories), icon: '▦' },
+      { label: 'Canais',     value: String(channels),   icon: '#' },
+      { label: 'Tipo',       value: typeLabel,           icon: typeEmoji },
+    ];
 
-    // ── Borda superior laranja ─────────────────────────────────────────────────
-    const borderGrad = ctx.createLinearGradient(0, 0, W, 0);
-    borderGrad.addColorStop(0,   'rgba(242,108,30,0)');
-    borderGrad.addColorStop(0.3, '#f26c1e');
-    borderGrad.addColorStop(0.7, '#f26c1e');
-    borderGrad.addColorStop(1,   'rgba(242,108,30,0)');
-    ctx.fillStyle = borderGrad;
-    ctx.fillRect(0, 0, W, 3);
+    const cardW = 180, cardH = 110, cardY = 250, gapX = (W - 120 - stats.length * cardW) / (stats.length - 1);
 
-    // ── Ícone do servidor (avatar circular) ───────────────────────────────────
-    const avatarSize = 90;
-    const avatarX    = 60;
-    const avatarY    = 60;
+    const statCards = stats.map((s, i) => {
+      const cx = 60 + i * (cardW + gapX);
+      return `
+        <rect x="${cx}" y="${cardY}" width="${cardW}" height="${cardH}" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(242,108,30,0.3)" stroke-width="1"/>
+        <text x="${cx + 16}" y="${cardY + 36}" font-size="22" fill="#f26c1e" font-family="Arial, sans-serif">${s.icon}</text>
+        <text x="${cx + 16}" y="${cardY + 72}" font-size="30" font-weight="bold" fill="#ffffff" font-family="Arial, sans-serif">${s.value}</text>
+        <text x="${cx + 16}" y="${cardY + 95}" font-size="13" fill="#8b949e" font-family="Arial, sans-serif">${s.label}</text>
+      `;
+    }).join('');
+
+    // Avatar: baixa a imagem e converte para base64 se existir
+    let avatarHtml = '';
     if (guildIcon) {
       try {
-        const img = await loadImage(guildIcon);
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
-        ctx.restore();
-        // Borda do avatar
-        ctx.beginPath();
-        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-        ctx.strokeStyle = '#f26c1e';
-        ctx.lineWidth   = 3;
-        ctx.stroke();
+        const res = await fetch(guildIcon);
+        const buf = Buffer.from(await res.arrayBuffer());
+        const b64 = buf.toString('base64');
+        const mime = guildIcon.includes('.png') ? 'image/png' : 'image/jpeg';
+        avatarHtml = `
+          <defs>
+            <clipPath id="avatarClip">
+              <circle cx="105" cy="105" r="45"/>
+            </clipPath>
+          </defs>
+          <image href="data:${mime};base64,${b64}" x="60" y="60" width="90" height="90" clip-path="url(#avatarClip)"/>
+          <circle cx="105" cy="105" r="45" fill="none" stroke="#f26c1e" stroke-width="3"/>
+        `;
       } catch (_) {}
     }
 
-    // ── Nome do servidor ───────────────────────────────────────────────────────
-    const textX = guildIcon ? avatarX + avatarSize + 24 : 60;
-    ctx.font      = 'bold 36px sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(guildName.substring(0, 28), textX, avatarY + 44);
+    const premiumBadge = isPremium
+      ? `<text x="${guildIcon ? 174 : 60}" y="140" font-size="13" font-weight="bold" fill="#f26c1e" font-family="Arial, sans-serif">✦ PREMIUM</text>`
+      : '';
 
-    // ── Badge Premium ──────────────────────────────────────────────────────────
-    if (isPremium) {
-      ctx.font      = 'bold 14px sans-serif';
-      ctx.fillStyle = '#f26c1e';
-      ctx.fillText('✦ PREMIUM', textX, avatarY + 68);
-    }
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stop-color="#0d1117"/>
+            <stop offset="50%"  stop-color="#1a1f2e"/>
+            <stop offset="100%" stop-color="#0d1117"/>
+          </linearGradient>
+          <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="scale(300)">
+            <stop offset="0%"   stop-color="#f26c1e" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#f26c1e" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="border" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#f26c1e" stop-opacity="0"/>
+            <stop offset="30%"  stop-color="#f26c1e"/>
+            <stop offset="70%"  stop-color="#f26c1e"/>
+            <stop offset="100%" stop-color="#f26c1e" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="sep" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#f26c1e" stop-opacity="0"/>
+            <stop offset="10%"  stop-color="#f26c1e" stop-opacity="0.6"/>
+            <stop offset="90%"  stop-color="#f26c1e" stop-opacity="0.6"/>
+            <stop offset="100%" stop-color="#f26c1e" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
 
-    // ── Subtítulo "Servidor criado com sucesso" ────────────────────────────────
-    ctx.font      = '18px sans-serif';
-    ctx.fillStyle = '#8b949e';
-    ctx.fillText('Servidor criado com sucesso pelo Architect', 60, avatarY + avatarSize + 36);
+        <!-- Fundo -->
+        <rect width="${W}" height="${H}" fill="url(#bg)"/>
+        <rect width="${W}" height="${H}" fill="url(#glow)"/>
+        <!-- Borda superior -->
+        <rect x="0" y="0" width="${W}" height="3" fill="url(#border)"/>
 
-    // ── Linha separadora ───────────────────────────────────────────────────────
-    const sepY = avatarY + avatarSize + 56;
-    const lineGrad = ctx.createLinearGradient(0, 0, W, 0);
-    lineGrad.addColorStop(0,   'rgba(242,108,30,0)');
-    lineGrad.addColorStop(0.1, 'rgba(242,108,30,0.6)');
-    lineGrad.addColorStop(0.9, 'rgba(242,108,30,0.6)');
-    lineGrad.addColorStop(1,   'rgba(242,108,30,0)');
-    ctx.fillStyle = lineGrad;
-    ctx.fillRect(60, sepY, W - 120, 1);
+        <!-- Avatar -->
+        ${avatarHtml}
 
-    // ── Cards de estatísticas ──────────────────────────────────────────────────
-    const stats = [
-      { label: 'Cargos',      value: String(roles),      emoji: '🎭' },
-      { label: 'Categorias',  value: String(categories), emoji: '📁' },
-      { label: 'Canais',      value: String(channels),   emoji: '#️⃣' },
-      { label: 'Tipo',        value: isPremium ? 'Premium' : 'Normal', emoji: isPremium ? '⚡' : '🔷' },
-    ];
+        <!-- Nome do servidor -->
+        <text x="${guildIcon ? 174 : 60}" y="112" font-size="34" font-weight="bold" fill="#ffffff" font-family="Arial, sans-serif">${safeName}</text>
+        ${premiumBadge}
 
-    const cardW   = 180;
-    const cardH   = 110;
-    const cardY   = sepY + 20;
-    const gapX    = (W - 120 - stats.length * cardW) / (stats.length - 1);
+        <!-- Subtítulo -->
+        <text x="60" y="210" font-size="17" fill="#8b949e" font-family="Arial, sans-serif">Servidor criado com sucesso pelo Architect</text>
 
-    for (let i = 0; i < stats.length; i++) {
-      const s  = stats[i];
-      const cx = 60 + i * (cardW + gapX);
+        <!-- Linha separadora -->
+        <rect x="60" y="228" width="${W - 120}" height="1" fill="url(#sep)"/>
 
-      // Card background
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
-      roundRect(ctx, cx, cardY, cardW, cardH, 14);
-      ctx.fill();
+        <!-- Cards -->
+        ${statCards}
 
-      // Card border
-      ctx.strokeStyle = 'rgba(242,108,30,0.25)';
-      ctx.lineWidth   = 1;
-      roundRect(ctx, cx, cardY, cardW, cardH, 14);
-      ctx.stroke();
+        <!-- Prompt -->
+        <text x="60" y="${cardY + cardH + 32}" font-size="14" fill="#6e7681" font-style="italic" font-family="Arial, sans-serif">${safePrompt}</text>
 
-      // Emoji
-      ctx.font      = '28px sans-serif';
-      ctx.fillStyle = '#f26c1e';
-      ctx.fillText(s.emoji, cx + 16, cardY + 40);
+        <!-- Rodapé -->
+        <text x="60" y="${H - 20}" font-size="12" fill="#484f58" font-family="Arial, sans-serif">Architect ${VERSION}  ·  architectalz.netlify.app  ·  ${dateStr}</text>
+        <circle cx="${W - 50}" cy="${H - 26}" r="5" fill="#f26c1e"/>
+      </svg>
+    `;
 
-      // Value
-      ctx.font      = 'bold 32px sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(s.value, cx + 16, cardY + 76);
-
-      // Label
-      ctx.font      = '14px sans-serif';
-      ctx.fillStyle = '#8b949e';
-      ctx.fillText(s.label, cx + 16, cardY + 98);
-    }
-
-    // ── Prompt resumido ────────────────────────────────────────────────────────
-    const promptY = cardY + cardH + 30;
-    ctx.font      = 'italic 15px sans-serif';
-    ctx.fillStyle = '#6e7681';
-    const promptShort = `"${(prompt || '').substring(0, 70)}${(prompt || '').length > 70 ? '…' : ''}"`;
-    ctx.fillText(promptShort, 60, promptY);
-
-    // ── Rodapé ─────────────────────────────────────────────────────────────────
-    const footerY = H - 28;
-    ctx.font      = '13px sans-serif';
-    ctx.fillStyle = '#484f58';
-    ctx.fillText(`Architect ${VERSION}  ·  architect.velroc.workers.dev  ·  ${new Date().toLocaleDateString('pt-BR')}`, 60, footerY);
-
-    // Dot laranja no rodapé
-    ctx.beginPath();
-    ctx.arc(W - 60, footerY - 5, 5, 0, Math.PI * 2);
-    ctx.fillStyle = '#f26c1e';
-    ctx.fill();
-
-    return canvas.toBuffer('image/png');
+    return await sharpLib(Buffer.from(svg)).png().toBuffer();
   } catch (e) {
-    console.error('[CANVAS] Erro ao gerar imagem:', e.message);
+    console.error('[SHARP] Erro ao gerar imagem:', e.message);
     return null;
   }
-}
-
-/** Helper para roundRect (compatível com Node Canvas e @napi-rs/canvas) */
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
 }
 const fetch  = require('node-fetch');
 const { MongoClient } = require('mongodb');
@@ -2965,6 +2911,11 @@ app.get('/api/guild/:id', requireAuth, async (req, res) => {
 // POST /api/guild/:id/config — save guild config
 app.post('/api/guild/:id/config', requireAuth, async (req, res) => {
   try {
+    const guildId = req.params.id;
+    if (!guildId || guildId === 'undefined' || guildId === 'null') {
+      console.warn('[API] /config chamado sem guildId válido — verifique o frontend');
+      return res.status(400).json({ error: 'guildId ausente ou inválido. Selecione um servidor antes de salvar.' });
+    }
     const userGuilds = req.session.userGuilds || [];
     const userGuild  = userGuilds.find(g => g.id === req.params.id);
     if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
