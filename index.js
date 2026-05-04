@@ -12,19 +12,29 @@ const {
   SectionBuilder, ThumbnailBuilder,
 } = require('discord.js');
 
-// ── Sharp (geração de imagem do resultado via SVG — sem deps nativas) ─────────
+// ── Sharp (geração de imagem do resultado via SVG) ────────────────────────────
 let sharpLib = null;
 try {
   sharpLib = require('sharp');
-  console.log('[SHARP] sharp carregado com sucesso.');
+  // Testa se o sharp consegue processar um SVG mínimo (valida suporte a librsvg)
+  sharpLib(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'))
+    .png().toBuffer()
+    .then(() => console.log('[SHARP] sharp carregado com sucesso (SVG suportado).'))
+    .catch(() => {
+      console.warn('[SHARP] sharp carregado mas SVG não suportado (sem librsvg). Usando fallback SVG direto.');
+      sharpLib = 'svg-only'; // flag especial
+    });
 } catch (_) {
-  console.warn('[SHARP] sharp não disponível. Imagens desativadas. Instale: npm install sharp');
+  console.warn('[SHARP] sharp não disponível. Usando fallback SVG direto.');
 }
 
+// Importa node-fetch antes de qualquer função que o use
+const fetch = require('node-fetch');
+
 /**
- * Gera um card visual (Buffer PNG) celebrando a criação do servidor.
- * Usa sharp + SVG — zero dependências nativas, funciona em qualquer hosting.
- * Retorna null se sharp não estiver disponível.
+ * Gera um card visual celebrando a criação do servidor.
+ * Tenta gerar PNG via sharp; se não houver suporte a SVG, retorna o SVG como Buffer diretamente.
+ * Retorna null em caso de falha total.
  */
 async function generateServerCard({ guildName, guildIcon, roles, categories, channels, isPremium, prompt }) {
   if (!sharpLib) return null;
@@ -138,13 +148,19 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
       </svg>
     `;
 
-    return await sharpLib(Buffer.from(svg)).png().toBuffer();
+    const svgBuffer = Buffer.from(svg);
+
+    // Se sharp suporta SVG → converte para PNG
+    if (sharpLib !== 'svg-only') {
+      return await sharpLib(svgBuffer).png().toBuffer();
+    }
+    // Fallback: retorna o SVG como buffer (será enviado como .svg)
+    return { buffer: svgBuffer, isSvg: true };
   } catch (e) {
     console.error('[SHARP] Erro ao gerar imagem:', e.message);
     return null;
   }
 }
-const fetch  = require('node-fetch');
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
@@ -1715,7 +1731,24 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('proteger').setDescription('Ativa/desativa anti-nuke').addBooleanOption(o => o.setName('ativo').setDescription('Ativar ou desativar').setRequired(true)),
     new SlashCommandBuilder().setName('deletar').setDescription('Deleta canais, cargos ou tudo').addStringOption(o => o.setName('tipo').setDescription('O que deletar').setRequired(true).addChoices({ name: '🎭 Cargos', value: 'cargos' }, { name: '💬 Canais', value: 'canais' }, { name: '🗑️ Tudo', value: 'tudo' })).addStringOption(o => o.setName('alvo').setDescription('Quais ou "everyone"').setRequired(false)).addBooleanOption(o => o.setName('tudo').setDescription('Deletar tudo?').setRequired(false)),
     new SlashCommandBuilder().setName('status').setDescription('Informações do servidor'),
-    new SlashCommandBuilder().setName('cargo_criar').setDescription('Cria um cargo').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('cor').setDescription('Cor hex').setRequired(false)).addBooleanOption(o => o.setName('admin').setDescription('Admin?').setRequired(false)),
+    new SlashCommandBuilder().setName('cargo_criar').setDescription('Cria um cargo').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('cor').setDescription('Cor do cargo').setRequired(false).addChoices(
+      { name: '🔴 Vermelho',      value: '#e74c3c' },
+      { name: '🟠 Laranja',       value: '#e67e22' },
+      { name: '🟡 Amarelo',       value: '#f1c40f' },
+      { name: '🟢 Verde',         value: '#2ecc71' },
+      { name: '🔵 Azul',          value: '#3498db' },
+      { name: '🟣 Roxo',          value: '#9b59b6' },
+      { name: '🩷 Rosa',          value: '#e91e8c' },
+      { name: '⚪ Branco',        value: '#ffffff' },
+      { name: '⚫ Preto',         value: '#23272a' },
+      { name: '🩶 Cinza',         value: '#95a5a6' },
+      { name: '🟤 Marrom',        value: '#795548' },
+      { name: '🔷 Azul Escuro',   value: '#1a237e' },
+      { name: '🌊 Ciano',         value: '#00bcd4' },
+      { name: '🟩 Verde Lima',    value: '#8bc34a' },
+      { name: '🧡 Âmbar',         value: '#ff6f00' },
+      { name: '💜 Violeta',       value: '#5865f2' },
+    )).addBooleanOption(o => o.setName('admin').setDescription('Admin?').setRequired(false)),
     new SlashCommandBuilder().setName('canal_criar').setDescription('Cria um canal').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(false).addChoices({ name: '💬 Texto', value: 'text' }, { name: '🔊 Voz', value: 'voice' }, { name: '📋 Fórum', value: 'forum' }, { name: '📢 Announcement', value: 'announcement' }, { name: '🎙️ Palco', value: 'stage' })).addStringOption(o => o.setName('topico').setDescription('Tópico').setRequired(false)),
     new SlashCommandBuilder().setName('ban').setDescription('Bane um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)).addIntegerOption(o => o.setName('dias').setDescription('Dias (0-7)').setMinValue(0).setMaxValue(7).setRequired(false)),
     new SlashCommandBuilder().setName('kick').setDescription('Expulsa um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
@@ -1822,10 +1855,15 @@ client.on('interactionCreate', async interaction => {
           { type: 10, content: successContent }, // TextDisplay
         ];
 
-        if (imageBuffer) {
+        // imageBuffer pode ser: Buffer (PNG), { buffer, isSvg: true } (SVG fallback), ou null
+        const imgBuf    = imageBuffer?.isSvg ? imageBuffer.buffer : imageBuffer;
+        const imgName   = imageBuffer?.isSvg ? 'architect-resultado.svg' : 'architect-resultado.png';
+        const imgMime   = imageBuffer?.isSvg ? 'image/svg+xml' : 'image/png';
+
+        if (imgBuf) {
           containerComponents.push({
             type: 11, // MediaGallery
-            items: [{ media: { url: 'attachment://architect-resultado.png' } }],
+            items: [{ media: { url: `attachment://${imgName}` } }],
           });
         }
 
@@ -1838,7 +1876,7 @@ client.on('interactionCreate', async interaction => {
               components: containerComponents,
             },
           ],
-          ...(imageBuffer ? { files: [new AttachmentBuilder(imageBuffer, { name: 'architect-resultado.png' })] } : {}),
+          ...(imgBuf ? { files: [new AttachmentBuilder(imgBuf, { name: imgName })] } : {}),
         };
 
         await interaction.editReply(replyPayload).catch(async () => {
