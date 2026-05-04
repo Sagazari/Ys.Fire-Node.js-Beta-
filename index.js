@@ -1829,7 +1829,6 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply(
         buildProgressEmbed(`${E.servidores}  Construindo Servidor...`, prompt, steps)
       ).catch(() => {});
-      };
 
       try {
         await applyStructure(interaction.guild, structure, update);
@@ -1913,7 +1912,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply(
         buildProgressEmbed(`${E.backup}  Restaurando Servidor...`, `Backup de ${label}`, steps)
       ).catch(() => {});
-      };
+
       try {
         await applyStructure(interaction.guild, backup.structure, update);
         await update(E.sucesso, 'Servidor restaurado com sucesso!');
