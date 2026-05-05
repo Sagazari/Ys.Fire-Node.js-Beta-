@@ -169,7 +169,7 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
     ctx.fillStyle = '#f26c1e';
     ctx.fill();
 
-    return canvas.toBuffer('image/png');
+    return await canvas.toBuffer('image/png');
   } catch (e) {
     console.error('[CANVAS] Erro ao gerar imagem:', e.message);
     return null;
