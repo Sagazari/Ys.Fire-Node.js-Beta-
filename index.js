@@ -12,155 +12,185 @@ const {
   SectionBuilder, ThumbnailBuilder,
 } = require('discord.js');
 
-// ── Sharp (geração de imagem do resultado via SVG) ────────────────────────────
-let sharpLib = null;
-try {
-  sharpLib = require('sharp');
-  // Testa se o sharp consegue processar um SVG mínimo (valida suporte a librsvg)
-  sharpLib(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'))
-    .png().toBuffer()
-    .then(() => console.log('[SHARP] sharp carregado com sucesso (SVG suportado).'))
-    .catch(() => {
-      console.warn('[SHARP] sharp carregado mas SVG não suportado (sem librsvg). Usando fallback SVG direto.');
-      sharpLib = 'svg-only'; // flag especial
-    });
-} catch (_) {
-  console.warn('[SHARP] sharp não disponível. Usando fallback SVG direto.');
-}
-
-// Importa node-fetch antes de qualquer função que o use
+// ── Canvas (geração de imagem PNG nativa, sem sharp/librsvg) ─────────────────
+// Importa node-fetch para baixar o ícone do servidor
 const fetch = require('node-fetch');
 
+let createCanvas, loadImage;
+try {
+  ({ createCanvas, loadImage } = require('@napi-rs/canvas'));
+  console.log('[CANVAS] @napi-rs/canvas carregado com sucesso.');
+} catch (_) {
+  try {
+    ({ createCanvas, loadImage } = require('canvas'));
+    console.log('[CANVAS] node-canvas carregado com sucesso.');
+  } catch (__) {
+    console.warn('[CANVAS] Nenhuma lib de canvas disponível. Imagens desativadas. Instale: npm install @napi-rs/canvas');
+  }
+}
+
 /**
- * Gera um card visual celebrando a criação do servidor.
- * Tenta gerar PNG via sharp; se não houver suporte a SVG, retorna o SVG como Buffer diretamente.
- * Retorna null em caso de falha total.
+ * Gera um card PNG celebrando a criação do servidor.
+ * Usa node-canvas — sem sharp, sem librsvg, funciona em qualquer hosting.
+ * Retorna null se canvas não estiver disponível.
  */
 async function generateServerCard({ guildName, guildIcon, roles, categories, channels, isPremium, prompt }) {
-  if (!sharpLib) return null;
+  if (!createCanvas) return null;
   try {
     const W = 900, H = 500;
+    const canvas = createCanvas(W, H);
+    const ctx    = canvas.getContext('2d');
 
-    const safeName    = (guildName || 'Servidor').substring(0, 28).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-    const safePrompt  = `"${(prompt || '').substring(0, 72).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}"`;
-    const dateStr     = new Date().toLocaleDateString('pt-BR');
-    const typeLabel   = isPremium ? 'Premium' : 'Normal';
-    const typeEmoji   = isPremium ? '⚡' : '◆';
+    // ── Fundo gradiente ──────────────────────────────────────────────────────
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0,    '#0d1117');
+    bg.addColorStop(0.5,  '#1a1f2e');
+    bg.addColorStop(1,    '#0d1117');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
 
-    // Cards de estatísticas (4 cards)
-    const stats = [
-      { label: 'Cargos',     value: String(roles),      icon: '◉' },
-      { label: 'Categorias', value: String(categories), icon: '▦' },
-      { label: 'Canais',     value: String(channels),   icon: '#' },
-      { label: 'Tipo',       value: typeLabel,           icon: typeEmoji },
-    ];
+    // Glow laranja no canto superior esquerdo
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 320);
+    glow.addColorStop(0,   'rgba(242,108,30,0.18)');
+    glow.addColorStop(1,   'rgba(242,108,30,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
 
-    const cardW = 180, cardH = 110, cardY = 250, gapX = (W - 120 - stats.length * cardW) / (stats.length - 1);
+    // ── Borda superior laranja ───────────────────────────────────────────────
+    const topBar = ctx.createLinearGradient(0, 0, W, 0);
+    topBar.addColorStop(0,    'rgba(242,108,30,0)');
+    topBar.addColorStop(0.3,  '#f26c1e');
+    topBar.addColorStop(0.7,  '#f26c1e');
+    topBar.addColorStop(1,    'rgba(242,108,30,0)');
+    ctx.fillStyle = topBar;
+    ctx.fillRect(0, 0, W, 3);
 
-    const statCards = stats.map((s, i) => {
-      const cx = 60 + i * (cardW + gapX);
-      return `
-        <rect x="${cx}" y="${cardY}" width="${cardW}" height="${cardH}" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(242,108,30,0.3)" stroke-width="1"/>
-        <text x="${cx + 16}" y="${cardY + 36}" font-size="22" fill="#f26c1e" font-family="Arial, sans-serif">${s.icon}</text>
-        <text x="${cx + 16}" y="${cardY + 72}" font-size="30" font-weight="bold" fill="#ffffff" font-family="Arial, sans-serif">${s.value}</text>
-        <text x="${cx + 16}" y="${cardY + 95}" font-size="13" fill="#8b949e" font-family="Arial, sans-serif">${s.label}</text>
-      `;
-    }).join('');
-
-    // Avatar: baixa a imagem e converte para base64 se existir
-    let avatarHtml = '';
+    // ── Avatar ───────────────────────────────────────────────────────────────
+    let avatarX = 60;
     if (guildIcon) {
       try {
         const res = await fetch(guildIcon);
         const buf = Buffer.from(await res.arrayBuffer());
-        const b64 = buf.toString('base64');
-        const mime = guildIcon.includes('.png') ? 'image/png' : 'image/jpeg';
-        avatarHtml = `
-          <defs>
-            <clipPath id="avatarClip">
-              <circle cx="105" cy="105" r="45"/>
-            </clipPath>
-          </defs>
-          <image href="data:${mime};base64,${b64}" x="60" y="60" width="90" height="90" clip-path="url(#avatarClip)"/>
-          <circle cx="105" cy="105" r="45" fill="none" stroke="#f26c1e" stroke-width="3"/>
-        `;
+        const img = await loadImage(buf);
+        const cx = 105, cy = 105, r = 45;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
+        ctx.restore();
+        // Borda circular laranja
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f26c1e';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        avatarX = 174;
       } catch (_) {}
     }
 
-    const premiumBadge = isPremium
-      ? `<text x="${guildIcon ? 174 : 60}" y="140" font-size="13" font-weight="bold" fill="#f26c1e" font-family="Arial, sans-serif">✦ PREMIUM</text>`
-      : '';
+    // ── Nome do servidor ─────────────────────────────────────────────────────
+    const safeName = (guildName || 'Servidor').substring(0, 28);
+    ctx.font      = 'bold 34px Arial';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(safeName, avatarX, 112);
 
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%"   stop-color="#0d1117"/>
-            <stop offset="50%"  stop-color="#1a1f2e"/>
-            <stop offset="100%" stop-color="#0d1117"/>
-          </linearGradient>
-          <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="scale(300)">
-            <stop offset="0%"   stop-color="#f26c1e" stop-opacity="0.18"/>
-            <stop offset="100%" stop-color="#f26c1e" stop-opacity="0"/>
-          </radialGradient>
-          <linearGradient id="border" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%"   stop-color="#f26c1e" stop-opacity="0"/>
-            <stop offset="30%"  stop-color="#f26c1e"/>
-            <stop offset="70%"  stop-color="#f26c1e"/>
-            <stop offset="100%" stop-color="#f26c1e" stop-opacity="0"/>
-          </linearGradient>
-          <linearGradient id="sep" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%"   stop-color="#f26c1e" stop-opacity="0"/>
-            <stop offset="10%"  stop-color="#f26c1e" stop-opacity="0.6"/>
-            <stop offset="90%"  stop-color="#f26c1e" stop-opacity="0.6"/>
-            <stop offset="100%" stop-color="#f26c1e" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-
-        <!-- Fundo -->
-        <rect width="${W}" height="${H}" fill="url(#bg)"/>
-        <rect width="${W}" height="${H}" fill="url(#glow)"/>
-        <!-- Borda superior -->
-        <rect x="0" y="0" width="${W}" height="3" fill="url(#border)"/>
-
-        <!-- Avatar -->
-        ${avatarHtml}
-
-        <!-- Nome do servidor -->
-        <text x="${guildIcon ? 174 : 60}" y="112" font-size="34" font-weight="bold" fill="#ffffff" font-family="Arial, sans-serif">${safeName}</text>
-        ${premiumBadge}
-
-        <!-- Subtítulo -->
-        <text x="60" y="210" font-size="17" fill="#8b949e" font-family="Arial, sans-serif">Servidor criado com sucesso pelo Architect</text>
-
-        <!-- Linha separadora -->
-        <rect x="60" y="228" width="${W - 120}" height="1" fill="url(#sep)"/>
-
-        <!-- Cards -->
-        ${statCards}
-
-        <!-- Prompt -->
-        <text x="60" y="${cardY + cardH + 32}" font-size="14" fill="#6e7681" font-style="italic" font-family="Arial, sans-serif">${safePrompt}</text>
-
-        <!-- Rodapé -->
-        <text x="60" y="${H - 20}" font-size="12" fill="#484f58" font-family="Arial, sans-serif">Architect ${VERSION}  ·  architectalz.netlify.app  ·  ${dateStr}</text>
-        <circle cx="${W - 50}" cy="${H - 26}" r="5" fill="#f26c1e"/>
-      </svg>
-    `;
-
-    const svgBuffer = Buffer.from(svg);
-
-    // Se sharp suporta SVG → converte para PNG
-    if (sharpLib !== 'svg-only') {
-      return await sharpLib(svgBuffer).png().toBuffer();
+    // Badge premium
+    if (isPremium) {
+      ctx.font      = 'bold 13px Arial';
+      ctx.fillStyle = '#f26c1e';
+      ctx.fillText('✦ PREMIUM', avatarX, 140);
     }
-    // Fallback: retorna o SVG como buffer (será enviado como .svg)
-    return { buffer: svgBuffer, isSvg: true };
+
+    // ── Subtítulo ─────────────────────────────────────────────────────────────
+    ctx.font      = '17px Arial';
+    ctx.fillStyle = '#8b949e';
+    ctx.fillText('Servidor criado com sucesso pelo Architect', 60, 210);
+
+    // ── Linha separadora ──────────────────────────────────────────────────────
+    const sep = ctx.createLinearGradient(60, 0, W - 60, 0);
+    sep.addColorStop(0,    'rgba(242,108,30,0)');
+    sep.addColorStop(0.1,  'rgba(242,108,30,0.6)');
+    sep.addColorStop(0.9,  'rgba(242,108,30,0.6)');
+    sep.addColorStop(1,    'rgba(242,108,30,0)');
+    ctx.fillStyle = sep;
+    ctx.fillRect(60, 228, W - 120, 1);
+
+    // ── Cards de estatísticas ─────────────────────────────────────────────────
+    const stats = [
+      { label: 'Cargos',     value: String(roles),      icon: '◉' },
+      { label: 'Categorias', value: String(categories), icon: '▦' },
+      { label: 'Canais',     value: String(channels),   icon: '#' },
+      { label: 'Tipo',       value: isPremium ? 'Premium' : 'Normal', icon: isPremium ? '⚡' : '◆' },
+    ];
+    const cardW = 180, cardH = 110, cardY = 250;
+    const gapX  = (W - 120 - stats.length * cardW) / (stats.length - 1);
+
+    stats.forEach((s, i) => {
+      const cx = 60 + i * (cardW + gapX);
+      // Fundo do card
+      ctx.fillStyle   = 'rgba(255,255,255,0.04)';
+      roundRect(ctx, cx, cardY, cardW, cardH, 14);
+      ctx.fill();
+      // Borda do card
+      ctx.strokeStyle = 'rgba(242,108,30,0.3)';
+      ctx.lineWidth   = 1;
+      roundRect(ctx, cx, cardY, cardW, cardH, 14);
+      ctx.stroke();
+      // Ícone
+      ctx.font      = '22px Arial';
+      ctx.fillStyle = '#f26c1e';
+      ctx.fillText(s.icon, cx + 16, cardY + 36);
+      // Valor
+      ctx.font      = 'bold 30px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(s.value, cx + 16, cardY + 72);
+      // Label
+      ctx.font      = '13px Arial';
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText(s.label, cx + 16, cardY + 95);
+    });
+
+    // ── Prompt ────────────────────────────────────────────────────────────────
+    const safePrompt = `"${(prompt || '').substring(0, 72)}"`;
+    ctx.font      = 'italic 14px Arial';
+    ctx.fillStyle = '#6e7681';
+    ctx.fillText(safePrompt, 60, cardY + cardH + 32);
+
+    // ── Rodapé ────────────────────────────────────────────────────────────────
+    const dateStr = new Date().toLocaleDateString('pt-BR');
+    ctx.font      = '12px Arial';
+    ctx.fillStyle = '#484f58';
+    ctx.fillText(`Architect ${VERSION}  ·  architectalz.netlify.app  ·  ${dateStr}`, 60, H - 20);
+    // Bolinha laranja
+    ctx.beginPath();
+    ctx.arc(W - 50, H - 26, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f26c1e';
+    ctx.fill();
+
+    return canvas.toBuffer('image/png');
   } catch (e) {
-    console.error('[SHARP] Erro ao gerar imagem:', e.message);
+    console.error('[CANVAS] Erro ao gerar imagem:', e.message);
     return null;
   }
 }
+
+/** Helper: desenha um retângulo com bordas arredondadas no ctx */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
@@ -1855,15 +1885,11 @@ client.on('interactionCreate', async interaction => {
           { type: 10, content: successContent }, // TextDisplay
         ];
 
-        // imageBuffer pode ser: Buffer (PNG), { buffer, isSvg: true } (SVG fallback), ou null
-        const imgBuf    = imageBuffer?.isSvg ? imageBuffer.buffer : imageBuffer;
-        const imgName   = imageBuffer?.isSvg ? 'architect-resultado.svg' : 'architect-resultado.png';
-        const imgMime   = imageBuffer?.isSvg ? 'image/svg+xml' : 'image/png';
-
-        if (imgBuf) {
+        // imageBuffer é sempre um Buffer PNG (ou null se canvas não disponível)
+        if (imageBuffer) {
           containerComponents.push({
             type: 11, // MediaGallery
-            items: [{ media: { url: `attachment://${imgName}` } }],
+            items: [{ media: { url: 'attachment://architect-resultado.png' } }],
           });
         }
 
@@ -1876,7 +1902,7 @@ client.on('interactionCreate', async interaction => {
               components: containerComponents,
             },
           ],
-          ...(imgBuf ? { files: [new AttachmentBuilder(imgBuf, { name: imgName })] } : {}),
+          ...(imageBuffer ? { files: [new AttachmentBuilder(imageBuffer, { name: 'architect-resultado.png' })] } : {}),
         };
 
         await interaction.editReply(replyPayload).catch(async () => {
