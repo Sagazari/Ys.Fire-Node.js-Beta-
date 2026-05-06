@@ -2,10 +2,10 @@
   "name": "architect-bot",
   "version": "2.2.0",
   "description": "Architect — Create. Protect. Restore.",
-  "main": "index.js",
+  "main": "shard.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js"
+    "start": "node shard.js",
+    "dev": "node --watch shard.js"
   },
   "dependencies": {
     "discord.js": "^14.16.0",

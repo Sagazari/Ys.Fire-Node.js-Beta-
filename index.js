@@ -1738,30 +1738,45 @@ client.on('guildCreate', async guild => {
 client.once('ready', async () => {
   console.log(`<:aceitar:1500524505746116800> Architect ${VERSION} online como ${client.user.tag}`);
 
-  // ── Status dinâmico com contagem de servidores ───────────────────────────
-  const updatePresence = () => {
-    const guildCount = client.guilds.cache.size;
-    const shardId    = client.shard?.ids?.[0] ?? 0;
-    const totalShards = client.shard?.count ?? 1;
-    const shardLabel  = totalShards > 1 ? ` | Shard ${shardId + 1}/${totalShards}` : ` | 1 Shard`;
+  // ── Status dinâmico com contagem real de servidores (cross-shard) ──────────
+  const shardId     = client.shard?.ids?.[0] ?? 0;
+  const totalShards = client.shard?.count ?? 1;
+  const shardLabel  = `Shard ${shardId + 1}/${totalShards}`;
+
+  const updatePresence = async () => {
+    let totalGuilds = client.guilds.cache.size;
+    // Se estiver em modo sharding, soma todos os shards
+    if (client.shard) {
+      try {
+        const counts = await client.shard.fetchClientValues('guilds.cache.size');
+        totalGuilds  = counts.reduce((a, b) => a + b, 0);
+      } catch (_) {}
+    }
+
     const statuses = [
-      `Online${shardLabel} · ${guildCount} servidores`,
-      `Building your server... · ${guildCount} servidores`,
-      `Protecting your community · ${guildCount} servidores`,
+      `Online | ${shardLabel} · ${totalGuilds} servidores`,
+      `Building your server... · ${totalGuilds} servidores`,
+      `Protecting your community · ${totalGuilds} servidores`,
     ];
-    statuses.forEach((text, i) => {
-      setTimeout(() => {
-        if (!client.user) return;
-        client.user.setPresence({
-          status: 'online',
-          activities: [{ name: text, type: ActivityType.Watching }],
-        });
-      }, i * 10000);
-    });
+
+    let i = 0;
+    const rotate = () => {
+      if (!client.user) return;
+      client.user.setPresence({
+        status: 'online',
+        activities: [{ name: statuses[i], type: ActivityType.Watching }],
+      });
+      i = (i + 1) % statuses.length;
+    };
+
+    rotate();
+    if (!client._presenceInterval) {
+      client._presenceInterval = setInterval(rotate, 10000);
+    }
   };
 
   updatePresence();
-  setInterval(updatePresence, 30000);
+  setInterval(updatePresence, 5 * 60 * 1000); // atualiza contagem a cada 5min
 
   const commands = [
     new SlashCommandBuilder().setName('criar_servidor').setDescription('Cria servidor completo com IA').addStringOption(o => o.setName('prompt').setDescription('Descreva o servidor').setRequired(true)),
@@ -3220,9 +3235,15 @@ app.get('/', (req, res) => {
 // Fallback
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log(`<:aceitar:1500524505746116800> Dashboard server na porta ${process.env.PORT || 3000}`);
-});
+// Express só sobe no Shard 0 (ou quando não há sharding) — evita conflito de porta
+const isMainShard = !client.shard || (client.shard.ids?.[0] === 0);
+if (isMainShard) {
+  app.listen(process.env.PORT || 3000, () => {
+    console.log(`<:aceitar:1500524505746116800> Dashboard server na porta ${process.env.PORT || 3000} (Shard 0)`);
+  });
+} else {
+  console.log(`[SHARD #${client.shard?.ids?.[0]}] Express não iniciado (apenas Shard 0 serve HTTP).`);
+}
 
 // ── Global Error Handlers ──────────────────────────────────────────────────────
 client.on('error', e => console.error('<:negar:1500524485231509785> Client error:', e.message));
