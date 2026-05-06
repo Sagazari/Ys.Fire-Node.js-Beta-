@@ -1738,20 +1738,30 @@ client.on('guildCreate', async guild => {
 client.once('ready', async () => {
   console.log(`<:aceitar:1500524505746116800> Architect ${VERSION} online como ${client.user.tag}`);
 
-  const statuses = [
-    { text: 'Building your server...', type: ActivityType.Watching },
-    { text: 'Protecting your community', type: ActivityType.Watching },
-    { text: 'Restoring after nukes', type: ActivityType.Watching },
-  ];
-  let si = 0;
-  const tick = () => {
-    client.user.setPresence({
-      status: 'online',
-      activities: [{ name: statuses[si].text, type: statuses[si].type }],
+  // ── Status dinâmico com contagem de servidores ───────────────────────────
+  const updatePresence = () => {
+    const guildCount = client.guilds.cache.size;
+    const shardId    = client.shard?.ids?.[0] ?? 0;
+    const totalShards = client.shard?.count ?? 1;
+    const shardLabel  = totalShards > 1 ? ` | Shard ${shardId + 1}/${totalShards}` : ` | 1 Shard`;
+    const statuses = [
+      `Online${shardLabel} · ${guildCount} servidores`,
+      `Building your server... · ${guildCount} servidores`,
+      `Protecting your community · ${guildCount} servidores`,
+    ];
+    statuses.forEach((text, i) => {
+      setTimeout(() => {
+        if (!client.user) return;
+        client.user.setPresence({
+          status: 'online',
+          activities: [{ name: text, type: ActivityType.Watching }],
+        });
+      }, i * 10000);
     });
-    si = (si + 1) % statuses.length;
   };
-  tick(); setInterval(tick, 10000);
+
+  updatePresence();
+  setInterval(updatePresence, 30000);
 
   const commands = [
     new SlashCommandBuilder().setName('criar_servidor').setDescription('Cria servidor completo com IA').addStringOption(o => o.setName('prompt').setDescription('Descreva o servidor').setRequired(true)),
@@ -2721,7 +2731,8 @@ client.on('interactionCreate', async interaction => {
 
   // ── /help ────────────────────────────────────────────────────────────────────
   else if (commandName === 'help') {
-    await interaction.reply({ ...v2Simple(C_ORANGE,
+    await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply(v2Simple(C_ORANGE,
       `${E.info} Comandos — Architect`,
       `**Criação:** \`/criar_servidor\` \`/template\`\n` +
       `**Backup:** \`/backup\` \`/restaurar\` \`/proteger\`\n` +
@@ -2730,7 +2741,7 @@ client.on('interactionCreate', async interaction => {
       `**Geral:** \`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\` \`/tickets\`\n\n` +
       `**Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
       `Architect ${VERSION} · architect.velroc.workers.dev`
-    ), flags: MessageFlags.Ephemeral });
+    ));
   }
 
   // ── /tickets ──────────────────────────────────────────────────────────────────
