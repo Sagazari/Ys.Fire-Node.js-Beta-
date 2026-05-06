@@ -1741,7 +1741,7 @@ client.once('ready', async () => {
   // ── Status dinâmico com contagem real de servidores (cross-shard) ──────────
   const shardId     = client.shard?.ids?.[0] ?? 0;
   const totalShards = client.shard?.count ?? 1;
-  const shardLabel  = `Shard ${shardId + 1}/${totalShards}`;
+  const shardLabel  = totalShards > 1 ? `${totalShards} Shards` : `1 Shard`;
 
   const updatePresence = async () => {
     let totalGuilds = client.guilds.cache.size;
