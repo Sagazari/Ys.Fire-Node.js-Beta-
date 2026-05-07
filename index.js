@@ -621,6 +621,8 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
   ],
   partials: ['MESSAGE', 'CHANNEL', 'REACTION'],
 });
@@ -720,7 +722,7 @@ async function handleTicketOpen(interaction, categoryName) {
 }
 
 // ── Generate Structure ─────────────────────────────────────────────────────────
-async function generateStructure(prompt, onLog, isPremium = false) {
+async function generateStructure(prompt, onLog, isPremium = false, userCustomPrompt = null) {
   const laneName = getLaneName(isPremium);
   prompt = prompt.replace(/"/g, "'").replace(/`/g, "'").trim();
 
@@ -781,6 +783,11 @@ Generate the complete role hierarchy. Every role must serve a clear purpose and 
 Return ONLY a raw JSON array (no markdown, no backticks):
 [{"name":"👑 Proprietário","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Silenciado","color":"#636e72","hoist":false,"mentionable":false,"permissions":[]}]`
     : `Server: "${prompt}"\n\nReturn JSON array:\n[{"name":"👑 Dono","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Mutado","color":"#7f8c8d","hoist":false,"mentionable":false,"permissions":[]}]\nGenerate all ${minRoles}–${maxRoles} roles. Return only the JSON array.`;
+
+  // Injeta prompt customizado do usuário (ia_config premium)
+  const customInstruction = userCustomPrompt
+    ? `\n\n[INSTRUÇÃO PERSONALIZADA DO USUÁRIO]:\n${userCustomPrompt}`
+    : '';
 
   let roles;
   try {
@@ -1824,6 +1831,44 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('help').setDescription('Lista de comandos'),
     new SlashCommandBuilder().setName('usuarios').setDescription('Estatísticas de uso do Architect hoje').addStringOption(o => o.setName('data').setDescription('Data no formato YYYY-MM-DD (padrão: hoje)').setRequired(false)),
     new SlashCommandBuilder().setName('tickets').setDescription('Mostra o ranking de atendimentos da staff neste servidor'),
+
+    // ── Novos comandos ────────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('bansoft').setDescription('Bane um membro e deleta todas as mensagens dele')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
+      .addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
+
+    new SlashCommandBuilder().setName('logs_config').setDescription('Configura o canal de logs de cada sistema')
+      .addStringOption(o => o.setName('tipo').setDescription('Tipo de log').setRequired(true).addChoices(
+        { name: '🔨 Bans / Kicks', value: 'ban' },
+        { name: '🔇 Mutes',        value: 'mute' },
+        { name: '🎫 Tickets',      value: 'ticket' },
+        { name: '⚠️ Warns',        value: 'warn' },
+        { name: '🤖 IA Detect',    value: 'detect' },
+        { name: '🤝 Parcerias',    value: 'parceria' },
+        { name: '📋 Todos',        value: 'all' },
+      ))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal de logs').setRequired(true)),
+
+    new SlashCommandBuilder().setName('ia_config').setDescription('(Premium) Personaliza o prompt da IA para você')
+      .addStringOption(o => o.setName('prompt').setDescription('Descreva como a IA deve se comportar / quantidade de cargos etc').setRequired(true)),
+
+    new SlashCommandBuilder().setName('set_parceria').setDescription('Define o cargo de parceria do servidor')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo que ativa a mensagem de parceria').setRequired(true))
+      .addStringOption(o => o.setName('mensagem').setDescription('Mensagem personalizada (opcional)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('ia_detect').setDescription('Ativa a detecção inteligente de conteúdo suspeito')
+      .addBooleanOption(o => o.setName('ativo').setDescription('Ativar ou desativar').setRequired(true)),
+
+    new SlashCommandBuilder().setName('detect_config').setDescription('Configura as ações do sistema de detecção IA')
+      .addStringOption(o => o.setName('nivel').setDescription('Nível de severidade').setRequired(true).addChoices(
+        { name: '🟡 Baixo — apenas avisar no log',        value: 'low' },
+        { name: '🟠 Médio — mutar automaticamente',       value: 'medium' },
+        { name: '🔴 Alto — banir automaticamente',        value: 'high' },
+      ))
+      .addBooleanOption(o => o.setName('links').setDescription('Detectar links suspeitos?').setRequired(false))
+      .addBooleanOption(o => o.setName('divulgacao').setDescription('Detectar divulgações indiretas?').setRequired(false))
+      .addBooleanOption(o => o.setName('spam').setDescription('Detectar spam?').setRequired(false)),
+
   ].map(c => c.toJSON());
 
   try {
@@ -2697,6 +2742,146 @@ client.on('interactionCreate', async interaction => {
     ));
   }
 
+  // ── /bansoft ─────────────────────────────────────────────────────────────────
+  else if (commandName === 'bansoft') {
+    const target = interaction.options.getMember('membro');
+    const motivo = interaction.options.getString('motivo') || 'Sem motivo informado';
+    if (!member.permissions.has(PermissionFlagsBits.BanMembers))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado.`, flags: MessageFlags.Ephemeral });
+    try {
+      await interaction.deferReply();
+      // Bane e deleta TODAS as mensagens (7 dias = max do Discord)
+      await guild.members.ban(target.id, { deleteMessageSeconds: 7 * 24 * 60 * 60, reason: motivo });
+      await interaction.editReply(v2Simple(C_RED,
+        `${E.ban} Soft-Ban aplicado!`,
+        `**${E.membros} Membro:** ${target.user.tag}
+**${E.config} Motivo:** ${motivo}
+**🗑️ Mensagens:** Todas deletadas (7 dias)`,
+        `Architect ${VERSION}`
+      ));
+      // Log
+      await sendLog(guild.id, 'ban', v2Simple(C_RED,
+        `🔨 Soft-Ban — ${target.user.tag}`,
+        `**Moderador:** ${interaction.user.tag}
+**Motivo:** ${motivo}
+**Mensagens deletadas:** 7 dias`,
+        `Architect ${VERSION}`
+      ));
+    } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
+  }
+
+  // ── /logs_config ─────────────────────────────────────────────────────────────
+  else if (commandName === 'logs_config') {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const tipo  = interaction.options.getString('tipo');
+    const canal = interaction.options.getChannel('canal');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const tipos = tipo === 'all' ? ['ban','mute','ticket','warn','detect','parceria'] : [tipo];
+    const set   = {};
+    tipos.forEach(t => { set[`logs.${t}`] = canal.id; });
+    await mongoDB.collection('settings').updateOne(
+      { guildId: guild.id },
+      { $set: set },
+      { upsert: true }
+    );
+    const nomes = { ban:'🔨 Bans/Kicks', mute:'🔇 Mutes', ticket:'🎫 Tickets', warn:'⚠️ Warns', detect:'🤖 IA Detect', parceria:'🤝 Parcerias' };
+    const lista = tipos.map(t => nomes[t]).join(', ');
+    await interaction.editReply(v2Simple(C_GREEN,
+      `${E.config} Logs Configurados!`,
+      `**Canal:** <#${canal.id}>
+**Tipos:** ${lista}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /ia_config ────────────────────────────────────────────────────────────────
+  else if (commandName === 'ia_config') {
+    const isPremiumUser = await isUserPremium(interaction.user.id);
+    if (!isPremiumUser)
+      return interaction.reply({ content: `${E.premium} Este comando é exclusivo para usuários **Premium**!`, flags: MessageFlags.Ephemeral });
+    const promptCustom = interaction.options.getString('prompt');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await mongoDB.collection('ia_config').updateOne(
+      { userId: interaction.user.id },
+      { $set: { userId: interaction.user.id, prompt: promptCustom, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    await interaction.editReply(v2Simple(C_ORANGE,
+      `${E.premium} IA Personalizada!`,
+      `Seu prompt foi salvo. A IA usará essas instruções nas próximas criações de servidor.
+
+**📝 Prompt:**
+${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /set_parceria ─────────────────────────────────────────────────────────────
+  else if (commandName === 'set_parceria') {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const cargo     = interaction.options.getRole('cargo');
+    const mensagem  = interaction.options.getString('mensagem') || null;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await mongoDB.collection('settings').updateOne(
+      { guildId: guild.id },
+      { $set: { 'parceria.roleId': cargo.id, 'parceria.mensagem': mensagem } },
+      { upsert: true }
+    );
+    await interaction.editReply(v2Simple(C_GREEN,
+      `🤝 Parceria Configurada!`,
+      `Quando o cargo <@&${cargo.id}> for mencionado, o Architect enviará a mensagem de parceria automaticamente.
+${mensagem ? `
+**Mensagem personalizada:** ${mensagem}` : ''}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /ia_detect ────────────────────────────────────────────────────────────────
+  else if (commandName === 'ia_detect') {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const ativo = interaction.options.getBoolean('ativo');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await mongoDB.collection('settings').updateOne(
+      { guildId: guild.id },
+      { $set: { 'detect.ativo': ativo } },
+      { upsert: true }
+    );
+    await interaction.editReply(v2Simple(ativo ? C_GREEN : C_RED,
+      `🤖 IA Detect ${ativo ? 'Ativada' : 'Desativada'}!`,
+      ativo
+        ? 'O sistema de detecção inteligente está ativo. Use **/detect_config** para configurar as ações.'
+        : 'A detecção inteligente foi desativada neste servidor.',
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /detect_config ────────────────────────────────────────────────────────────
+  else if (commandName === 'detect_config') {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const nivel     = interaction.options.getString('nivel');
+    const links     = interaction.options.getBoolean('links')      ?? true;
+    const divulg    = interaction.options.getBoolean('divulgacao')  ?? true;
+    const spam      = interaction.options.getBoolean('spam')        ?? true;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await mongoDB.collection('settings').updateOne(
+      { guildId: guild.id },
+      { $set: { 'detect.nivel': nivel, 'detect.links': links, 'detect.divulgacao': divulg, 'detect.spam': spam } },
+      { upsert: true }
+    );
+    const nivelLabel = { low: '🟡 Baixo (log apenas)', medium: '🟠 Médio (mutar)', high: '🔴 Alto (banir)' }[nivel];
+    await interaction.editReply(v2Simple(C_ORANGE,
+      `🤖 Detect Config Salvo!`,
+      `**Nível:** ${nivelLabel}
+**Links:** ${links ? 'Sim' : 'Não'}   **Divulgação:** ${divulg ? 'Sim' : 'Não'}   **Spam:** ${spam ? 'Sim' : 'Não'}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
   // ── /usuarios ────────────────────────────────────────────────────────────────
   else if (commandName === 'usuarios') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -2805,6 +2990,124 @@ client.on('interactionCreate', async interaction => {
       });
     } catch (_) {}
   }
+});
+
+// ── sendLog helper ────────────────────────────────────────────────────────────
+async function sendLog(guildId, tipo, payload) {
+  try {
+    const settings = await mongoDB.collection('settings').findOne({ guildId });
+    const channelId = settings?.logs?.[tipo] || settings?.logs?.all;
+    if (!channelId) return;
+    const guild = client.guilds.cache.get(guildId);
+    const ch    = guild?.channels?.cache?.get(channelId);
+    if (ch) await ch.send(payload).catch(() => {});
+  } catch (_) {}
+}
+
+// ── messageCreate — Parcerias + IA Detect ─────────────────────────────────────
+client.on('messageCreate', async message => {
+  if (message.author.bot || !message.guild) return;
+
+  try {
+    const settings = await mongoDB.collection('settings').findOne({ guildId: message.guild.id });
+
+    // ── Sistema de Parcerias ─────────────────────────────────────────────────
+    if (settings?.parceria?.roleId) {
+      const roleMentioned = message.mentions.roles.has(settings.parceria.roleId);
+      if (roleMentioned) {
+        const msgParceria = settings.parceria.mensagem ||
+          `🤝 **Nova Parceria!**
+
+Uma nova parceria foi realizada com sucesso!
+Obrigado por fazer parte da nossa rede. Juntos somos mais fortes! 💪`;
+        await message.reply(v2Simple(C_GREEN,
+          '🤝 Nova Parceria!',
+          msgParceria,
+          `Architect ${VERSION}`
+        )).catch(() => {});
+        await sendLog(message.guild.id, 'parceria', v2Simple(C_GREEN,
+          '🤝 Parceria registrada',
+          `**Cargo:** <@&${settings.parceria.roleId}>
+**Mencionado por:** ${message.author.tag}
+**Canal:** <#${message.channel.id}>`,
+          `Architect ${VERSION}`
+        ));
+      }
+    }
+
+    // ── IA Detect ────────────────────────────────────────────────────────────
+    if (!settings?.detect?.ativo) return;
+
+    const nivel    = settings.detect?.nivel    || 'low';
+    const links    = settings.detect?.links    ?? true;
+    const divulg   = settings.detect?.divulgacao ?? true;
+    const spam     = settings.detect?.spam     ?? true;
+
+    const texto = message.content.toLowerCase();
+
+    // Padrões de detecção
+    const linkPattern    = /https?:\/\/(?!.*discord\.com)[^\s]+/gi;
+    const discordInvite  = /discord\.(gg|com\/invite)\/[a-zA-Z0-9]+/gi;
+    const divulgPatterns = [
+      /venha( para| pro| pra| ao)? (nosso|meu|o) servidor/i,
+      /segue (lá|la|nosso|meu)/i,
+      /confere (lá|la|nosso|meu)/i,
+      /entr[ae] (no|em|lá|la)/i,
+      /divulg/i,
+      /parceiro\s*(:|\-|–)/i,
+    ];
+    const spamPattern = message.content.length > 0 &&
+      (message.content.split(' ').length < 3 && message.content.length > 80);
+
+    let flagged = null;
+
+    if (links && (linkPattern.test(texto) || discordInvite.test(texto))) {
+      flagged = { tipo: 'Link suspeito / convite', severity: 2 };
+    } else if (divulg && divulgPatterns.some(p => p.test(texto))) {
+      flagged = { tipo: 'Divulgação indireta', severity: 1 };
+    } else if (spam && spamPattern) {
+      flagged = { tipo: 'Possível spam', severity: 1 };
+    }
+
+    if (!flagged) return;
+
+    // Deletar mensagem sempre
+    await message.delete().catch(() => {});
+
+    // Log sempre
+    await sendLog(message.guild.id, 'detect', v2Simple(C_RED,
+      `🤖 IA Detect — ${flagged.tipo}`,
+      `**Usuário:** ${message.author.tag} (<@${message.author.id}>)
+**Canal:** <#${message.channel.id}>
+**Conteúdo:** \`\`\`${message.content.substring(0, 300)}\`\`\`
+**Ação:** ${nivel === 'low' ? 'Log apenas' : nivel === 'medium' ? 'Mutado' : 'Banido'}`,
+      `Architect ${VERSION}`
+    ));
+
+    // Ação conforme nível
+    if (nivel === 'medium' || (nivel === 'high' && flagged.severity < 2)) {
+      // Mutar por 10 minutos
+      await message.guild.members.fetch(message.author.id)
+        .then(m => m.timeout(10 * 60 * 1000, `IA Detect: ${flagged.tipo}`))
+        .catch(() => {});
+      await message.channel.send({
+        content: `<@${message.author.id}> ⚠️ Sua mensagem foi removida e você foi silenciado temporariamente por: **${flagged.tipo}**.`,
+        allowedMentions: { users: [message.author.id] }
+      }).then(m => setTimeout(() => m.delete().catch(() => {}), 8000)).catch(() => {});
+    } else if (nivel === 'high') {
+      await message.guild.members.ban(message.author.id, {
+        deleteMessageSeconds: 60 * 60,
+        reason: `IA Detect automático: ${flagged.tipo}`
+      }).catch(() => {});
+    } else {
+      // low — só avisa no canal brevemente
+      await message.channel.send({
+        content: `<@${message.author.id}> ⚠️ Sua mensagem foi removida: **${flagged.tipo}**.`,
+        allowedMentions: { users: [message.author.id] }
+      }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
+    }
+
+  } catch (e) { console.error('[DETECT] Erro:', e.message); }
 });
 
 // ── Anti-Nuke Events ───────────────────────────────────────────────────────────
