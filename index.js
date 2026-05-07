@@ -621,8 +621,6 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildModeration,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
   ],
   partials: ['MESSAGE', 'CHANNEL', 'REACTION'],
 });
@@ -3004,113 +3002,6 @@ async function sendLog(guildId, tipo, payload) {
   } catch (_) {}
 }
 
-// ── messageCreate — Parcerias + IA Detect ─────────────────────────────────────
-client.on('messageCreate', async message => {
-  if (message.author.bot || !message.guild) return;
-
-  try {
-    const settings = await mongoDB.collection('settings').findOne({ guildId: message.guild.id });
-
-    // ── Sistema de Parcerias ─────────────────────────────────────────────────
-    if (settings?.parceria?.roleId) {
-      const roleMentioned = message.mentions.roles.has(settings.parceria.roleId);
-      if (roleMentioned) {
-        const msgParceria = settings.parceria.mensagem ||
-          `🤝 **Nova Parceria!**
-
-Uma nova parceria foi realizada com sucesso!
-Obrigado por fazer parte da nossa rede. Juntos somos mais fortes! 💪`;
-        await message.reply(v2Simple(C_GREEN,
-          '🤝 Nova Parceria!',
-          msgParceria,
-          `Architect ${VERSION}`
-        )).catch(() => {});
-        await sendLog(message.guild.id, 'parceria', v2Simple(C_GREEN,
-          '🤝 Parceria registrada',
-          `**Cargo:** <@&${settings.parceria.roleId}>
-**Mencionado por:** ${message.author.tag}
-**Canal:** <#${message.channel.id}>`,
-          `Architect ${VERSION}`
-        ));
-      }
-    }
-
-    // ── IA Detect ────────────────────────────────────────────────────────────
-    if (!settings?.detect?.ativo) return;
-
-    const nivel    = settings.detect?.nivel    || 'low';
-    const links    = settings.detect?.links    ?? true;
-    const divulg   = settings.detect?.divulgacao ?? true;
-    const spam     = settings.detect?.spam     ?? true;
-
-    const texto = message.content.toLowerCase();
-
-    // Padrões de detecção
-    const linkPattern    = /https?:\/\/(?!.*discord\.com)[^\s]+/gi;
-    const discordInvite  = /discord\.(gg|com\/invite)\/[a-zA-Z0-9]+/gi;
-    const divulgPatterns = [
-      /venha( para| pro| pra| ao)? (nosso|meu|o) servidor/i,
-      /segue (lá|la|nosso|meu)/i,
-      /confere (lá|la|nosso|meu)/i,
-      /entr[ae] (no|em|lá|la)/i,
-      /divulg/i,
-      /parceiro\s*(:|\-|–)/i,
-    ];
-    const spamPattern = message.content.length > 0 &&
-      (message.content.split(' ').length < 3 && message.content.length > 80);
-
-    let flagged = null;
-
-    if (links && (linkPattern.test(texto) || discordInvite.test(texto))) {
-      flagged = { tipo: 'Link suspeito / convite', severity: 2 };
-    } else if (divulg && divulgPatterns.some(p => p.test(texto))) {
-      flagged = { tipo: 'Divulgação indireta', severity: 1 };
-    } else if (spam && spamPattern) {
-      flagged = { tipo: 'Possível spam', severity: 1 };
-    }
-
-    if (!flagged) return;
-
-    // Deletar mensagem sempre
-    await message.delete().catch(() => {});
-
-    // Log sempre
-    await sendLog(message.guild.id, 'detect', v2Simple(C_RED,
-      `🤖 IA Detect — ${flagged.tipo}`,
-      `**Usuário:** ${message.author.tag} (<@${message.author.id}>)
-**Canal:** <#${message.channel.id}>
-**Conteúdo:** \`\`\`${message.content.substring(0, 300)}\`\`\`
-**Ação:** ${nivel === 'low' ? 'Log apenas' : nivel === 'medium' ? 'Mutado' : 'Banido'}`,
-      `Architect ${VERSION}`
-    ));
-
-    // Ação conforme nível
-    if (nivel === 'medium' || (nivel === 'high' && flagged.severity < 2)) {
-      // Mutar por 10 minutos
-      await message.guild.members.fetch(message.author.id)
-        .then(m => m.timeout(10 * 60 * 1000, `IA Detect: ${flagged.tipo}`))
-        .catch(() => {});
-      await message.channel.send({
-        content: `<@${message.author.id}> ⚠️ Sua mensagem foi removida e você foi silenciado temporariamente por: **${flagged.tipo}**.`,
-        allowedMentions: { users: [message.author.id] }
-      }).then(m => setTimeout(() => m.delete().catch(() => {}), 8000)).catch(() => {});
-    } else if (nivel === 'high') {
-      await message.guild.members.ban(message.author.id, {
-        deleteMessageSeconds: 60 * 60,
-        reason: `IA Detect automático: ${flagged.tipo}`
-      }).catch(() => {});
-    } else {
-      // low — só avisa no canal brevemente
-      await message.channel.send({
-        content: `<@${message.author.id}> ⚠️ Sua mensagem foi removida: **${flagged.tipo}**.`,
-        allowedMentions: { users: [message.author.id] }
-      }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
-    }
-
-  } catch (e) { console.error('[DETECT] Erro:', e.message); }
-});
-
-// ── Anti-Nuke Events ───────────────────────────────────────────────────────────
 client.on('channelDelete', async channel => {
   try {
     const backup = await getBackup(channel.guild.id);
