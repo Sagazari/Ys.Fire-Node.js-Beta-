@@ -878,14 +878,20 @@ RULES:
   const catsSystem = isPremium
     ? `You are a world-class Discord server architect. You design server structures that feel built by experienced human community managers — not auto-generated templates.
 
-THE CARDINAL SIN: Uniform channel counts. A real server has categories with 2 channels AND categories with 9 channels. Variation is authenticity. If every category has 5 channels, the output is rejected.
+⚠️ CRITICAL RULE — PROMPT COMPLIANCE:
+If the user's prompt specifies an EXACT number of categories or channels (e.g. "4 categories with 5 channels each", "3 categories", "6 canais por categoria"), you MUST follow it EXACTLY. Non-compliance is a critical failure.
+- If prompt says N categories → create exactly N categories.
+- If prompt says N channels per category → create exactly N channels per category.
+- Only when the prompt does NOT specify counts should you use creative judgment.
+
+THE CARDINAL SIN: Uniform channel counts WHEN THE PROMPT DOESN'T SPECIFY. A real server has categories with 2 channels AND categories with 9 channels. Variation is authenticity. If every category has 5 channels and the user didn't ask for that, the output is rejected.
 
 OUTPUT CONTRACT:
 - Return ONLY a raw JSON array. No markdown, no backticks, no prose, no explanation.
 - ALL names in Brazilian Portuguese with correct diacritics and fitting emojis.
 - CRITICAL: Use ONLY standard unicode emojis (e.g. 📢 🎮 🔊). NEVER use custom Discord emojis like <:name:id> or <a:name:id> — they will break the server.
-- Generate 8–13 categories total. ONLY what this server genuinely needs — no filler.
-- Channel counts PER category must VARY organically: some categories have 2–3 channels, others 6–9. Never uniform.
+- Generate 8–13 categories total (or EXACTLY as requested). ONLY what this server genuinely needs — no filler.
+- Channel counts PER category must VARY organically unless user specified: some categories have 2–3 channels, others 6–9.
 - Channel types: use text, voice, forum, announcement, stage. Vary them meaningfully — not every category gets one of each.
 - Voice channels should reflect real usage: a gaming server might have 6 voice rooms with different purposes; a study server might have 4 focus rooms. Name them creatively.
 - NEVER create redundant channels: no "avisos-e-informações", "chat-e-conversa" or any compound name joining two concepts. Each channel has ONE purpose.
@@ -1299,12 +1305,42 @@ async function applyStructure(guild, structure, onStep) {
     } catch (e) { console.error(`[APPLY] Cargo "${r.name}":`, e.message); }
   }
 
+  // Palavras-chave que identificam canais/categorias PÚBLICOS (sem restrição)
+  const PUBLIC_KEYWORDS = [
+    'chat', 'geral', 'conversa', 'mídia', 'media', 'meme', 'memes', 'interação',
+    'interacao', 'boas-vindas', 'bem-vindo', 'bem-vinda', 'welcome', 'apresentação',
+    'apresentacao', 'off-topic', 'offtopic', 'humor', 'funny', 'lazer', 'entretenimento',
+    'random', 'geral', 'lounge', 'social', 'publico', 'público',
+  ];
+  // Palavras-chave de canais PRIVADOS (devem manter restrição)
+  const PRIVATE_KEYWORDS = [
+    'staff', 'admin', 'moderação', 'moderacao', 'mod-', '-mod', 'interno', 'interna',
+    'backstage', 'diretoria', 'gestão', 'gestao', 'logs', 'log-', 'registro',
+    'avisos', 'entrada', 'regras', 'rules', 'anuncio', 'anúncio', 'announcements',
+    'privado', 'privada', 'restrito', 'restrita', 'secreto', 'secreta',
+  ];
+
+  function isPublicChannel(name, categoryName) {
+    const n = (name + ' ' + (categoryName || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (PRIVATE_KEYWORDS.some(k => n.includes(k.normalize('NFD').replace(/[\u0300-\u036f]/g, '')))) return false;
+    if (PUBLIC_KEYWORDS.some(k => n.includes(k.normalize('NFD').replace(/[\u0300-\u036f]/g, '')))) return true;
+    return false;
+  }
+
   // Helper: converte allowedRoles (IA) em permissionOverwrites do Discord
-  function buildOverwritesFromAllowedRoles(allowedRoles) {
+  function buildOverwritesFromAllowedRoles(allowedRoles, channelName, categoryName) {
     if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) return [];
+    // Canais públicos NÃO recebem deny — ficam abertos para @everyone
+    if (isPublicChannel(channelName || '', categoryName || '')) return [];
     const validRoles = allowedRoles.map(n => createdRoles.get(n)).filter(Boolean);
     // Se nenhuma role válida encontrada, não aplica overwrites — canal fica aberto
     if (validRoles.length === 0) return [];
+    // Verifica se inclui roles de membro/verificado (indicativo de canal público)
+    const hasMemberRole = validRoles.some(r => {
+      const rn = r.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return rn.includes('membro') || rn.includes('verificado') || rn.includes('member') || rn.includes('everyone');
+    });
+    if (hasMemberRole && validRoles.length >= 2) return []; // canal acessível a membros = público
     const overwrites = [
       { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
     ];
@@ -1315,8 +1351,8 @@ async function applyStructure(guild, structure, onStep) {
   }
 
   // Helper: resolve permOverwrites (backup) OU allowedRoles (IA)
-  function resolveOverwrites(permOverwrites, allowedRoles) {
-    if (allowedRoles?.length) return buildOverwritesFromAllowedRoles(allowedRoles);
+  function resolveOverwrites(permOverwrites, allowedRoles, channelName, categoryName) {
+    if (allowedRoles?.length) return buildOverwritesFromAllowedRoles(allowedRoles, channelName, categoryName);
     const resolved = [];
     for (const ow of permOverwrites || []) {
       if (ow.type === 0) {
@@ -1376,7 +1412,7 @@ async function applyStructure(guild, structure, onStep) {
         type,
         nsfw:                 ch.nsfw || false,
         rateLimitPerUser:     ch.rateLimitPerUser || 0,
-        permissionOverwrites: resolveOverwrites(ch.permOverwrites, ch.allowedRoles),
+        permissionOverwrites: resolveOverwrites(ch.permOverwrites, ch.allowedRoles, ch.name, ''),
       };
       if (type === ChannelType.GuildText || type === ChannelType.GuildAnnouncement)
         channelData.topic = ch.topic?.substring(0, 1024) || '';
@@ -1399,7 +1435,7 @@ async function applyStructure(guild, structure, onStep) {
       const cat = await guild.channels.create({
         name:                 category.name.substring(0, 100),
         type:                 ChannelType.GuildCategory,
-        permissionOverwrites: resolveOverwrites(category.permOverwrites, category.allowedRoles),
+        permissionOverwrites: resolveOverwrites(category.permOverwrites, category.allowedRoles, category.name, ''),
       }).catch(e => { console.error('[APPLY] Categoria:', e.message); return null; });
       if (!cat) continue;
       console.log(`[APPLY] Categoria criada: ${category.name} (${category.channels?.length || 0} canais)`);
@@ -1414,7 +1450,7 @@ async function applyStructure(guild, structure, onStep) {
             parent:               cat.id,
             nsfw:                 false,
             rateLimitPerUser:     (type === ChannelType.GuildVoice || type === ChannelType.GuildStageVoice) ? 0 : (ch.rateLimitPerUser || 0),
-            permissionOverwrites: resolveOverwrites(ch.permOverwrites, ch.allowedRoles),
+            permissionOverwrites: resolveOverwrites(ch.permOverwrites, ch.allowedRoles, ch.name, category.name),
           };
           if (type === ChannelType.GuildText || type === ChannelType.GuildAnnouncement)
             channelData.topic = ch.topic?.substring(0, 1024) || '';
@@ -1759,9 +1795,10 @@ client.once('ready', async () => {
     }
 
     const statuses = [
-      `Online | Shards [${totalShards}] | ${totalGuilds} Servidores`,
-      `Criando servidores | ${totalGuilds} Servidores`,
-      `Protegendo comunidades | ${totalGuilds} Servidores`,
+      { name: `🏗️ ${totalGuilds} servidores criados`, type: ActivityType.Custom },
+      { name: `⚡ Architect ${VERSION} · Premium disponível`, type: ActivityType.Custom },
+      { name: `🛡️ Protegendo ${totalGuilds} comunidades`, type: ActivityType.Custom },
+      { name: `🤖 Powered by Mistral AI`, type: ActivityType.Custom },
     ];
 
     let i = 0;
@@ -1769,7 +1806,7 @@ client.once('ready', async () => {
       if (!client.user) return;
       client.user.setPresence({
         status: 'online',
-        activities: [{ name: statuses[i], type: ActivityType.Watching }],
+        activities: [{ name: statuses[i].name, type: statuses[i].type, state: statuses[i].name }],
       });
       i = (i + 1) % statuses.length;
     };
@@ -3520,6 +3557,15 @@ app.get('/', (req, res) => {
 
 // Fallback
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+
+// Error handler — garante que NUNCA retorna HTML em rotas /api/*
+app.use((err, req, res, next) => {
+  console.error('[EXPRESS]', err.message);
+  if (req.path.startsWith('/api/')) {
+    return res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+  next(err);
+});
 
 // Express só sobe no Shard 0 (ou quando não há sharding) — evita conflito de porta
 const isMainShard = !client.shard || (client.shard.ids?.[0] === 0);
