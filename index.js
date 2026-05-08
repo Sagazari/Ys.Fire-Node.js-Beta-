@@ -1759,9 +1759,9 @@ client.once('ready', async () => {
     }
 
     const statuses = [
-      `Online | ${shardLabel} · ${totalGuilds} servidores`,
-      `Building your server... · ${totalGuilds} servidores`,
-      `Protecting your community · ${totalGuilds} servidores`,
+      `Online | Shards [${totalShards}] | ${totalGuilds} Servidores`,
+      `Criando servidores | ${totalGuilds} Servidores`,
+      `Protegendo comunidades | ${totalGuilds} Servidores`,
     ];
 
     let i = 0;
@@ -1866,6 +1866,54 @@ client.once('ready', async () => {
       .addBooleanOption(o => o.setName('links').setDescription('Detectar links suspeitos?').setRequired(false))
       .addBooleanOption(o => o.setName('divulgacao').setDescription('Detectar divulgações indiretas?').setRequired(false))
       .addBooleanOption(o => o.setName('spam').setDescription('Detectar spam?').setRequired(false)),
+
+    // ── Parceria manual ───────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('parceria').setDescription('Registra uma nova parceria no servidor')
+      .addStringOption(o => o.setName('descricao').setDescription('Descrição da parceria / servidor parceiro').setRequired(true))
+      .addStringOption(o => o.setName('invite').setDescription('Link de convite do servidor parceiro').setRequired(false)),
+
+    // ── set_parceria atualizado ────────────────────────────────────────────────
+    // (já registrado acima, mas atualizando as opções)
+
+    // ── Moderação extra ───────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('warns').setDescription('Ver advertências de um membro')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)),
+    new SlashCommandBuilder().setName('clearwarns').setDescription('Limpar advertências de um membro')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)),
+    new SlashCommandBuilder().setName('move').setDescription('Move um membro para outro canal de voz')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal de destino').setRequired(true)),
+    new SlashCommandBuilder().setName('nick').setDescription('Altera o apelido de um membro')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
+      .addStringOption(o => o.setName('apelido').setDescription('Novo apelido (vazio para remover)').setRequired(false)),
+
+    // ── Informações ───────────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('userinfo').setDescription('Informações detalhadas de um usuário')
+      .addUserOption(o => o.setName('usuario').setDescription('Usuário (padrão: você)').setRequired(false)),
+    new SlashCommandBuilder().setName('serverinfo').setDescription('Informações detalhadas do servidor'),
+    new SlashCommandBuilder().setName('avatar').setDescription('Exibe o avatar de um usuário')
+      .addUserOption(o => o.setName('usuario').setDescription('Usuário (padrão: você)').setRequired(false)),
+    new SlashCommandBuilder().setName('roleinfo').setDescription('Informações de um cargo')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)),
+
+    // ── Engajamento ───────────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('sorteio').setDescription('Cria um sorteio no canal')
+      .addStringOption(o => o.setName('premio').setDescription('Prêmio').setRequired(true))
+      .addIntegerOption(o => o.setName('duracao').setDescription('Duração em minutos').setRequired(true).setMinValue(1).setMaxValue(10080))
+      .addIntegerOption(o => o.setName('vencedores').setDescription('Quantidade de vencedores').setRequired(false).setMinValue(1).setMaxValue(10))
+      .addRoleOption(o => o.setName('cargo_req').setDescription('Cargo necessário para participar').setRequired(false)),
+    new SlashCommandBuilder().setName('enquete').setDescription('Cria uma enquete')
+      .addStringOption(o => o.setName('pergunta').setDescription('Pergunta da enquete').setRequired(true))
+      .addStringOption(o => o.setName('opcao1').setDescription('Opção 1').setRequired(true))
+      .addStringOption(o => o.setName('opcao2').setDescription('Opção 2').setRequired(true))
+      .addStringOption(o => o.setName('opcao3').setDescription('Opção 3').setRequired(false))
+      .addStringOption(o => o.setName('opcao4').setDescription('Opção 4').setRequired(false)),
+    new SlashCommandBuilder().setName('contador').setDescription('Define canal de contador de membros')
+      .addChannelOption(o => o.setName('canal').setDescription('Canal de voz para o contador').setRequired(true)),
+
+    // ── Autorole ──────────────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('autorole').setDescription('Define cargo automático para novos membros')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo (vazio para desativar)').setRequired(false)),
 
   ].map(c => c.toJSON());
 
@@ -2820,19 +2868,29 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
   else if (commandName === 'set_parceria') {
     if (!member.permissions.has(PermissionFlagsBits.Administrator))
       return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
-    const cargo     = interaction.options.getRole('cargo');
-    const mensagem  = interaction.options.getString('mensagem') || null;
+    const cargoPermitido = interaction.options.getRole('cargo_permitido');
+    const canal          = interaction.options.getChannel('canal') || interaction.channel;
+    const mensagem       = interaction.options.getString('mensagem') || null;
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     await mongoDB.collection('settings').updateOne(
       { guildId: guild.id },
-      { $set: { 'parceria.roleId': cargo.id, 'parceria.mensagem': mensagem } },
+      { $set: {
+        'parceria.roleId':    cargoPermitido.id,
+        'parceria.canalId':   canal.id,
+        'parceria.mensagem':  mensagem,
+      }},
       { upsert: true }
     );
     await interaction.editReply(v2Simple(C_GREEN,
-      `🤝 Parceria Configurada!`,
-      `Quando o cargo <@&${cargo.id}> for mencionado, o Architect enviará a mensagem de parceria automaticamente.
-${mensagem ? `
-**Mensagem personalizada:** ${mensagem}` : ''}`,
+      `🤝 Sistema de Parceria Configurado!`,
+      `**Cargo com permissão:** <@&${cargoPermitido.id}>
+` +
+      `**Canal de parcerias:** <#${canal.id}>
+` +
+      `${mensagem ? `**Mensagem personalizada:** ${mensagem}` : '*Mensagem padrão será usada.*'}
+
+` +
+      `Membros com o cargo <@&${cargoPermitido.id}> podem usar **/parceria** para registrar uma nova parceria.`,
       `Architect ${VERSION}`
     ));
   }
@@ -2931,12 +2989,46 @@ ${mensagem ? `
   else if (commandName === 'help') {
     await interaction.deferReply({ ephemeral: true });
     await interaction.editReply(v2Simple(C_ORANGE,
-      `${E.info} Comandos — Architect`,
-      `**Criação:** \`/criar_servidor\` \`/template\`\n` +
-      `**Backup:** \`/backup\` \`/restaurar\` \`/proteger\`\n` +
-      `**Moderação:** \`/ban\` \`/kick\` \`/mute\` \`/unmute\` \`/warn\` \`/lock\` \`/unlock\` \`/slowmode\` \`/clear\`\n` +
-      `**Servidor:** \`/cargo_criar\` \`/canal_criar\` \`/deletar\` \`/embed\` \`/anuncio\`\n` +
-      `**Geral:** \`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\` \`/tickets\`\n\n` +
+      `${E.info} Comandos — Architect ${VERSION}`,
+      `**🏗️ Criação IA**
+` +
+      `\`/criar_servidor\` \`/template\` \`/ia_config\`
+
+` +
+      `**💾 Backup & Proteção**
+` +
+      `\`/backup\` \`/restaurar\` \`/proteger\`
+
+` +
+      `**🔨 Moderação**
+` +
+      `\`/ban\` \`/bansoft\` \`/kick\` \`/mute\` \`/unmute\` \`/warn\` \`/warns\` \`/clearwarns\`
+` +
+      `\`/lock\` \`/unlock\` \`/slowmode\` \`/clear\` \`/move\` \`/nick\`
+
+` +
+      `**⚙️ Servidor**
+` +
+      `\`/cargo_criar\` \`/canal_criar\` \`/deletar\` \`/embed\` \`/anuncio\`
+` +
+      `\`/autorole\` \`/set_parceria\` \`/parceria\` \`/logs_config\`
+
+` +
+      `**📊 Informações**
+` +
+      `\`/userinfo\` \`/serverinfo\` \`/avatar\` \`/roleinfo\`
+
+` +
+      `**🎉 Diversão & Engajamento**
+` +
+      `\`/sorteio\` \`/enquete\` \`/contador\`
+
+` +
+      `**🔧 Geral**
+` +
+      `\`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\` \`/tickets\` \`/help\`
+
+` +
       `**Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
       `Architect ${VERSION} · architect.velroc.workers.dev`
     ));
