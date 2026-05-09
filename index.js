@@ -1244,6 +1244,7 @@ async function applyStructure(guild, structure, onStep) {
 
   // 1. Se servidor Comunidade, desativa temporariamente para poder deletar canais obrigatórios
   const isCommunity = guild.features?.includes('COMMUNITY');
+  let communityDisabled = false;
   if (isCommunity) {
     try {
       await step(E.config, 'Desativando modo Comunidade temporariamente...');
@@ -1251,9 +1252,26 @@ async function applyStructure(guild, structure, onStep) {
         features: guild.features.filter(f => f !== 'COMMUNITY'),
         rulesChannel: null,
         publicUpdatesChannel: null,
-      }).catch(e => console.warn('[APPLY] Não foi possível desativar Comunidade:', e.message));
+      });
+      communityDisabled = true;
       await new Promise(r => setTimeout(r, 1500));
-    } catch (e) { console.warn('[APPLY] Community disable:', e.message); }
+      console.log('[APPLY] Modo Comunidade desativado com sucesso.');
+    } catch (e) {
+      console.warn('[APPLY] Não foi possível desativar Comunidade:', e.message);
+      // Se falhou, cria canais temporários para rules/updates antes de deletar tudo
+      // Evita que o Discord bloqueie operações por falta de canais obrigatórios
+      try {
+        const tempRules   = await guild.channels.create({ name: 'rules-temp',   type: ChannelType.GuildText }).catch(() => null);
+        const tempUpdates = await guild.channels.create({ name: 'updates-temp', type: ChannelType.GuildText }).catch(() => null);
+        if (tempRules && tempUpdates) {
+          await guild.edit({
+            rulesChannel:         tempRules.id,
+            publicUpdatesChannel: tempUpdates.id,
+          }).catch(() => {});
+          console.log('[APPLY] Canais temporários de Comunidade criados para evitar Missing Permissions.');
+        }
+      } catch (e2) { console.warn('[APPLY] Falha ao criar canais temporários:', e2.message); }
+    }
   }
 
   // 2. Remover canais — com delay entre cada um para evitar rate limit
@@ -1275,8 +1293,21 @@ async function applyStructure(guild, structure, onStep) {
   // 3. Remover cargos
   await step(E.cargos, 'Removendo cargos existentes...');
   const existingRoles = await guild.roles.fetch();
+
+  // Descobre a posição do cargo managed do bot para não deletar cargos acima dele
+  const botMember   = await guild.members.fetchMe().catch(() => null);
+  const botTopRole  = botMember?.roles?.highest;
+  const botPosition = botTopRole?.position ?? 0;
+  console.log(`[APPLY] Cargo mais alto do bot: "${botTopRole?.name}" (posição ${botPosition})`);
+
   for (const [, role] of existingRoles) {
     if (!role || role.managed || role.name === '@everyone') continue;
+    // Não deleta cargos que estejam acima ou igual ao cargo mais alto do bot
+    // (o bot não teria permissão para deletá-los de qualquer forma)
+    if (role.position >= botPosition) {
+      console.warn(`[APPLY] Cargo "${role.name}" (pos ${role.position}) está acima do bot — ignorado`);
+      continue;
+    }
     await role.delete().catch(e => console.warn(`[APPLY] Não deletou cargo "${role.name}": ${e.message}`));
     await new Promise(r => setTimeout(r, 200));
   }
@@ -1359,6 +1390,7 @@ async function applyStructure(guild, structure, onStep) {
     if (validRoles.length === 0) return [];
     // Verifica se inclui roles de membro/verificado (indicativo de canal público)
     const hasMemberRole = validRoles.some(r => {
+      if (!r || !r.name) return false;
       const rn = r.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return rn.includes('membro') || rn.includes('verificado') || rn.includes('member') || rn.includes('everyone');
     });
@@ -1434,6 +1466,7 @@ async function applyStructure(guild, structure, onStep) {
 
   // 6a. Canais sem categoria (backups)
   for (const ch of structure.orphanChannels || []) {
+    if (!ch || !ch.name) { console.warn('[APPLY] Orphan canal inválido ignorado'); continue; }
     try {
       const type        = typeMap[ch.type] || ChannelType.GuildText;
       const channelData = {
@@ -1512,10 +1545,12 @@ async function applyStructure(guild, structure, onStep) {
   if (structure.welcomeMessage) {
     try {
       const freshChannels = await guild.channels.fetch();
-      const first = freshChannels.find(c =>
-        c?.type === ChannelType.GuildText &&
-        c.permissionsFor(guild.roles.everyone)?.has(PermissionFlagsBits.ViewChannel)
-      );
+      const everyoneRole  = guild.roles.everyone;
+      const first = freshChannels.find(c => {
+        if (!c || c.type !== ChannelType.GuildText) return false;
+        if (!everyoneRole) return true; // se everyone não disponível, pega o primeiro texto
+        return c.permissionsFor(everyoneRole)?.has(PermissionFlagsBits.ViewChannel);
+      });
       if (first) await first.send(structure.welcomeMessage).catch(() => {});
     } catch (e) { console.error('[APPLY] Boas-vindas:', e.message); }
   }
@@ -2937,9 +2972,11 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
   else if (commandName === 'set_parceria') {
     if (!member.permissions.has(PermissionFlagsBits.Administrator))
       return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
-    const cargoPermitido = interaction.options.getRole('cargo_permitido');
-    const canal          = interaction.options.getChannel('canal') || interaction.channel;
+    const cargoPermitido = interaction.options.getRole('cargo');
+    const canal          = interaction.channel;
     const mensagem       = interaction.options.getString('mensagem') || null;
+    if (!cargoPermitido)
+      return interaction.reply({ content: `${E.erro} Cargo inválido!`, flags: MessageFlags.Ephemeral });
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     await mongoDB.collection('settings').updateOne(
       { guildId: guild.id },
