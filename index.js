@@ -1244,7 +1244,6 @@ async function applyStructure(guild, structure, onStep) {
 
   // 1. Se servidor Comunidade, desativa temporariamente para poder deletar canais obrigatórios
   const isCommunity = guild.features?.includes('COMMUNITY');
-  let communityDisabled = false;
   if (isCommunity) {
     try {
       await step(E.config, 'Desativando modo Comunidade temporariamente...');
@@ -1252,26 +1251,9 @@ async function applyStructure(guild, structure, onStep) {
         features: guild.features.filter(f => f !== 'COMMUNITY'),
         rulesChannel: null,
         publicUpdatesChannel: null,
-      });
-      communityDisabled = true;
+      }).catch(e => console.warn('[APPLY] Não foi possível desativar Comunidade:', e.message));
       await new Promise(r => setTimeout(r, 1500));
-      console.log('[APPLY] Modo Comunidade desativado com sucesso.');
-    } catch (e) {
-      console.warn('[APPLY] Não foi possível desativar Comunidade:', e.message);
-      // Se falhou, cria canais temporários para rules/updates antes de deletar tudo
-      // Evita que o Discord bloqueie operações por falta de canais obrigatórios
-      try {
-        const tempRules   = await guild.channels.create({ name: 'rules-temp',   type: ChannelType.GuildText }).catch(() => null);
-        const tempUpdates = await guild.channels.create({ name: 'updates-temp', type: ChannelType.GuildText }).catch(() => null);
-        if (tempRules && tempUpdates) {
-          await guild.edit({
-            rulesChannel:         tempRules.id,
-            publicUpdatesChannel: tempUpdates.id,
-          }).catch(() => {});
-          console.log('[APPLY] Canais temporários de Comunidade criados para evitar Missing Permissions.');
-        }
-      } catch (e2) { console.warn('[APPLY] Falha ao criar canais temporários:', e2.message); }
-    }
+    } catch (e) { console.warn('[APPLY] Community disable:', e.message); }
   }
 
   // 2. Remover canais — com delay entre cada um para evitar rate limit
@@ -1293,22 +1275,17 @@ async function applyStructure(guild, structure, onStep) {
   // 3. Remover cargos
   await step(E.cargos, 'Removendo cargos existentes...');
   const existingRoles = await guild.roles.fetch();
-
-  // Descobre a posição do cargo managed do bot para não deletar cargos acima dele
-  const botMember   = await guild.members.fetchMe().catch(() => null);
-  const botTopRole  = botMember?.roles?.highest;
+  const botMember  = await guild.members.fetchMe().catch(() => null);
+  const botTopRole = botMember?.roles?.highest;
   const botPosition = botTopRole?.position ?? 0;
-  console.log(`[APPLY] Cargo mais alto do bot: "${botTopRole?.name}" (posição ${botPosition})`);
-
+  console.log(`[APPLY] Cargo mais alto do bot: ${botTopRole?.name} (posição ${botPosition})`);
   for (const [, role] of existingRoles) {
     if (!role || role.managed || role.name === '@everyone') continue;
-    // Não deleta cargos que estejam acima ou igual ao cargo mais alto do bot
-    // (o bot não teria permissão para deletá-los de qualquer forma)
     if (role.position >= botPosition) {
-      console.warn(`[APPLY] Cargo "${role.name}" (pos ${role.position}) está acima do bot — ignorado`);
+      console.warn(`[APPLY] Cargo ${role.name} (pos ${role.position}) está acima do bot — ignorado`);
       continue;
     }
-    await role.delete().catch(e => console.warn(`[APPLY] Não deletou cargo "${role.name}": ${e.message}`));
+    await role.delete().catch(e => console.warn(`[APPLY] Não deletou cargo ${role.name}: ${e.message}`));
     await new Promise(r => setTimeout(r, 200));
   }
   await new Promise(r => setTimeout(r, 500));
@@ -1390,7 +1367,6 @@ async function applyStructure(guild, structure, onStep) {
     if (validRoles.length === 0) return [];
     // Verifica se inclui roles de membro/verificado (indicativo de canal público)
     const hasMemberRole = validRoles.some(r => {
-      if (!r || !r.name) return false;
       const rn = r.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return rn.includes('membro') || rn.includes('verificado') || rn.includes('member') || rn.includes('everyone');
     });
@@ -1466,7 +1442,6 @@ async function applyStructure(guild, structure, onStep) {
 
   // 6a. Canais sem categoria (backups)
   for (const ch of structure.orphanChannels || []) {
-    if (!ch || !ch.name) { console.warn('[APPLY] Orphan canal inválido ignorado'); continue; }
     try {
       const type        = typeMap[ch.type] || ChannelType.GuildText;
       const channelData = {
@@ -1545,12 +1520,10 @@ async function applyStructure(guild, structure, onStep) {
   if (structure.welcomeMessage) {
     try {
       const freshChannels = await guild.channels.fetch();
-      const everyoneRole  = guild.roles.everyone;
-      const first = freshChannels.find(c => {
-        if (!c || c.type !== ChannelType.GuildText) return false;
-        if (!everyoneRole) return true; // se everyone não disponível, pega o primeiro texto
-        return c.permissionsFor(everyoneRole)?.has(PermissionFlagsBits.ViewChannel);
-      });
+      const first = freshChannels.find(c =>
+        c?.type === ChannelType.GuildText &&
+        c.permissionsFor(guild.roles.everyone)?.has(PermissionFlagsBits.ViewChannel)
+      );
       if (first) await first.send(structure.welcomeMessage).catch(() => {});
     } catch (e) { console.error('[APPLY] Boas-vindas:', e.message); }
   }
@@ -2019,13 +1992,12 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('autorole').setDescription('Define cargo automático para novos membros')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo (vazio para desativar)').setRequired(false)),
 
-    // ── /chat ─────────────────────────────────────────────────────────────────
     new SlashCommandBuilder().setName('chat').setDescription('Converse com o Architect usando IA')
       .addStringOption(o => o.setName('pergunta').setDescription('O que você quer perguntar?').setRequired(true))
       .addStringOption(o => o.setName('tipo').setDescription('Tipo de resposta').setRequired(true)
         .addChoices(
-          { name: '💬 Texto',  value: 'texto' },
-          { name: '🔊 Áudio',  value: 'audio' },
+          { name: '💬 Texto', value: 'texto' },
+          { name: '🔊 Áudio', value: 'audio' },
         )),
 
   ].map(c => c.toJSON());
@@ -2349,7 +2321,7 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
   }
 
-  // Rastreia uso do comando (sem await — não pode travar a resposta)
+  // Rastreia uso do comando
   isUserPremium(interaction.user.id)
     .then(p => trackCommandUsage(interaction.user.id, commandName, p))
     .catch(() => {});
@@ -2832,84 +2804,77 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'chat') {
     const pergunta = interaction.options.getString('pergunta');
     const tipo     = interaction.options.getString('tipo');
-
     await interaction.deferReply();
-
     try {
       const resposta = await mistralChat(pergunta);
-
       if (tipo === 'texto') {
-        // ── Resposta em texto ──────────────────────────────────────────────────
         await interaction.editReply({
-          ...v2Simple(
-            C_ORANGE,
-            `<:ia:1500524508384071783> Architect Chat`,
+          ...v2Simple(C_ORANGE, `🤖 Architect Chat`,
             `**Você:** ${pergunta}\n\n**Architect:** ${resposta}`,
-            `Architect ${VERSION} • Powered by Mistral`
-          ),
+            `Architect ${VERSION} • Powered by Mistral`),
         });
-
       } else {
-        // ── Resposta em áudio ──────────────────────────────────────────────────
         const os   = require('os');
         const path = require('path');
         const fs   = require('fs');
-        const tmpFile = path.join(os.tmpdir(), `architect_chat_${interaction.id}.mp3`);
-
+        const tmp  = path.join(os.tmpdir(), `chat_${interaction.id}.mp3`);
         try {
-          await gerarAudioEdgeTTS(resposta, tmpFile);
-
-          // Envia o áudio como arquivo separado — o Discord não suporta files dentro de Components V2
+          await gerarAudioEdgeTTS(resposta, tmp);
           await interaction.editReply({
             content: `🎙️ **Você:** ${pergunta}`,
-            files: [{ attachment: tmpFile, name: 'resposta.mp3' }],
+            files:   [{ attachment: tmp, name: 'resposta.mp3' }],
           });
-
         } catch (audioErr) {
-          console.error('[/chat audio]', audioErr);
+          console.error('[/chat audio]', audioErr.message);
           await interaction.editReply({
-            ...v2Simple(C_RED, `${E.erro} Erro no Áudio`, `Não consegui gerar o áudio: \`${audioErr.message}\``, `Architect ${VERSION}`),
+            ...v2Simple(C_RED, `${E.erro} Erro no Áudio`,
+              `Não consegui gerar o áudio: \`${audioErr.message}\``,
+              `Architect ${VERSION}`),
           }).catch(() => {});
         } finally {
-          // Deleta o arquivo temporário após o upload terminar
-          setTimeout(() => fs.unlink(tmpFile, () => {}), 5000);
+          setTimeout(() => require('fs').unlink(tmp, () => {}), 5000);
         }
       }
-
     } catch (e) {
       console.error('[/chat]', e.message);
-      const msg = interaction.replied || interaction.deferred
-        ? interaction.editReply
-        : interaction.reply;
       await interaction.editReply({
-        ...v2Simple(C_RED, `${E.erro} Erro no Chat`, `Não consegui processar sua pergunta: \`${e.message}\``, `Architect ${VERSION}`),
+        ...v2Simple(C_RED, `${E.erro} Erro no Chat`,
+          `Não consegui processar sua pergunta: \`${e.message}\``,
+          `Architect ${VERSION}`),
       }).catch(() => {});
     }
   }
 
   // ── /doar ────────────────────────────────────────────────────────────────────
   else if (commandName === 'doar') {
-    try {
-      await interaction.reply({ ...v2Simple(C_ORANGE,
-        lang.doarTitle,
-        `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola:**\n> 00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\n\n**👨 Dev:** Velroc   **Servidores:** ${client.guilds.cache.size}`,
-        `Architect ${VERSION} • ${lang.doarThanks}`
-      ), flags: MessageFlags.Ephemeral });
-    } catch (e) {
-      console.error('[/doar]', e.message);
-      await interaction.reply({ content: `☕ **${lang.doarTitle}**\n\n${lang.doarDesc}\n\n**Pix:** 00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D`, flags: MessageFlags.Ephemeral }).catch(() => {});
-    }
+    await interaction.reply({ ...v2Simple(C_ORANGE,
+      lang.doarTitle,
+      `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
+      `Architect ${VERSION} • ${lang.doarThanks}`
+    ), flags: MessageFlags.Ephemeral });
   }
 
   // ── /info ────────────────────────────────────────────────────────────────────
   else if (commandName === 'info') {
-    const uptime = process.uptime();
+    const uptime   = process.uptime();
+    const mem      = process.memoryUsage();
+    const ramUsed  = (mem.heapUsed  / 1024 / 1024).toFixed(1);
+    const ramTotal = (mem.heapTotal / 1024 / 1024).toFixed(1);
+    const rss      = (mem.rss       / 1024 / 1024).toFixed(1);
+    const ping     = client.ws.ping;
+    const days     = Math.floor(uptime / 86400);
+    const hours    = Math.floor((uptime % 86400) / 3600);
+    const mins     = Math.floor((uptime % 3600) / 60);
+    const uptimeStr = `${days}d ${hours}h ${mins}m`;
+
     await interaction.reply(v2Simple(C_ORANGE,
       `${E.bot} Architect — Create. Protect. Restore.`,
-      `**${E.velroc} Desenvolvedor:** Velroc   **Servidores:** ${client.guilds.cache.size}   **Uptime:** ${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m\n` +
-      `**Versão:** ${VERSION}   **Stack:** Discord.js v14 · Mistral AI\n` +
-      `**Fila Normal:** ${lanes.normal.queue.filter(e=>e.userId).length} aguardando   **Fila Premium:** ${lanes.premium.queue.filter(e=>e.userId).length} aguardando\n` +
-      `**Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
+      `**${E.velroc} Dev:** Velroc   **🌐 Servidores:** ${client.guilds.cache.size}   **⏱️ Uptime:** ${uptimeStr}\n` +
+      `**📦 Versão:** ${VERSION}   **Stack:** Discord.js v14 · Mistral AI   **🏓 Ping:** ${ping}ms\n` +
+      `**🧠 RAM Heap:** ${ramUsed}MB / ${ramTotal}MB   **💾 RAM RSS:** ${rss}MB\n` +
+      `**🖥️ Node.js:** ${process.version}   **🔧 Plataforma:** ${process.platform}\n` +
+      `**📋 Fila Normal:** ${lanes.normal.queue.filter(e=>e.userId).length} aguardando   **⭐ Fila Premium:** ${lanes.premium.queue.filter(e=>e.userId).length} aguardando\n` +
+      `**🔗 Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
       `Architect ${VERSION}`
     ));
   }
@@ -3274,23 +3239,21 @@ async function sendLog(guildId, tipo, payload) {
   } catch (_) {}
 }
 
-// ── /chat ─────────────────────────────────────────────────────────────────────
+
+// ── /chat helpers ─────────────────────────────────────────────────────────────
 async function mistralChat(pergunta) {
   const key = process.env.MISTRAL_KEY_CHAT;
-  if (!key) throw new Error('MISTRAL_KEY_A não configurada.');
+  if (!key) throw new Error('MISTRAL_KEY_CHAT não configurada.');
   const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
     method:  'POST',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model:       MISTRAL_MODEL,
+      model:       'mistral-small-latest',
       max_tokens:  512,
       temperature: 0.7,
       messages: [
-        {
-          role:    'system',
-          content: 'Você é o Architect, um bot do Discord inteligente e amigável. Responda de forma clara, objetiva e em português. Máximo de 3 parágrafos.',
-        },
-        { role: 'user', content: pergunta },
+        { role: 'system', content: 'Você é o Architect, um bot do Discord inteligente e amigável. Responda de forma clara, objetiva e em português. Máximo de 3 parágrafos.' },
+        { role: 'user',   content: pergunta },
       ],
     }),
     signal: AbortSignal.timeout(30000),
@@ -3301,37 +3264,23 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  // Google Cloud Text-to-Speech — voz masculina pt-BR (pt-BR-Wavenet-B)
+  // Google Cloud TTS — voz masculina pt-BR-Standard-B (gratuita)
   const fs  = require('fs');
   const key = process.env.GOOGLE_TTS_KEY;
   if (!key) throw new Error('GOOGLE_TTS_KEY não configurada no Render.');
-
   const body = {
     input: { text: texto.substring(0, 500) },
-    voice: {
-      languageCode: 'pt-BR',
-      name:         'pt-BR-Standard-B', // masculina, gratuita
-      ssmlGender:   'MALE',
-    },
-    audioConfig: {
-      audioEncoding: 'MP3',
-      speakingRate:  1.0,
-      pitch:         0.0,
-    },
+    voice: { languageCode: 'pt-BR', name: 'pt-BR-Standard-B', ssmlGender: 'MALE' },
+    audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: 0.0 },
   };
-
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${key}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-    signal:  AbortSignal.timeout(15000),
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
   });
-
   if (!res.ok) {
     const err = await res.text().catch(() => res.status);
     throw new Error(`Google TTS HTTP ${res.status}: ${err}`);
   }
-
   const json   = await res.json();
   const buffer = Buffer.from(json.audioContent, 'base64');
   fs.writeFileSync(outputPath, buffer);
@@ -3344,7 +3293,6 @@ client.on('channelDelete', async channel => {
     const logs  = await channel.guild.fetchAuditLogs({ type: AuditLogEvent.ChannelDelete, limit: 1 });
     const entry = logs.entries.first();
     if (!entry || !entry.executor) return;
-    // Ignora ações do próprio bot (applyStructure)
     if (entry.executor.id === client.user?.id) return;
     const count = trackNukeAction(channel.guild.id, entry.executor.id);
     if (count >= 3) {
@@ -3364,7 +3312,6 @@ client.on('roleDelete', async role => {
     const logs  = await role.guild.fetchAuditLogs({ type: AuditLogEvent.RoleDelete, limit: 1 });
     const entry = logs.entries.first();
     if (!entry || !entry.executor) return;
-    // Ignora ações do próprio bot (applyStructure)
     if (entry.executor.id === client.user?.id) return;
     const count = trackNukeAction(role.guild.id, entry.executor.id);
     if (count >= 3) {
