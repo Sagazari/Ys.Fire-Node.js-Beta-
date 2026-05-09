@@ -799,7 +799,7 @@ Return ONLY a raw JSON array (no markdown, no backticks):
     // Sanitize: remove duplicate names, ensure required fields
     const seen = new Set();
     roles = roles.filter(r => {
-      if (!r.name) return false;
+      if (!r || !r.name) return false;
       r.name = stripCustomEmojiRole(r.name).substring(0, 100);
       if (seen.has(r.name)) return false;
       seen.add(r.name);
@@ -985,7 +985,7 @@ Return ONLY a raw JSON array:
     const stripCustomEmoji = str => String(str).replace(/<a?:\w+:\d+>/g, '').replace(/\s{2,}/g, ' ').trim();
     // Sanitize categories and channels
     categories = categories
-      .filter(cat => cat.name && Array.isArray(cat.channels) && cat.channels.length > 0)
+      .filter(cat => cat && cat.name && Array.isArray(cat.channels) && cat.channels.length > 0)
       .map(cat => {
         // ── Força o estilo de categoria sorteado ──────────────────────────────
         let catName = stripCustomEmoji(String(cat.name)).substring(0, 100).trim();
@@ -999,8 +999,8 @@ Return ONLY a raw JSON array:
         else if (chosenCatStyle.id === 'B') catName = `➢ ${catName.toUpperCase()}`;
         else catName = `╭⎯⎯⎯╴ ✦ ${catName}`;
 
-        const channels = cat.channels
-          .filter(ch => ch.name)
+        const channels = (Array.isArray(cat.channels) ? cat.channels : [])
+          .filter(ch => ch && ch.name)
           .map(ch => {
             // ── Força o estilo de canal sorteado ───────────────────────────────
             let chName = String(ch.name).substring(0, 100).trim().toLowerCase();
@@ -1430,6 +1430,7 @@ async function applyStructure(guild, structure, onStep) {
   // 6b. Categorias e seus canais
   console.log(`[APPLY] Criando ${structure.categories?.length || 0} categorias...`);
   for (const category of structure.categories || []) {
+    if (!category || !category.name) { console.warn('[APPLY] Categoria inválida ignorada'); continue; }
     try {
       await step(E.canais, `Categoria: **${category.name}**`);
       const cat = await guild.channels.create({
@@ -1442,6 +1443,7 @@ async function applyStructure(guild, structure, onStep) {
       await new Promise(r => setTimeout(r, 400));
 
       for (const ch of category.channels || []) {
+        if (!ch || !ch.name) { console.warn('[APPLY] Canal inválido ignorado'); continue; }
         try {
           const type        = typeMap[ch.type] || ChannelType.GuildText;
           const channelData = {
