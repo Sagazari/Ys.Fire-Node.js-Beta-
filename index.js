@@ -1242,30 +1242,52 @@ async function applyStructure(guild, structure, onStep) {
 
   console.log(`[APPLY] Iniciando — roles: ${structure.roles?.length}, categories: ${structure.categories?.length}`);
 
-  // 1. Remover canais
+  // 1. Se servidor Comunidade, desativa temporariamente para poder deletar canais obrigatórios
+  const isCommunity = guild.features?.includes('COMMUNITY');
+  if (isCommunity) {
+    try {
+      await step(E.config, 'Desativando modo Comunidade temporariamente...');
+      await guild.edit({
+        features: guild.features.filter(f => f !== 'COMMUNITY'),
+        rulesChannel: null,
+        publicUpdatesChannel: null,
+      }).catch(e => console.warn('[APPLY] Não foi possível desativar Comunidade:', e.message));
+      await new Promise(r => setTimeout(r, 1500));
+    } catch (e) { console.warn('[APPLY] Community disable:', e.message); }
+  }
+
+  // 2. Remover canais — com delay entre cada um para evitar rate limit
   await step(E.canais, 'Removendo canais existentes...');
   const existingChannels = await guild.channels.fetch();
-  for (const [, ch] of existingChannels) {
-    await ch.delete().catch(e => console.error('[APPLY] Erro ao deletar canal:', e.message));
+  // Deleta canais filhos primeiro, categorias depois
+  const sortedChs = [...existingChannels.values()].filter(Boolean).sort((a, b) => {
+    const aIsCat = a.type === 4; // GuildCategory
+    const bIsCat = b.type === 4;
+    return aIsCat === bIsCat ? 0 : aIsCat ? 1 : -1;
+  });
+  for (const ch of sortedChs) {
+    if (!ch) continue;
+    await ch.delete().catch(e => console.warn(`[APPLY] Não deletou canal "${ch.name}": ${e.message}`));
+    await new Promise(r => setTimeout(r, 300));
   }
   await new Promise(r => setTimeout(r, 1000));
 
-  // 2. Remover cargos
+  // 3. Remover cargos
   await step(E.cargos, 'Removendo cargos existentes...');
   const existingRoles = await guild.roles.fetch();
   for (const [, role] of existingRoles) {
-    if (!role.managed && role.name !== '@everyone') {
-      await role.delete().catch(e => console.error('[APPLY] Erro ao deletar cargo:', e.message));
-    }
+    if (!role || role.managed || role.name === '@everyone') continue;
+    await role.delete().catch(e => console.warn(`[APPLY] Não deletou cargo "${role.name}": ${e.message}`));
+    await new Promise(r => setTimeout(r, 200));
   }
   await new Promise(r => setTimeout(r, 500));
 
-  // 3. Restaurar permissões do @everyone
+  // 4. Restaurar permissões do @everyone
   if (structure.everyonePerms) {
     await guild.roles.everyone.setPermissions(structure.everyonePerms).catch(e => console.error('[APPLY] @everyone perms:', e.message));
   }
 
-  // 4. Restaurar configurações do servidor
+  // 5. Restaurar configurações do servidor
   if (structure.server) {
     try {
       await step(E.config, 'Restaurando configurações do servidor...');
@@ -1380,11 +1402,18 @@ async function applyStructure(guild, structure, onStep) {
     [ChannelType.GuildStageVoice]:   ChannelType.GuildVoice,
   };
 
-  /** Cria canal com fallback automático se tipo não for suportado */
-  async function safeCreateChannel(data) {
+  /** Cria canal com fallback automático e retry em caso de rate limit */
+  async function safeCreateChannel(data, attempt = 1) {
     try {
       return await guild.channels.create(data);
     } catch (e) {
+      // Rate limit — aguarda e tenta de novo (até 3x)
+      if ((e.status === 429 || e.code === 429 || e.message?.includes('rate limit')) && attempt <= 3) {
+        const wait = (e.retryAfter || attempt * 3) * 1000;
+        console.warn(`[APPLY] Rate limit em "${data.name}" — aguardando ${wait}ms (tentativa ${attempt}/3)`);
+        await new Promise(r => setTimeout(r, wait));
+        return safeCreateChannel(data, attempt + 1);
+      }
       const fallbackType = FALLBACK[data.type];
       if (fallbackType !== undefined) {
         console.warn(`[APPLY] Tipo ${data.type} não suportado, fallback → ${fallbackType} para "${data.name}"`);
@@ -1440,7 +1469,7 @@ async function applyStructure(guild, structure, onStep) {
       }).catch(e => { console.error('[APPLY] Categoria:', e.message); return null; });
       if (!cat) continue;
       console.log(`[APPLY] Categoria criada: ${category.name} (${category.channels?.length || 0} canais)`);
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 500));
 
       for (const ch of category.channels || []) {
         if (!ch || !ch.name) { console.warn('[APPLY] Canal inválido ignorado'); continue; }
@@ -1464,10 +1493,11 @@ async function applyStructure(guild, structure, onStep) {
           if (ch.isSystemChannel) systemChannelId = created.id;
           if (ch.isAfkChannel)    afkChannelId    = created.id;
           await step(E.canais, `Canal: **${ch.name}**`);
-          await new Promise(r => setTimeout(r, 300));
-        } catch (e) { console.error('[APPLY] Canal exception:', ch.name, e.message); }
+          await new Promise(r => setTimeout(r, 400));
+        } catch (e) { console.error('[APPLY] Canal exception:', ch?.name, e.message); }
       }
-    } catch (e) { console.error('[APPLY] Categoria exception:', category.name, e.message); }
+      await new Promise(r => setTimeout(r, 300));
+    } catch (e) { console.error('[APPLY] Categoria exception:', category?.name, e.message); }
   }
 
   // 7. Canal de sistema e AFK
