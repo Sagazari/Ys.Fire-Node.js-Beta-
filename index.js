@@ -3301,18 +3301,16 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  const { MsEdgeTTS, OUTPUT_FORMAT } = require('msedge-tts');
+  // Google Translate TTS — HTTP puro, sem WebSocket, funciona no Render
   const fs  = require('fs');
-  const tts = new MsEdgeTTS();
-  await tts.setMetadata('pt-BR-FranciscaNeural', OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-  const readable = await tts.toStream(texto);
-  await new Promise((resolve, reject) => {
-    const writer = fs.createWriteStream(outputPath);
-    readable.pipe(writer);
-    writer.on('finish', resolve);
-    writer.on('error', reject);
-    readable.on('error', reject);
+  const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=${encodeURIComponent(texto.substring(0, 200))}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(15000),
   });
+  if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  fs.writeFileSync(outputPath, buffer);
 }
 
 client.on('channelDelete', async channel => {
