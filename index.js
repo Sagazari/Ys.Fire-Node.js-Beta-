@@ -3169,7 +3169,9 @@ client.on('channelDelete', async channel => {
     if (!backup?.protection) return;
     const logs  = await channel.guild.fetchAuditLogs({ type: AuditLogEvent.ChannelDelete, limit: 1 });
     const entry = logs.entries.first();
-    if (!entry) return;
+    if (!entry || !entry.executor) return;
+    // Ignora ações do próprio bot (applyStructure)
+    if (entry.executor.id === client.user?.id) return;
     const count = trackNukeAction(channel.guild.id, entry.executor.id);
     if (count >= 3) {
       const alertCh = channel.guild.channels.cache.find(c =>
@@ -3187,7 +3189,9 @@ client.on('roleDelete', async role => {
     if (!backup?.protection) return;
     const logs  = await role.guild.fetchAuditLogs({ type: AuditLogEvent.RoleDelete, limit: 1 });
     const entry = logs.entries.first();
-    if (!entry) return;
+    if (!entry || !entry.executor) return;
+    // Ignora ações do próprio bot (applyStructure)
+    if (entry.executor.id === client.user?.id) return;
     const count = trackNukeAction(role.guild.id, entry.executor.id);
     if (count >= 3) {
       const alertCh = role.guild.channels.cache.find(c => c.type === ChannelType.GuildText);
