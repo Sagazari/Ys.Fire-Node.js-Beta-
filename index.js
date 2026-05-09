@@ -1992,6 +1992,81 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('autorole').setDescription('Define cargo automático para novos membros')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo (vazio para desativar)').setRequired(false)),
 
+    // ── Ticket Setup ──────────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('ticket_criar').setDescription('Configura o sistema de tickets do servidor')
+      .addChannelOption(o => o.setName('canal').setDescription('Canal onde o painel de tickets será enviado').setRequired(true))
+      .addStringOption(o => o.setName('titulo').setDescription('Título do painel').setRequired(false))
+      .addStringOption(o => o.setName('descricao').setDescription('Descrição do painel').setRequired(false))
+      .addStringOption(o => o.setName('categorias').setDescription('Categorias separadas por vírgula (ex: Suporte,Dúvidas,Parceria)').setRequired(false))
+      .addRoleOption(o => o.setName('cargo_staff').setDescription('Cargo que pode ver e gerenciar tickets').setRequired(false)),
+
+    // ── Moderação extra ───────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('role_all').setDescription('Adiciona ou remove um cargo de todos os membros')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a aplicar').setRequired(true))
+      .addStringOption(o => o.setName('acao').setDescription('Ação').setRequired(true)
+        .addChoices({ name: '➕ Adicionar', value: 'add' }, { name: '➖ Remover', value: 'remove' })),
+
+    new SlashCommandBuilder().setName('mention_role').setDescription('Menciona um cargo com uma mensagem (mesmo que não seja mencionável)')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a mencionar').setRequired(true))
+      .addStringOption(o => o.setName('mensagem').setDescription('Mensagem a enviar').setRequired(true))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal (padrão: atual)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('automod').setDescription('Configura o AutoMod do servidor')
+      .addStringOption(o => o.setName('acao').setDescription('O que configurar').setRequired(true)
+        .addChoices(
+          { name: '🚫 Anti-Link', value: 'anti_link' },
+          { name: '📢 Anti-Spam', value: 'anti_spam' },
+          { name: '🤬 Anti-Palavrão', value: 'anti_palavrao' },
+          { name: '📋 Ver Config', value: 'ver' },
+          { name: '🗑️ Desativar Tudo', value: 'desativar' },
+        ))
+      .addRoleOption(o => o.setName('cargo_ignorado').setDescription('Cargo isento das regras').setRequired(false)),
+
+    new SlashCommandBuilder().setName('warns').setDescription('Ver advertências de um membro')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)),
+
+    new SlashCommandBuilder().setName('clearwarns').setDescription('Limpar advertências de um membro')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)),
+
+    new SlashCommandBuilder().setName('userinfo').setDescription('Informações detalhadas de um usuário')
+      .addUserOption(o => o.setName('membro').setDescription('Membro (padrão: você)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('serverinfo').setDescription('Informações detalhadas do servidor'),
+
+    new SlashCommandBuilder().setName('avatar').setDescription('Mostra o avatar de um membro em HD')
+      .addUserOption(o => o.setName('membro').setDescription('Membro (padrão: você)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('roleinfo').setDescription('Informações sobre um cargo')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)),
+
+    new SlashCommandBuilder().setName('sorteio').setDescription('Realiza um sorteio entre membros ou lista')
+      .addIntegerOption(o => o.setName('vencedores').setDescription('Quantidade de vencedores').setRequired(true).setMinValue(1).setMaxValue(10))
+      .addStringOption(o => o.setName('premio').setDescription('Prêmio do sorteio').setRequired(true))
+      .addIntegerOption(o => o.setName('duracao').setDescription('Duração em minutos (0 = imediato)').setRequired(false).setMinValue(0).setMaxValue(10080)),
+
+    new SlashCommandBuilder().setName('enquete').setDescription('Cria uma enquete com até 5 opções')
+      .addStringOption(o => o.setName('pergunta').setDescription('Pergunta da enquete').setRequired(true))
+      .addStringOption(o => o.setName('opcao1').setDescription('Opção 1').setRequired(true))
+      .addStringOption(o => o.setName('opcao2').setDescription('Opção 2').setRequired(true))
+      .addStringOption(o => o.setName('opcao3').setDescription('Opção 3').setRequired(false))
+      .addStringOption(o => o.setName('opcao4').setDescription('Opção 4').setRequired(false))
+      .addStringOption(o => o.setName('opcao5').setDescription('Opção 5').setRequired(false)),
+
+    new SlashCommandBuilder().setName('nick').setDescription('Altera o apelido de um membro')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
+      .addStringOption(o => o.setName('apelido').setDescription('Novo apelido (vazio para remover)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('move').setDescription('Move um membro para outro canal de voz')
+      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal de voz destino').setRequired(true)),
+
+    new SlashCommandBuilder().setName('nuke').setDescription('Recria o canal atual deletando todo o histórico')
+      .addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
+
+    new SlashCommandBuilder().setName('role_info').setDescription('Veja quais membros têm um cargo específico')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)),
+
+    // ── /chat ─────────────────────────────────────────────────────────────────
     new SlashCommandBuilder().setName('chat').setDescription('Converse com o Architect usando IA')
       .addStringOption(o => o.setName('pergunta').setDescription('O que você quer perguntar?').setRequired(true))
       .addStringOption(o => o.setName('tipo').setDescription('Tipo de resposta').setRequired(true)
@@ -2659,6 +2734,7 @@ client.on('interactionCreate', async interaction => {
       await target.send(v2Simple(C_RED, `${E.banido} Você foi banido!`, `Você foi banido de **${guild.name}**\n\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
       await target.ban({ reason: motivo, deleteMessageDays: dias });
       await interaction.reply(v2Simple(C_RED, `${E.banido} Membro Banido!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**<:deletar:1500524511081140384> Mensagens deletadas:** ${dias} dia(s)`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'ban', v2Simple(C_RED, `🔨 Log — Ban`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Mensagens deletadas:** ${dias} dia(s)`, `Architect ${VERSION}`));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -2672,6 +2748,7 @@ client.on('interactionCreate', async interaction => {
       await target.send(v2Simple(C_YELLOW, `${E.membros} Você foi expulso!`, `Você foi expulso de **${guild.name}**\n\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
       await target.kick(motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.membros} Membro Expulso!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'ban', v2Simple(C_YELLOW, `👢 Log — Kick`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -2685,6 +2762,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await target.timeout(duracao * 60 * 1000, motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.mutado} Membro Mutado!`, `**${E.membros} Membro:** ${target.user.tag}   **<:time:1500524456840400999> Duração:** ${duracao} min   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'mute', v2Simple(C_YELLOW, `🔇 Log — Mute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Duração:** ${duracao} min\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -2696,6 +2774,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await target.timeout(null);
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Membro Desmutado!`, `**${E.membros} Membro:** ${target.user.tag}`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'mute', v2Simple(C_GREEN, `🔊 Log — Unmute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}`, `Architect ${VERSION}`));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -2707,7 +2786,11 @@ client.on('interactionCreate', async interaction => {
     if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
     try {
       await target.send(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Recebida', `**Servidor:** ${guild.name}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`)).catch(() => {});
-      await interaction.reply(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Enviada!', `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+      // Salva warn no MongoDB
+      await mongoDB.collection('warns').insertOne({ guildId: guild.id, userId: target.id, moderatorId: member.id, motivo, createdAt: new Date() });
+      const totalWarns = await mongoDB.collection('warns').countDocuments({ guildId: guild.id, userId: target.id });
+      await interaction.reply(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Enviada!', `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**Total de warns:** ${totalWarns}`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'warn', v2Simple(C_YELLOW, `⚠️ Log — Warn`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Total de warns:** ${totalWarns}`, `Architect ${VERSION}`));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -2719,6 +2802,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
       await interaction.reply(v2Simple(C_RED, `${E.lock} Canal Trancado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'ban', v2Simple(C_RED, `🔒 Log — Canal Trancado`, `**Canal:** <#${canal.id}>\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -2751,6 +2835,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const msgs = await interaction.channel.bulkDelete(Math.min(quantidade, 100), true);
       await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Mensagens Deletadas!`, `**${msgs.size}** mensagem(s) deletada(s)!`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `🗑️ Log — Clear`, `**Canal:** <#${interaction.channel.id}>\n**Moderador:** ${member.user.tag}\n**Mensagens:** ${msgs.size} deletadas`, `Architect ${VERSION}`));
     } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
   }
 
@@ -3209,6 +3294,288 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
     } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
   }
 
+
+  // ── /ticket_criar ─────────────────────────────────────────────────────────────
+  else if (commandName === 'ticket_criar') {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const canal      = interaction.options.getChannel('canal');
+    const titulo     = interaction.options.getString('titulo')     || '🎫 Suporte — Abrir Ticket';
+    const descricao  = interaction.options.getString('descricao')  || 'Clique abaixo para abrir um ticket e nossa equipe irá te atender em breve.';
+    const catsRaw    = interaction.options.getString('categorias') || 'Suporte';
+    const cargoStaff = interaction.options.getRole('cargo_staff');
+    const cats       = catsRaw.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5);
+
+    // Salva config no MongoDB
+    await mongoDB.collection('guild_configs').updateOne(
+      { guildId: guild.id },
+      { $set: {
+          guildId:          guild.id,
+          ticketChannel:    canal.id,
+          ticketCategories: cats.map(name => ({ name, emoji: '🎫' })),
+          ticketStaffRole:  cargoStaff?.id || null,
+          ticketTitle:      titulo,
+          ticketDesc:       descricao,
+          updatedAt:        new Date(),
+      }},
+      { upsert: true }
+    );
+
+    // Monta painel V2
+    const panelV2 = v2Simple(C_ORANGE, titulo, descricao, `Architect ${VERSION} • Sistema de Tickets`);
+
+    let components = [];
+    if (cats.length > 1) {
+      const { StringSelectMenuBuilder } = require('discord.js');
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('ticket_select')
+        .setPlaceholder('Selecione o tipo de suporte…')
+        .addOptions(cats.map(name => ({ label: name, value: name.toLowerCase().replace(/\s+/g,'_'), emoji: '🎫' })));
+      components.push(new ActionRowBuilder().addComponents(menu));
+    } else {
+      const btn = new ButtonBuilder()
+        .setCustomId('ticket_open')
+        .setLabel(cats[0] || 'Abrir Ticket')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('🎫');
+      components.push(new ActionRowBuilder().addComponents(btn));
+    }
+
+    await canal.send({ flags: panelV2.flags, components: [...panelV2.components, ...components] });
+    await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Painel de Tickets Criado!`,
+      `**Canal:** <#${canal.id}>\n**Categorias:** ${cats.join(', ')}\n**Staff:** ${cargoStaff ? `<@&${cargoStaff.id}>` : 'Não definido'}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /role_all ─────────────────────────────────────────────────────────────────
+  else if (commandName === 'role_all') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageRoles))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const cargo = interaction.options.getRole('cargo');
+    const acao  = interaction.options.getString('acao');
+    await interaction.deferReply();
+    let sucesso = 0, falhas = 0;
+    const members = await guild.members.fetch();
+    for (const [, m] of members) {
+      try {
+        if (acao === 'add' && !m.roles.cache.has(cargo.id))      { await m.roles.add(cargo);    sucesso++; }
+        else if (acao === 'remove' && m.roles.cache.has(cargo.id)) { await m.roles.remove(cargo); sucesso++; }
+      } catch { falhas++; }
+      await new Promise(r => setTimeout(r, 100)); // rate limit
+    }
+    await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Role All Concluído!`,
+      `**Cargo:** <@&${cargo.id}>   **Ação:** ${acao === 'add' ? 'Adicionado' : 'Removido'}\n**Sucesso:** ${sucesso}   **Falhas:** ${falhas}`,
+      `Architect ${VERSION}`
+    ));
+    await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `👥 Log — Role All`, `**Cargo:** ${cargo.name}\n**Ação:** ${acao}\n**Moderador:** ${member.user.tag}\n**Aplicado em:** ${sucesso} membros`, `Architect ${VERSION}`));
+  }
+
+  // ── /mention_role ─────────────────────────────────────────────────────────────
+  else if (commandName === 'mention_role') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageRoles))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const cargo    = interaction.options.getRole('cargo');
+    const mensagem = interaction.options.getString('mensagem');
+    const canal    = interaction.options.getChannel('canal') || interaction.channel;
+    const eraMencionavel = cargo.mentionable;
+    try {
+      if (!eraMencionavel) await cargo.setMentionable(true);
+      await canal.send({ content: `<@&${cargo.id}> — ${mensagem}`, allowedMentions: { roles: [cargo.id] } });
+      if (!eraMencionavel) await cargo.setMentionable(false);
+      await interaction.reply({ content: `${E.sucesso} Menção enviada em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+  }
+
+  // ── /automod ──────────────────────────────────────────────────────────────────
+  else if (commandName === 'automod') {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const acao         = interaction.options.getString('acao');
+    const cargoIgnorado = interaction.options.getRole('cargo_ignorado');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    if (acao === 'ver') {
+      const cfg = await mongoDB.collection('automod').findOne({ guildId: guild.id });
+      if (!cfg) return interaction.editReply(v2Simple(C_GREY, '🛡️ AutoMod', 'Nenhuma configuração de AutoMod definida ainda.', `Architect ${VERSION}`));
+      return interaction.editReply(v2Simple(C_ORANGE, '🛡️ AutoMod — Config Atual',
+        `**Anti-Link:** ${cfg.anti_link ? '✅ Ativo' : '❌ Inativo'}\n**Anti-Spam:** ${cfg.anti_spam ? '✅ Ativo' : '❌ Inativo'}\n**Anti-Palavrão:** ${cfg.anti_palavrao ? '✅ Ativo' : '❌ Inativo'}\n**Cargo Ignorado:** ${cfg.cargoIgnorado ? `<@&${cfg.cargoIgnorado}>` : 'Nenhum'}`,
+        `Architect ${VERSION}`
+      ));
+    }
+    if (acao === 'desativar') {
+      await mongoDB.collection('automod').updateOne({ guildId: guild.id }, { $set: { anti_link: false, anti_spam: false, anti_palavrao: false } }, { upsert: true });
+      return interaction.editReply(v2Simple(C_RED, '🛡️ AutoMod Desativado!', 'Todas as regras de AutoMod foram desativadas.', `Architect ${VERSION}`));
+    }
+
+    const update = { [acao]: true, guildId: guild.id };
+    if (cargoIgnorado) update.cargoIgnorado = cargoIgnorado.id;
+    await mongoDB.collection('automod').updateOne({ guildId: guild.id }, { $set: update }, { upsert: true });
+    const labels = { anti_link: '🚫 Anti-Link', anti_spam: '📢 Anti-Spam', anti_palavrao: '🤬 Anti-Palavrão' };
+    await interaction.editReply(v2Simple(C_GREEN, `🛡️ AutoMod — ${labels[acao]} Ativado!`,
+      `A regra foi ativada.\n${cargoIgnorado ? `**Cargo ignorado:** <@&${cargoIgnorado.id}>` : ''}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /warns ────────────────────────────────────────────────────────────────────
+  else if (commandName === 'warns') {
+    const target = interaction.options.getUser('membro');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const warnDocs = await mongoDB.collection('warns').find({ guildId: guild.id, userId: target.id }).sort({ createdAt: -1 }).limit(10).toArray();
+    if (!warnDocs.length) return interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Sem Advertências!`, `${target.tag} não tem advertências neste servidor.`, `Architect ${VERSION}`));
+    const lista = warnDocs.map((w, i) => ```${i+1}.`` **${w.motivo}** — <t:${Math.floor(new Date(w.createdAt).getTime()/1000)}:R>`).join('\n');
+    await interaction.editReply(v2Simple(C_YELLOW, `⚠️ Warns — ${target.tag}`, `**Total:** ${warnDocs.length}\n\n${lista}`, `Architect ${VERSION}`));
+  }
+
+  // ── /clearwarns ───────────────────────────────────────────────────────────────
+  else if (commandName === 'clearwarns') {
+    if (!member.permissions.has(PermissionFlagsBits.ModerateMembers))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const target = interaction.options.getUser('membro');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const { deletedCount } = await mongoDB.collection('warns').deleteMany({ guildId: guild.id, userId: target.id });
+    await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Warns Limpos!`, `**${deletedCount}** advertência(s) de **${target.tag}** removidas.`, `Architect ${VERSION}`));
+    await sendLog(guild.id, 'warn', v2Simple(C_GREEN, `⚠️ Log — Warns Limpos`, `**Membro:** ${target.tag}\n**Moderador:** ${member.user.tag}\n**Warns removidos:** ${deletedCount}`, `Architect ${VERSION}`));
+  }
+
+  // ── /userinfo ─────────────────────────────────────────────────────────────────
+  else if (commandName === 'userinfo') {
+    const target = interaction.options.getMember('membro') || member;
+    const u      = target.user;
+    const roles  = target.roles.cache.filter(r => r.name !== '@everyone').sort((a,b) => b.position - a.position).map(r => `<@&${r.id}>`).slice(0, 10).join(' ') || 'Nenhum';
+    await interaction.reply(v2Simple(C_BLUE, `👤 Info — ${u.tag}`,
+      `**ID:** ${u.id}\n**Conta criada:** <t:${Math.floor(u.createdTimestamp/1000)}:R>\n**Entrou no servidor:** <t:${Math.floor(target.joinedTimestamp/1000)}:R>\n**Cargos:** ${roles}\n**Bot:** ${u.bot ? 'Sim' : 'Não'}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /serverinfo ───────────────────────────────────────────────────────────────
+  else if (commandName === 'serverinfo') {
+    const owner    = await guild.fetchOwner().catch(() => null);
+    const channels = guild.channels.cache;
+    const text     = channels.filter(c => c.type === ChannelType.GuildText).size;
+    const voice    = channels.filter(c => c.type === ChannelType.GuildVoice).size;
+    const roles    = guild.roles.cache.filter(r => r.name !== '@everyone').size;
+    await interaction.reply(v2Simple(C_ORANGE, `🌐 Info — ${guild.name}`,
+      `**ID:** ${guild.id}\n**Dono:** ${owner ? `${owner.user.tag}` : 'N/A'}\n**Membros:** ${guild.memberCount}\n**Canais:** ${text} texto | ${voice} voz\n**Cargos:** ${roles}\n**Criado:** <t:${Math.floor(guild.createdTimestamp/1000)}:R>\n**Boost:** Nível ${guild.premiumTier} (${guild.premiumSubscriptionCount} boosts)`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /avatar ───────────────────────────────────────────────────────────────────
+  else if (commandName === 'avatar') {
+    const target = interaction.options.getUser('membro') || interaction.user;
+    const url    = target.displayAvatarURL({ size: 1024, extension: 'png' });
+    await interaction.reply(v2Simple(C_BLUE, `🖼️ Avatar — ${target.tag}`, `[Clique para abrir em tamanho completo](${url})\n${url}`, `Architect ${VERSION}`));
+  }
+
+  // ── /roleinfo ─────────────────────────────────────────────────────────────────
+  else if (commandName === 'roleinfo') {
+    const cargo   = interaction.options.getRole('cargo');
+    const membros = guild.members.cache.filter(m => m.roles.cache.has(cargo.id)).size;
+    await interaction.reply(v2Simple(cargo.color || C_GREY, `🏷️ Info — ${cargo.name}`,
+      `**ID:** ${cargo.id}\n**Cor:** ${cargo.hexColor}\n**Membros:** ${membros}\n**Mencionável:** ${cargo.mentionable ? 'Sim' : 'Não'}\n**Hoist (separado):** ${cargo.hoist ? 'Sim' : 'Não'}\n**Criado:** <t:${Math.floor(cargo.createdTimestamp/1000)}:R>`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /sorteio ──────────────────────────────────────────────────────────────────
+  else if (commandName === 'sorteio') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const vencedores = interaction.options.getInteger('vencedores');
+    const premio     = interaction.options.getString('premio');
+    const duracao    = interaction.options.getInteger('duracao') || 0;
+
+    if (duracao === 0) {
+      // Sorteio imediato entre membros do servidor
+      const membros = guild.members.cache.filter(m => !m.user.bot).map(m => m);
+      if (membros.length < vencedores) return interaction.reply({ content: `${E.erro} Membros insuficientes!`, flags: MessageFlags.Ephemeral });
+      const shuffled = membros.sort(() => Math.random() - 0.5).slice(0, vencedores);
+      const lista    = shuffled.map((m, i) => ```${i+1}.`` <@${m.id}>`).join('\n');
+      await interaction.reply(v2Simple(C_ORANGE, `🎉 Sorteio — ${premio}`, `**Vencedor(es):**\n${lista}`, `Architect ${VERSION} • Sorteio realizado por ${member.user.tag}`));
+    } else {
+      // Sorteio com prazo — cria mensagem com botão
+      const endTime  = Math.floor((Date.now() + duracao * 60000) / 1000);
+      const btn      = new ButtonBuilder().setCustomId(`giveaway_enter_${interaction.id}`).setLabel('🎉 Participar').setStyle(ButtonStyle.Success);
+      const row      = new ActionRowBuilder().addComponents(btn);
+      const panelV2  = v2Simple(C_ORANGE, `🎉 Sorteio — ${premio}`,
+        `**Prêmio:** ${premio}\n**Vencedores:** ${vencedores}\n**Termina:** <t:${endTime}:R>\n**Participantes:** 0\n\nClique no botão para participar!`,
+        `Architect ${VERSION}`
+      );
+      const msg = await interaction.reply({ ...panelV2, components: [row], fetchReply: true });
+      // Salva no MongoDB
+      await mongoDB.collection('giveaways').insertOne({
+        guildId:       guild.id,
+        channelId:     interaction.channel.id,
+        messageId:     msg.id,
+        prize:         premio,
+        winners:       vencedores,
+        participants:  [],
+        endTime:       new Date(endTime * 1000),
+        ended:         false,
+      });
+    }
+  }
+
+  // ── /enquete ──────────────────────────────────────────────────────────────────
+  else if (commandName === 'enquete') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageMessages))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const pergunta = interaction.options.getString('pergunta');
+    const emojis   = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'];
+    const opcoes   = [1,2,3,4,5].map(n => interaction.options.getString(`opcao${n}`)).filter(Boolean);
+    const lista    = opcoes.map((o, i) => `${emojis[i]} ${o}`).join('\n');
+    const msg      = await interaction.reply({ ...v2Simple(C_BLUE, `📊 Enquete`, `**${pergunta}**\n\n${lista}`, `Architect ${VERSION} • Vote com os emojis abaixo`), fetchReply: true });
+    for (let i = 0; i < opcoes.length; i++) await msg.react(emojis[i]).catch(() => {});
+  }
+
+  // ── /nick ─────────────────────────────────────────────────────────────────────
+  else if (commandName === 'nick') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageNicknames))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const target  = interaction.options.getMember('membro');
+    const apelido = interaction.options.getString('apelido') || null;
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
+    try {
+      await target.setNickname(apelido);
+      await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Apelido Alterado!`,
+        `**Membro:** ${target.user.tag}\n**Apelido:** ${apelido || 'Removido'}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+  }
+
+  // ── /move ─────────────────────────────────────────────────────────────────────
+  else if (commandName === 'move') {
+    if (!member.permissions.has(PermissionFlagsBits.MoveMembers))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const target = interaction.options.getMember('membro');
+    const canal  = interaction.options.getChannel('canal');
+    if (!target) return interaction.reply({ content: `${E.erro} Membro não encontrado!`, flags: MessageFlags.Ephemeral });
+    if (!target.voice.channel) return interaction.reply({ content: `${E.erro} Membro não está em um canal de voz!`, flags: MessageFlags.Ephemeral });
+    try {
+      await target.voice.setChannel(canal);
+      await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Membro Movido!`,
+        `**Membro:** ${target.user.tag}\n**Para:** <#${canal.id}>`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+  }
+
+  // ── /nuke ─────────────────────────────────────────────────────────────────────
+  else if (commandName === 'nuke') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const motivo  = interaction.options.getString('motivo') || 'Canal nukado';
+    const ch      = interaction.channel;
+    try {
+      const newCh = await ch.clone({ reason: motivo });
+      await newCh.setPosition(ch.position);
+      await ch.delete();
+      await newCh.send(v2Simple(C_RED, `💣 Canal Nukado!`, `**Motivo:** ${motivo}\n**Por:** ${member.user.tag}`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'ban', v2Simple(C_RED, `💣 Log — Nuke`, `**Canal:** #${ch.name}\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
+    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+  }
+
   } catch (err) {
     // Ignora silenciosamente erros de "já confirmada" — não há nada a fazer
     const ALREADY_REPLIED = ['InteractionAlreadyReplied', 'already been acknowledged'];
@@ -3319,6 +3686,57 @@ client.on('roleDelete', async role => {
       if (alertCh) await alertCh.send(v2Simple(C_RED, '<:atencao:1500524473827459263> Alerta Anti-Nuke', `**${entry.executor.tag}** deletou **${count} cargos** em menos de 10 segundos.\n\nUse **/restaurar** imediatamente para reverter.`, `Architect ${VERSION}`));
     }
   } catch (e) { console.error('[ANTI-NUKE] roleDelete:', e.message); }
+});
+
+
+// ── AutoMod — messageCreate ───────────────────────────────────────────────────
+client.on('messageCreate', async message => {
+  if (!message.guild || message.author.bot) return;
+  try {
+    const cfg = await mongoDB.collection('automod').findOne({ guildId: message.guild.id });
+    if (!cfg) return;
+    if (cfg.cargoIgnorado && message.member?.roles.cache.has(cfg.cargoIgnorado)) return;
+    if (message.member?.permissions.has(PermissionFlagsBits.Administrator)) return;
+    const content = message.content.toLowerCase();
+    let deletar = false, motivo = '';
+    if (cfg.anti_link && /https?:\/\/|discord\.gg\/|www\./i.test(message.content)) { deletar = true; motivo = 'Anti-Link'; }
+    if (cfg.anti_spam) {
+      if (!client._spamMap) client._spamMap = new Map();
+      const key = 'spam_' + message.guild.id + '_' + message.author.id;
+      const now = Date.now();
+      const hist = (client._spamMap.get(key) || []).filter(t => now - t < 5000);
+      hist.push(now);
+      client._spamMap.set(key, hist);
+      if (hist.length >= 5) { deletar = true; motivo = 'Anti-Spam'; }
+    }
+    if (cfg.anti_palavrao) {
+      const palavroes = ['puta','merda','caralho','viado','buceta','fdp'];
+      if (palavroes.some(p => content.includes(p))) { deletar = true; motivo = 'Anti-Palavrao'; }
+    }
+    if (deletar) {
+      await message.delete().catch(() => {});
+      const w = await message.channel.send('<@' + message.author.id + '> AutoMod: ' + motivo + ' — Mensagem removida.');
+      setTimeout(() => w.delete().catch(() => {}), 5000);
+      await sendLog(message.guild.id, 'ban', v2Simple(C_RED, 'AutoMod — ' + motivo,
+        '**Usuario:** ' + message.author.tag + '\n**Canal:** <#' + message.channel.id + '>\n**Conteudo:** ' + message.content.substring(0, 200),
+        'Architect ' + VERSION
+      ));
+    }
+  } catch (_) {}
+});
+
+// ── Giveaway button ───────────────────────────────────────────────────────────
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith('giveaway_enter_')) return;
+  try {
+    const doc = await mongoDB.collection('giveaways').findOne({ guildId: interaction.guild.id, messageId: interaction.message.id, ended: false });
+    if (!doc) return interaction.reply({ content: 'Sorteio nao encontrado ou encerrado.', flags: MessageFlags.Ephemeral });
+    if (doc.participants.includes(interaction.user.id))
+      return interaction.reply({ content: 'Voce ja esta participando!', flags: MessageFlags.Ephemeral });
+    await mongoDB.collection('giveaways').updateOne({ _id: doc._id }, { $push: { participants: interaction.user.id } });
+    await interaction.reply({ content: 'Voce entrou no sorteio! Total: **' + (doc.participants.length + 1) + '**', flags: MessageFlags.Ephemeral });
+  } catch (_) {}
 });
 
 // ── Dashboard Server (Express + OAuth2) ──────────────────────────────────────
