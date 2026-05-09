@@ -3301,10 +3301,11 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  // Google Translate TTS — HTTP puro, sem WebSocket, funciona no Render
-  const fs  = require('fs');
-  const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=${encodeURIComponent(texto.substring(0, 200))}`;
-  const res = await fetch(url, {
+  // StreamElements TTS — HTTP puro, voz masculina pt-BR, sem autenticação
+  const fs   = require('fs');
+  const voz  = 'pt-br-claudioneural'; // voz masculina pt-BR
+  const url  = `https://api.streamelements.com/kappa/v2/speech?voice=${voz}&text=${encodeURIComponent(texto.substring(0, 300))}`;
+  const res  = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0' },
     signal: AbortSignal.timeout(15000),
   });
