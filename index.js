@@ -2822,7 +2822,7 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'doar') {
     await interaction.reply({ ...v2Simple(C_ORANGE,
       lang.doarTitle,
-      `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
+      `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola:**\n> 00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\n\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
       `Architect ${VERSION} • ${lang.doarThanks}`
     ), flags: MessageFlags.Ephemeral });
   }
