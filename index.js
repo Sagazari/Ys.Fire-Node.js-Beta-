@@ -2859,19 +2859,20 @@ client.on('interactionCreate', async interaction => {
         try {
           await gerarAudioEdgeTTS(resposta, tmpFile);
 
+          // Envia o áudio como arquivo separado — o Discord não suporta files dentro de Components V2
           await interaction.editReply({
-            ...v2Simple(
-              C_ORANGE,
-              `<:ia:1500524508384071783> Architect Chat — Áudio`,
-              `**Você:** ${pergunta}\n\n*Ouça a resposta no arquivo abaixo.*`,
-              `Architect ${VERSION} • Powered by Mistral + Edge-TTS`
-            ),
+            content: `🎙️ **Você:** ${pergunta}`,
             files: [{ attachment: tmpFile, name: 'resposta.mp3' }],
           });
 
+        } catch (audioErr) {
+          console.error('[/chat audio]', audioErr);
+          await interaction.editReply({
+            ...v2Simple(C_RED, `${E.erro} Erro no Áudio`, `Não consegui gerar o áudio: \`${audioErr.message}\``, `Architect ${VERSION}`),
+          }).catch(() => {});
         } finally {
-          // Limpa o arquivo temporário
-          fs.unlink(tmpFile, () => {});
+          // Deleta o arquivo temporário após o upload terminar
+          setTimeout(() => fs.unlink(tmpFile, () => {}), 5000);
         }
       }
 
