@@ -3310,7 +3310,7 @@ async function gerarAudioEdgeTTS(texto, outputPath) {
     input: { text: texto.substring(0, 500) },
     voice: {
       languageCode: 'pt-BR',
-      name:         'pt-BR-Wavenet-B', // masculina, natural
+      name:         'pt-BR-Standard-B', // masculina, gratuita
       ssmlGender:   'MALE',
     },
     audioConfig: {
