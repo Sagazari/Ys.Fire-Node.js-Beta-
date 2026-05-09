@@ -3301,33 +3301,39 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  // TTS-MP3.com — API HTTP pura, voz masculina pt-BR, sem autenticação
+  // Google Cloud Text-to-Speech — voz masculina pt-BR (pt-BR-Wavenet-B)
   const fs  = require('fs');
-  const textoLimitado = texto.substring(0, 300);
+  const key = process.env.GOOGLE_TTS_KEY;
+  if (!key) throw new Error('GOOGLE_TTS_KEY não configurada no Render.');
 
-  // Usa a API pública do TTS-MP3 com voz Ricardo (masculino pt-BR da Amazon Polly)
-  const params = new URLSearchParams({
-    msg:    textoLimitado,
-    lang:   'pt-br',
-    source: 'ttsmp3',
-  });
-  const res = await fetch('https://ttsmp3.com/makemp3_new.php', {
-    method:  'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent':   'Mozilla/5.0',
+  const body = {
+    input: { text: texto.substring(0, 500) },
+    voice: {
+      languageCode: 'pt-BR',
+      name:         'pt-BR-Wavenet-B', // masculina, natural
+      ssmlGender:   'MALE',
     },
-    body:   params.toString(),
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
-  const json = await res.json();
-  if (!json.URL) throw new Error('TTS não retornou URL de áudio');
+    audioConfig: {
+      audioEncoding: 'MP3',
+      speakingRate:  1.0,
+      pitch:         0.0,
+    },
+  };
 
-  // Baixa o MP3 gerado
-  const mp3Res = await fetch(json.URL, { signal: AbortSignal.timeout(15000) });
-  if (!mp3Res.ok) throw new Error(`TTS download HTTP ${mp3Res.status}`);
-  const buffer = Buffer.from(await mp3Res.arrayBuffer());
+  const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${key}`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+    signal:  AbortSignal.timeout(15000),
+  });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.status);
+    throw new Error(`Google TTS HTTP ${res.status}: ${err}`);
+  }
+
+  const json   = await res.json();
+  const buffer = Buffer.from(json.audioContent, 'base64');
   fs.writeFileSync(outputPath, buffer);
 }
 
