@@ -2019,6 +2019,15 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('autorole').setDescription('Define cargo automático para novos membros')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo (vazio para desativar)').setRequired(false)),
 
+    // ── /chat ─────────────────────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('chat').setDescription('Converse com o Architect usando IA')
+      .addStringOption(o => o.setName('pergunta').setDescription('O que você quer perguntar?').setRequired(true))
+      .addStringOption(o => o.setName('tipo').setDescription('Tipo de resposta').setRequired(true)
+        .addChoices(
+          { name: '💬 Texto',  value: 'texto' },
+          { name: '🔊 Áudio',  value: 'audio' },
+        )),
+
   ].map(c => c.toJSON());
 
   try {
@@ -2334,15 +2343,16 @@ client.on('interactionCreate', async interaction => {
 
   const { commandName, guild, member } = interaction;
   const lang       = await getGuildLang(guild.id);
-  const publicCmds = ['info', 'help', 'status', 'doar', 'idioma'];
+  const publicCmds = ['info', 'help', 'status', 'doar', 'idioma', 'chat'];
 
   if (!publicCmds.includes(commandName) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
     return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
   }
 
-  // Rastreia uso do comando
-  const _isPremiumUser = await isUserPremium(interaction.user.id);
-  trackCommandUsage(interaction.user.id, commandName, _isPremiumUser).catch(() => {});
+  // Rastreia uso do comando (sem await — não pode travar a resposta)
+  isUserPremium(interaction.user.id)
+    .then(p => trackCommandUsage(interaction.user.id, commandName, p))
+    .catch(() => {});
 
   // ── /criar_servidor ──────────────────────────────────────────────────────────
   if (commandName === 'criar_servidor') {
@@ -2818,13 +2828,76 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply(v2Simple(C_GREEN, newLang.langTitle, `${newLang.langChanged(newLang.name)}\n\n**<:linked:1500524472229433404> Idioma:** ${newLang.flag} ${newLang.name}`, `Architect ${VERSION}`));
   }
 
+  // ── /chat ────────────────────────────────────────────────────────────────────
+  else if (commandName === 'chat') {
+    const pergunta = interaction.options.getString('pergunta');
+    const tipo     = interaction.options.getString('tipo');
+
+    await interaction.deferReply();
+
+    try {
+      const resposta = await mistralChat(pergunta);
+
+      if (tipo === 'texto') {
+        // ── Resposta em texto ──────────────────────────────────────────────────
+        await interaction.editReply({
+          ...v2Simple(
+            C_ORANGE,
+            `<:ia:1500524508384071783> Architect Chat`,
+            `**Você:** ${pergunta}\n\n**Architect:** ${resposta}`,
+            `Architect ${VERSION} • Powered by Mistral`
+          ),
+        });
+
+      } else {
+        // ── Resposta em áudio ──────────────────────────────────────────────────
+        const os   = require('os');
+        const path = require('path');
+        const fs   = require('fs');
+        const tmpFile = path.join(os.tmpdir(), `architect_chat_${interaction.id}.mp3`);
+
+        try {
+          await gerarAudioEdgeTTS(resposta, tmpFile);
+
+          await interaction.editReply({
+            ...v2Simple(
+              C_ORANGE,
+              `<:ia:1500524508384071783> Architect Chat — Áudio`,
+              `**Você:** ${pergunta}\n\n*Ouça a resposta no arquivo abaixo.*`,
+              `Architect ${VERSION} • Powered by Mistral + Edge-TTS`
+            ),
+            files: [{ attachment: tmpFile, name: 'resposta.mp3' }],
+          });
+
+        } finally {
+          // Limpa o arquivo temporário
+          fs.unlink(tmpFile, () => {});
+        }
+      }
+
+    } catch (e) {
+      console.error('[/chat]', e.message);
+      const msg = interaction.replied || interaction.deferred
+        ? interaction.editReply
+        : interaction.reply;
+      await interaction.editReply({
+        ...v2Simple(C_RED, `${E.erro} Erro no Chat`, `Não consegui processar sua pergunta: \`${e.message}\``, `Architect ${VERSION}`),
+      }).catch(() => {});
+    }
+  }
+
   // ── /doar ────────────────────────────────────────────────────────────────────
   else if (commandName === 'doar') {
-    await interaction.reply({ ...v2Simple(C_ORANGE,
-      lang.doarTitle,
-      `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola:**\n> 00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\n\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
-      `Architect ${VERSION} • ${lang.doarThanks}`
-    ), flags: MessageFlags.Ephemeral });
+    try {
+      await interaction.reply({ ...v2Simple(C_ORANGE,
+        lang.doarTitle,
+        `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola:**\n> 00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\n\n**👨 Dev:** Velroc   **Servidores:** ${client.guilds.cache.size}`,
+        `Architect ${VERSION} • ${lang.doarThanks}`
+      ), flags: MessageFlags.Ephemeral });
+    } catch (e) {
+      console.error('[/doar]', e.message);
+      await interaction.reply({ content: `☕ **${lang.doarTitle}**\n\n${lang.doarDesc}\n\n**Pix:** 00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D`, flags: MessageFlags.Ephemeral }).catch(() => {});
+    }
   }
 
   // ── /info ────────────────────────────────────────────────────────────────────
@@ -3198,6 +3271,45 @@ async function sendLog(guildId, tipo, payload) {
     const ch    = guild?.channels?.cache?.get(channelId);
     if (ch) await ch.send(payload).catch(() => {});
   } catch (_) {}
+}
+
+// ── /chat ─────────────────────────────────────────────────────────────────────
+async function mistralChat(pergunta) {
+  const key = MISTRAL_KEYS.normal;
+  if (!key) throw new Error('MISTRAL_KEY_A não configurada.');
+  const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model:       MISTRAL_MODEL,
+      max_tokens:  512,
+      temperature: 0.7,
+      messages: [
+        {
+          role:    'system',
+          content: 'Você é o Architect, um bot do Discord inteligente e amigável. Responda de forma clara, objetiva e em português. Máximo de 3 parágrafos.',
+        },
+        { role: 'user', content: pergunta },
+      ],
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) throw new Error(`Mistral HTTP ${res.status}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || 'Não consegui gerar uma resposta.';
+}
+
+async function gerarAudioEdgeTTS(texto, outputPath) {
+  const { execFile } = require('child_process');
+  const { promisify } = require('util');
+  const execFileAsync = promisify(execFile);
+  // edge-tts via npx — voz pt-BR feminina
+  await execFileAsync('npx', [
+    'edge-tts',
+    '--voice', 'pt-BR-FranciscaNeural',
+    '--text',  texto,
+    '--write-media', outputPath,
+  ], { timeout: 30000 });
 }
 
 client.on('channelDelete', async channel => {
