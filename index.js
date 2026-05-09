@@ -3301,16 +3301,33 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  // StreamElements TTS — HTTP puro, voz masculina pt-BR, sem autenticação
-  const fs   = require('fs');
-  const voz  = 'pt-br-claudioneural'; // voz masculina pt-BR
-  const url  = `https://api.streamelements.com/kappa/v2/speech?voice=${voz}&text=${encodeURIComponent(texto.substring(0, 300))}`;
-  const res  = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0' },
+  // TTS-MP3.com — API HTTP pura, voz masculina pt-BR, sem autenticação
+  const fs  = require('fs');
+  const textoLimitado = texto.substring(0, 300);
+
+  // Usa a API pública do TTS-MP3 com voz Ricardo (masculino pt-BR da Amazon Polly)
+  const params = new URLSearchParams({
+    msg:    textoLimitado,
+    lang:   'pt-br',
+    source: 'ttsmp3',
+  });
+  const res = await fetch('https://ttsmp3.com/makemp3_new.php', {
+    method:  'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent':   'Mozilla/5.0',
+    },
+    body:   params.toString(),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
-  const buffer = Buffer.from(await res.arrayBuffer());
+  const json = await res.json();
+  if (!json.URL) throw new Error('TTS não retornou URL de áudio');
+
+  // Baixa o MP3 gerado
+  const mp3Res = await fetch(json.URL, { signal: AbortSignal.timeout(15000) });
+  if (!mp3Res.ok) throw new Error(`TTS download HTTP ${mp3Res.status}`);
+  const buffer = Buffer.from(await mp3Res.arrayBuffer());
   fs.writeFileSync(outputPath, buffer);
 }
 
