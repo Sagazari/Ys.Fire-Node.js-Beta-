@@ -3275,7 +3275,7 @@ async function sendLog(guildId, tipo, payload) {
 
 // ── /chat ─────────────────────────────────────────────────────────────────────
 async function mistralChat(pergunta) {
-  const key = MISTRAL_KEYS.normal;
+  const key = process.env.MISTRAL_KEY_CHAT;
   if (!key) throw new Error('MISTRAL_KEY_A não configurada.');
   const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
     method:  'POST',
@@ -3300,16 +3300,18 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  const { execFile } = require('child_process');
-  const { promisify } = require('util');
-  const execFileAsync = promisify(execFile);
-  // edge-tts via npx — voz pt-BR feminina
-  await execFileAsync('npx', [
-    'edge-tts',
-    '--voice', 'pt-BR-FranciscaNeural',
-    '--text',  texto,
-    '--write-media', outputPath,
-  ], { timeout: 30000 });
+  const { MsEdgeTTS, OUTPUT_FORMAT } = require('msedge-tts');
+  const fs  = require('fs');
+  const tts = new MsEdgeTTS();
+  await tts.setMetadata('pt-BR-FranciscaNeural', OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+  const readable = await tts.toStream(texto);
+  await new Promise((resolve, reject) => {
+    const writer = fs.createWriteStream(outputPath);
+    readable.pipe(writer);
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+    readable.on('error', reject);
+  });
 }
 
 client.on('channelDelete', async channel => {
