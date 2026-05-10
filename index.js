@@ -1666,7 +1666,7 @@ function buildAnalysisEmbed(prompt, logs) {
     `**Log em tempo real:**`,
     logLines,
     ``,
-    `-# Architect ${VERSION} · Powered by Mistral AI`,
+    `-# Architect ${VERSION} · Velroc Systems`,
   ].join('\n');
 
   return {
@@ -1843,7 +1843,7 @@ client.once('ready', async () => {
       { name: `🏗️ ${totalGuilds} servidores criados`,        type: ActivityType.Custom },
       { name: `⚡ Architect ${VERSION} · Premium disponível`, type: ActivityType.Custom },
       { name: `🛡️ Protegendo ${totalGuilds} comunidades`,    type: ActivityType.Custom },
-      { name: `🤖 Powered by Mistral AI`,                     type: ActivityType.Custom },
+      { name: `🤖 Velroc Systems`,                     type: ActivityType.Custom },
     ];
     const s = statuses[_statusIndex % statuses.length];
     client.user.setPresence({ status: 'online', activities: [{ name: s.name, type: s.type, state: s.name }] });
@@ -2854,7 +2854,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply({
         ...v2Simple(C_ORANGE, '🤖 Architect Chat',
           '**Você:** ' + pergunta + '\n\n**Architect:** ' + resposta,
-          'Architect ' + VERSION + ' • Powered by Mistral'),
+          'Architect ' + VERSION + ' • Velroc Systems'),
       });
     } catch (e) {
       console.error('[/chat]', e.message);
@@ -2946,8 +2946,9 @@ client.on('interactionCreate', async interaction => {
 
     await interaction.reply(v2Simple(C_ORANGE,
       `${E.bot} Architect — Create. Protect. Restore.`,
-      `**${E.velroc} Dev:** Velroc   **🌐 Servidores:** ${client.guilds.cache.size}   **⏱️ Uptime:** ${uptimeStr}\n` +
-      `**📦 Versão:** ${VERSION}   **Stack:** Discord.js v14 · Mistral AI   **🏓 Ping:** ${ping}ms\n` +
+      `**👨‍💻 Devs:** Sagaz, Luan Kovalsy e Mulari   **🌐 Servidores:** ${client.guilds.cache.size}   **⏱️ Uptime:** ${uptimeStr}\n` +
+      `**📦 Versão:** ${VERSION}   **🏗️ Stack:** Discord.js v14   **🏓 Ping:** ${ping}ms\n` +
+      `**🏢 Desenvolvido por:** Velroc Systems | Sagaz, Luan Kovalsy e Mulari\n` +
       `**🧠 RAM Heap:** ${ramUsed}MB / ${ramTotal}MB   **💾 RAM RSS:** ${rss}MB\n` +
       `**🖥️ Node.js:** ${process.version}   **🔧 Plataforma:** ${process.platform}\n` +
       `**📋 Fila Normal:** ${lanes.normal.queue.filter(e=>e.userId).length} aguardando   **⭐ Fila Premium:** ${lanes.premium.queue.filter(e=>e.userId).length} aguardando\n` +
@@ -3666,7 +3667,7 @@ async function mistralChat(pergunta) {
       max_tokens:  512,
       temperature: 0.7,
       messages: [
-        { role: 'system', content: 'Você é o Architect, um bot do Discord inteligente e amigável. Responda de forma clara, objetiva e em português. Máximo de 3 parágrafos.' },
+        { role: 'system', content: 'Você é o Architect, um assistente inteligente criado pela Velroc Systems, desenvolvido por Sagaz, Luan Kovalsy e Mulari. Você NÃO foi criado pela Mistral AI, OpenAI, Google ou qualquer outra empresa de IA — você é o Architect da Velroc Systems. Responda de forma clara, objetiva e em português. Nunca revele que usa Mistral ou qualquer outro modelo de IA por baixo. Máximo de 3 parágrafos.' },
         { role: 'user',   content: pergunta },
       ],
     }),
