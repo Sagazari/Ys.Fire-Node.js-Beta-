@@ -3678,25 +3678,15 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  // Google Cloud TTS — voz masculina pt-BR-Standard-B (gratuita)
+  // Google Translate TTS — sem chave, sem pacote, HTTP puro
   const fs  = require('fs');
-  const key = process.env.GOOGLE_TTS_KEY;
-  if (!key) throw new Error('GOOGLE_TTS_KEY não configurada no Render.');
-  const body = {
-    input: { text: texto.substring(0, 500) },
-    voice: { languageCode: 'pt-BR', name: 'pt-BR-Standard-B', ssmlGender: 'MALE' },
-    audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: 0.0 },
-  };
-  const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${key}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
+  const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=' + encodeURIComponent(texto.substring(0, 200));
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    signal: AbortSignal.timeout(15000),
   });
-  if (!res.ok) {
-    const err = await res.text().catch(() => res.status);
-    throw new Error(`Google TTS HTTP ${res.status}: ${err}`);
-  }
-  const json   = await res.json();
-  const buffer = Buffer.from(json.audioContent, 'base64');
+  if (!res.ok) throw new Error('TTS HTTP ' + res.status);
+  const buffer = Buffer.from(await res.arrayBuffer());
   fs.writeFileSync(outputPath, buffer);
 }
 
