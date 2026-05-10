@@ -2021,74 +2021,8 @@ client.once('ready', async () => {
         ))
       .addRoleOption(o => o.setName('cargo_ignorado').setDescription('Cargo isento das regras').setRequired(false)),
 
-    new SlashCommandBuilder().setName('warns').setDescription('Ver advertências de um membro')
-      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)),
-
-    new SlashCommandBuilder().setName('clearwarns').setDescription('Limpar advertências de um membro')
-      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)),
-
-    new SlashCommandBuilder().setName('userinfo').setDescription('Informações detalhadas de um usuário')
-      .addUserOption(o => o.setName('membro').setDescription('Membro (padrão: você)').setRequired(false)),
-
-    new SlashCommandBuilder().setName('serverinfo').setDescription('Informações detalhadas do servidor'),
-
-    new SlashCommandBuilder().setName('avatar').setDescription('Mostra o avatar de um membro em HD')
-      .addUserOption(o => o.setName('membro').setDescription('Membro (padrão: você)').setRequired(false)),
-
-    new SlashCommandBuilder().setName('roleinfo').setDescription('Informações sobre um cargo')
-      .addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)),
-
-    new SlashCommandBuilder().setName('sorteio').setDescription('Realiza um sorteio entre membros ou lista')
-      .addIntegerOption(o => o.setName('vencedores').setDescription('Quantidade de vencedores').setRequired(true).setMinValue(1).setMaxValue(10))
-      .addStringOption(o => o.setName('premio').setDescription('Prêmio do sorteio').setRequired(true))
-      .addIntegerOption(o => o.setName('duracao').setDescription('Duração em minutos (0 = imediato)').setRequired(false).setMinValue(0).setMaxValue(10080)),
-
-    new SlashCommandBuilder().setName('enquete').setDescription('Cria uma enquete com até 5 opções')
-      .addStringOption(o => o.setName('pergunta').setDescription('Pergunta da enquete').setRequired(true))
-      .addStringOption(o => o.setName('opcao1').setDescription('Opção 1').setRequired(true))
-      .addStringOption(o => o.setName('opcao2').setDescription('Opção 2').setRequired(true))
-      .addStringOption(o => o.setName('opcao3').setDescription('Opção 3').setRequired(false))
-      .addStringOption(o => o.setName('opcao4').setDescription('Opção 4').setRequired(false))
-      .addStringOption(o => o.setName('opcao5').setDescription('Opção 5').setRequired(false)),
-
-    new SlashCommandBuilder().setName('nick').setDescription('Altera o apelido de um membro')
-      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
-      .addStringOption(o => o.setName('apelido').setDescription('Novo apelido (vazio para remover)').setRequired(false)),
-
-    new SlashCommandBuilder().setName('move').setDescription('Move um membro para outro canal de voz')
-      .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal de voz destino').setRequired(true)),
-
     new SlashCommandBuilder().setName('reset').setDescription('Recria o canal atual deletando todo o histórico')
       .addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
-
-    new SlashCommandBuilder().setName('reaction_role').setDescription('Configura cargo por reacao em uma mensagem')
-      .addStringOption(o => o.setName('mensagem_id').setDescription('ID da mensagem').setRequired(true))
-      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
-      .addStringOption(o => o.setName('emoji').setDescription('Emoji da reacao').setRequired(true))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal da mensagem (padrao: atual)').setRequired(false)),
-
-    new SlashCommandBuilder().setName('button_role').setDescription('Cria painel com botao para dar/remover cargo')
-      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
-      .addStringOption(o => o.setName('titulo').setDescription('Titulo do painel').setRequired(false))
-      .addStringOption(o => o.setName('descricao').setDescription('Descricao do painel').setRequired(false))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal para enviar (padrao: atual)').setRequired(false)),
-
-    // ── Reaction/Button Role ───────────────────────────────────────────────────
-    new SlashCommandBuilder().setName('reaction_role').setDescription('Configura cargo por reação em uma mensagem')
-      .addStringOption(o => o.setName('mensagem_id').setDescription('ID da mensagem').setRequired(true))
-      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
-      .addStringOption(o => o.setName('emoji').setDescription('Emoji da reação (ex: ⭐ ou :nome:)').setRequired(true))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal da mensagem (padrão: atual)').setRequired(false)),
-
-    new SlashCommandBuilder().setName('button_role').setDescription('Cria mensagem com botão para dar/remover cargo')
-      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
-      .addStringOption(o => o.setName('titulo').setDescription('Título da mensagem').setRequired(false))
-      .addStringOption(o => o.setName('descricao').setDescription('Descrição da mensagem').setRequired(false))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal para enviar (padrão: atual)').setRequired(false)),
-
-    new SlashCommandBuilder().setName('role_info').setDescription('Veja quais membros têm um cargo específico')
-      .addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)),
 
     // ── /chat ─────────────────────────────────────────────────────────────────
     new SlashCommandBuilder().setName('chat').setDescription('Converse com o Architect por texto usando IA')
@@ -2099,11 +2033,15 @@ client.once('ready', async () => {
 
   ].map(c => c.toJSON());
 
-  try {
-    const rest = new REST().setToken(process.env.DISCORD_TOKEN);
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-    console.log(`<:aceitar:1500524505746116800> ${commands.length} comandos registrados!`);
-  } catch (e) { console.error('<:negar:1500524485231509785> Erro ao registrar comandos:', e.message); }
+  // Registra comandos apenas no shard 0 (ou sem sharding) para evitar conflito
+  const shardIdNow = client.shard?.ids?.[0] ?? 0;
+  if (shardIdNow === 0) {
+    try {
+      const rest = new REST().setToken(process.env.DISCORD_TOKEN);
+      await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
+      console.log(`<:aceitar:1500524505746116800> ${commands.length} comandos registrados!`);
+    } catch (e) { console.error('<:negar:1500524485231509785> Erro ao registrar comandos:', e.message); }
+  }
 });
 
 // ── Interaction Handler ────────────────────────────────────────────────────────
