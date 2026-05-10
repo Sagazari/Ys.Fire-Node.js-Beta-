@@ -621,10 +621,6 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildModeration,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions,
   ],
   partials: ['MESSAGE', 'CHANNEL', 'REACTION'],
 });
@@ -3804,6 +3800,9 @@ client.on('roleDelete', async role => {
 
 // ── AutoMod — messageCreate ───────────────────────────────────────────────────
 client.on('messageCreate', async message => {
+  // INTENT DESABILITADO: MessageContent requer aprovacao no Discord Developer Portal
+  // Sera reativado apos aprovacao dos Privileged Gateway Intents
+  return;
   if (!message.guild || message.author.bot) return;
   try {
     const cfg = await mongoDB.collection('automod').findOne({ guildId: message.guild.id });
@@ -3876,6 +3875,8 @@ client.on('interactionCreate', async interaction => {
 
 // ── Reaction Role — adicionar cargo ───────────────────────────────────────────
 client.on('messageReactionAdd', async (reaction, user) => {
+  // INTENT DESABILITADO: GuildMessageReactions requer aprovacao
+  return;
   if (user.bot) return;
   try {
     if (reaction.partial) await reaction.fetch();
@@ -3898,6 +3899,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
 // ── Reaction Role — remover cargo ────────────────────────────────────────────
 client.on('messageReactionRemove', async (reaction, user) => {
+  // INTENT DESABILITADO: GuildMessageReactions requer aprovacao
+  return;
   if (user.bot) return;
   try {
     if (reaction.partial) await reaction.fetch();
