@@ -621,6 +621,10 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions,
   ],
   partials: ['MESSAGE', 'CHANNEL', 'REACTION'],
 });
@@ -1824,41 +1828,40 @@ client.once('ready', async () => {
   const totalShards = client.shard?.count ?? 1;
   const shardLabel  = totalShards > 1 ? `${totalShards} Shards` : `1 Shard`;
 
-  const updatePresence = async () => {
-    let totalGuilds = client.guilds.cache.size;
-    // Se estiver em modo sharding, soma todos os shards
+  // Busca contagem real de guilds (suporta sharding)
+  const getTotalGuilds = async () => {
     if (client.shard) {
       try {
         const counts = await client.shard.fetchClientValues('guilds.cache.size');
-        totalGuilds  = counts.reduce((a, b) => a + b, 0);
+        return counts.reduce((a, b) => a + b, 0);
       } catch (_) {}
     }
-
-    const statuses = [
-      { name: `🏗️ ${totalGuilds} servidores criados`, type: ActivityType.Custom },
-      { name: `⚡ Architect ${VERSION} · Premium disponível`, type: ActivityType.Custom },
-      { name: `🛡️ Protegendo ${totalGuilds} comunidades`, type: ActivityType.Custom },
-      { name: `🤖 Powered by Mistral AI`, type: ActivityType.Custom },
-    ];
-
-    let i = 0;
-    const rotate = () => {
-      if (!client.user) return;
-      client.user.setPresence({
-        status: 'online',
-        activities: [{ name: statuses[i].name, type: statuses[i].type, state: statuses[i].name }],
-      });
-      i = (i + 1) % statuses.length;
-    };
-
-    rotate();
-    if (!client._presenceInterval) {
-      client._presenceInterval = setInterval(rotate, 10000);
-    }
+    return client.guilds.cache.size;
   };
 
-  updatePresence();
-  setInterval(updatePresence, 5 * 60 * 1000); // atualiza contagem a cada 5min
+  let _statusIndex = 0;
+  const rotatePresence = async () => {
+    if (!client.user) return;
+    const totalGuilds = await getTotalGuilds(); // atualiza em tempo real a cada rotação
+    const statuses = [
+      { name: `🏗️ ${totalGuilds} servidores criados`,        type: ActivityType.Custom },
+      { name: `⚡ Architect ${VERSION} · Premium disponível`, type: ActivityType.Custom },
+      { name: `🛡️ Protegendo ${totalGuilds} comunidades`,    type: ActivityType.Custom },
+      { name: `🤖 Powered by Mistral AI`,                     type: ActivityType.Custom },
+    ];
+    const s = statuses[_statusIndex % statuses.length];
+    client.user.setPresence({ status: 'online', activities: [{ name: s.name, type: s.type, state: s.name }] });
+    _statusIndex++;
+  };
+
+  rotatePresence();
+  if (!client._presenceInterval) {
+    client._presenceInterval = setInterval(rotatePresence, 10000); // troca status a cada 10s com contagem atualizada
+  }
+
+  // Atualiza imediatamente quando o bot entra/sai de um servidor
+  client.on('guildCreate', () => rotatePresence());
+  client.on('guildDelete', () => rotatePresence());
 
   const commands = [
     new SlashCommandBuilder().setName('criar_servidor').setDescription('Cria servidor completo com IA').addStringOption(o => o.setName('prompt').setDescription('Descreva o servidor').setRequired(true)),
@@ -2060,20 +2063,43 @@ client.once('ready', async () => {
       .addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true))
       .addChannelOption(o => o.setName('canal').setDescription('Canal de voz destino').setRequired(true)),
 
-    new SlashCommandBuilder().setName('nuke').setDescription('Recria o canal atual deletando todo o histórico')
+    new SlashCommandBuilder().setName('reset').setDescription('Recria o canal atual deletando todo o histórico')
       .addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
+
+    new SlashCommandBuilder().setName('reaction_role').setDescription('Configura cargo por reacao em uma mensagem')
+      .addStringOption(o => o.setName('mensagem_id').setDescription('ID da mensagem').setRequired(true))
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
+      .addStringOption(o => o.setName('emoji').setDescription('Emoji da reacao').setRequired(true))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal da mensagem (padrao: atual)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('button_role').setDescription('Cria painel com botao para dar/remover cargo')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
+      .addStringOption(o => o.setName('titulo').setDescription('Titulo do painel').setRequired(false))
+      .addStringOption(o => o.setName('descricao').setDescription('Descricao do painel').setRequired(false))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal para enviar (padrao: atual)').setRequired(false)),
+
+    // ── Reaction/Button Role ───────────────────────────────────────────────────
+    new SlashCommandBuilder().setName('reaction_role').setDescription('Configura cargo por reação em uma mensagem')
+      .addStringOption(o => o.setName('mensagem_id').setDescription('ID da mensagem').setRequired(true))
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
+      .addStringOption(o => o.setName('emoji').setDescription('Emoji da reação (ex: ⭐ ou :nome:)').setRequired(true))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal da mensagem (padrão: atual)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('button_role').setDescription('Cria mensagem com botão para dar/remover cargo')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
+      .addStringOption(o => o.setName('titulo').setDescription('Título da mensagem').setRequired(false))
+      .addStringOption(o => o.setName('descricao').setDescription('Descrição da mensagem').setRequired(false))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal para enviar (padrão: atual)').setRequired(false)),
 
     new SlashCommandBuilder().setName('role_info').setDescription('Veja quais membros têm um cargo específico')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)),
 
     // ── /chat ─────────────────────────────────────────────────────────────────
-    new SlashCommandBuilder().setName('chat').setDescription('Converse com o Architect usando IA')
-      .addStringOption(o => o.setName('pergunta').setDescription('O que você quer perguntar?').setRequired(true))
-      .addStringOption(o => o.setName('tipo').setDescription('Tipo de resposta').setRequired(true)
-        .addChoices(
-          { name: '💬 Texto', value: 'texto' },
-          { name: '🔊 Áudio', value: 'audio' },
-        )),
+    new SlashCommandBuilder().setName('chat').setDescription('Converse com o Architect por texto usando IA')
+      .addStringOption(o => o.setName('pergunta').setDescription('O que você quer perguntar?').setRequired(true)),
+
+    new SlashCommandBuilder().setName('google_voice').setDescription('Resposta de voz do Architect usando Google TTS')
+      .addStringOption(o => o.setName('pergunta').setDescription('O que você quer perguntar?').setRequired(true)),
 
   ].map(c => c.toJSON());
 
@@ -2390,7 +2416,7 @@ client.on('interactionCreate', async interaction => {
 
   const { commandName, guild, member } = interaction;
   const lang       = await getGuildLang(guild.id);
-  const publicCmds = ['info', 'help', 'status', 'doar', 'idioma', 'chat'];
+  const publicCmds = ['info', 'help', 'status', 'doar', 'idioma', 'chat', 'google_voice'];
 
   if (!publicCmds.includes(commandName) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
     return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
@@ -2888,44 +2914,76 @@ client.on('interactionCreate', async interaction => {
   // ── /chat ────────────────────────────────────────────────────────────────────
   else if (commandName === 'chat') {
     const pergunta = interaction.options.getString('pergunta');
-    const tipo     = interaction.options.getString('tipo');
     await interaction.deferReply();
     try {
       const resposta = await mistralChat(pergunta);
-      if (tipo === 'texto') {
-        await interaction.editReply({
-          ...v2Simple(C_ORANGE, `🤖 Architect Chat`,
-            `**Você:** ${pergunta}\n\n**Architect:** ${resposta}`,
-            `Architect ${VERSION} • Powered by Mistral`),
-        });
-      } else {
-        const os   = require('os');
-        const path = require('path');
-        const fs   = require('fs');
-        const tmp  = path.join(os.tmpdir(), `chat_${interaction.id}.mp3`);
-        try {
-          await gerarAudioEdgeTTS(resposta, tmp);
-          await interaction.editReply({
-            content: `🎙️ **Você:** ${pergunta}`,
-            files:   [{ attachment: tmp, name: 'resposta.mp3' }],
-          });
-        } catch (audioErr) {
-          console.error('[/chat audio]', audioErr.message);
-          await interaction.editReply({
-            ...v2Simple(C_RED, `${E.erro} Erro no Áudio`,
-              `Não consegui gerar o áudio: \`${audioErr.message}\``,
-              `Architect ${VERSION}`),
-          }).catch(() => {});
-        } finally {
-          setTimeout(() => require('fs').unlink(tmp, () => {}), 5000);
-        }
-      }
+      await interaction.editReply({
+        ...v2Simple(C_ORANGE, '🤖 Architect Chat',
+          '**Você:** ' + pergunta + '\n\n**Architect:** ' + resposta,
+          'Architect ' + VERSION + ' • Powered by Mistral'),
+      });
     } catch (e) {
       console.error('[/chat]', e.message);
       await interaction.editReply({
-        ...v2Simple(C_RED, `${E.erro} Erro no Chat`,
-          `Não consegui processar sua pergunta: \`${e.message}\``,
-          `Architect ${VERSION}`),
+        ...v2Simple(C_RED, E.erro + ' Erro no Chat',
+          'Nao consegui processar sua pergunta: ' + e.message,
+          'Architect ' + VERSION),
+      }).catch(() => {});
+    }
+  }
+
+  // ── /google_voice ─────────────────────────────────────────────────────────────
+  else if (commandName === 'google_voice') {
+    const pergunta = interaction.options.getString('pergunta');
+    await interaction.deferReply();
+    try {
+      const respostaTexto = await mistralChat(pergunta);
+
+      // Remove tudo que o TTS nao deve ler: markdown, emojis, mencoes, etc.
+      const limparParaTTS = (texto) => texto
+        .replace(/<a?:[a-zA-Z0-9_]+:[0-9]+>/g, '')   // emojis customizados <:nome:id>
+        .replace(/<@!?[0-9]+>/g, '')                   // mencoes de usuario
+        .replace(/<@&[0-9]+>/g, '')                    // mencoes de cargo
+        .replace(/<#[0-9]+>/g, '')                     // mencoes de canal
+        .replace(/\*\*(.+?)\*\*/g, '$1')            // **negrito**
+        .replace(/\*(.+?)\*/g, '$1')                  // *italico*
+        .replace(/__(.+?)__/g, '$1')                   // __sublinhado__
+        .replace(/~~(.+?)~~/g, '$1')                   // ~~tachado~~
+        .replace(/`{1,3}[^`]*`{1,3}/g, '')            // `codigo`
+        .replace(/#{1,6}\s/g, '')                     // # headers
+        .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')      // emojis unicode
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const textoLimpo = limparParaTTS(respostaTexto);
+
+      const os   = require('os');
+      const path = require('path');
+      const fs   = require('fs');
+      const tmp  = path.join(os.tmpdir(), 'gvoice_' + interaction.id + '.mp3');
+
+      try {
+        await gerarAudioEdgeTTS(textoLimpo, tmp);
+        await interaction.editReply({
+          content: '🎙️ **Você:** ' + pergunta,
+          files:   [{ attachment: tmp, name: 'resposta.mp3' }],
+        });
+      } catch (audioErr) {
+        console.error('[/google_voice]', audioErr.message);
+        await interaction.editReply({
+          ...v2Simple(C_RED, E.erro + ' Erro no Audio',
+            'Nao consegui gerar o audio: ' + audioErr.message,
+            'Architect ' + VERSION),
+        }).catch(() => {});
+      } finally {
+        setTimeout(() => require('fs').unlink(tmp, () => {}), 8000);
+      }
+    } catch (e) {
+      console.error('[/google_voice]', e.message);
+      await interaction.editReply({
+        ...v2Simple(C_RED, E.erro + ' Erro',
+          'Nao consegui processar sua pergunta: ' + e.message,
+          'Architect ' + VERSION),
       }).catch(() => {});
     }
   }
@@ -3561,8 +3619,8 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
-  // ── /nuke ─────────────────────────────────────────────────────────────────────
-  else if (commandName === 'nuke') {
+  // ── /reset ────────────────────────────────────────────────────────────────────
+  else if (commandName === 'reset') {
     if (!member.permissions.has(PermissionFlagsBits.ManageChannels))
       return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     const motivo  = interaction.options.getString('motivo') || 'Canal nukado';
@@ -3571,9 +3629,64 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       const newCh = await ch.clone({ reason: motivo });
       await newCh.setPosition(ch.position);
       await ch.delete();
-      await newCh.send(v2Simple(C_RED, `💣 Canal Nukado!`, `**Motivo:** ${motivo}\n**Por:** ${member.user.tag}`, `Architect ${VERSION}`));
-      await sendLog(guild.id, 'ban', v2Simple(C_RED, `💣 Log — Nuke`, `**Canal:** #${ch.name}\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
+      await newCh.send(v2Simple(C_BLUE, `🔄 Canal Resetado!`, `**Motivo:** ${motivo}\n**Por:** ${member.user.tag}`, `Architect ${VERSION}`));
+      await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `🔄 Log — Reset de Canal`, `**Canal:** #${ch.name}\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+  }
+
+
+  // ── /reaction_role ────────────────────────────────────────────────────────────
+  else if (commandName === 'reaction_role') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageRoles))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const msgId = interaction.options.getString('mensagem_id');
+    const cargo = interaction.options.getRole('cargo');
+    const emoji = interaction.options.getString('emoji');
+    const canal = interaction.options.getChannel('canal') || interaction.channel;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    try {
+      const msg = await canal.messages.fetch(msgId);
+      await msg.react(emoji);
+      await mongoDB.collection('reaction_roles').updateOne(
+        { guildId: guild.id, messageId: msgId, emoji },
+        { $set: { guildId: guild.id, messageId: msgId, channelId: canal.id, roleId: cargo.id, emoji, createdAt: new Date() } },
+        { upsert: true }
+      );
+      await interaction.editReply(v2Simple(C_GREEN, E.sucesso + ' Reaction Role Configurado!',
+        '**Mensagem:** ' + msgId + '\n**Cargo:** <@&' + cargo.id + '>\n**Emoji:** ' + emoji + '\n\nMembros que reagirem com ' + emoji + ' receberao o cargo automaticamente.',
+        'Architect ' + VERSION
+      ));
+    } catch (e) {
+      await interaction.editReply({ ...errorEmbed('Nao encontrei a mensagem. Verifique o ID e canal: ' + e.message) });
+    }
+  }
+
+  // ── /button_role ──────────────────────────────────────────────────────────────
+  else if (commandName === 'button_role') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageRoles))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const cargo     = interaction.options.getRole('cargo');
+    const titulo    = interaction.options.getString('titulo')    || 'Obter cargo: ' + cargo.name;
+    const descricao = interaction.options.getString('descricao') || 'Clique no botao abaixo para receber ou remover o cargo <@&' + cargo.id + '>.';
+    const canal     = interaction.options.getChannel('canal')    || interaction.channel;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const btn  = new ButtonBuilder()
+      .setCustomId('button_role_toggle_' + cargo.id)
+      .setLabel('Obter / Remover: ' + cargo.name)
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji('🎭');
+    const row     = new ActionRowBuilder().addComponents(btn);
+    const panelV2 = v2Simple(C_ORANGE, titulo, descricao, 'Architect ' + VERSION + ' • Button Role');
+    const msg = await canal.send({ flags: panelV2.flags, components: [...panelV2.components, row] });
+    await mongoDB.collection('button_roles').updateOne(
+      { guildId: guild.id, messageId: msg.id },
+      { $set: { guildId: guild.id, messageId: msg.id, channelId: canal.id, roleId: cargo.id, createdAt: new Date() } },
+      { upsert: true }
+    );
+    await interaction.editReply(v2Simple(C_GREEN, E.sucesso + ' Button Role Criado!',
+      '**Canal:** <#' + canal.id + '>\n**Cargo:** <@&' + cargo.id + '>\n\nO painel foi enviado com sucesso!',
+      'Architect ' + VERSION
+    ));
   }
 
   } catch (err) {
@@ -3736,6 +3849,72 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: 'Voce ja esta participando!', flags: MessageFlags.Ephemeral });
     await mongoDB.collection('giveaways').updateOne({ _id: doc._id }, { $push: { participants: interaction.user.id } });
     await interaction.reply({ content: 'Voce entrou no sorteio! Total: **' + (doc.participants.length + 1) + '**', flags: MessageFlags.Ephemeral });
+  } catch (_) {}
+});
+
+
+// ── Button Role toggle ────────────────────────────────────────────────────────
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith('button_role_toggle_')) return;
+  try {
+    const roleId = interaction.customId.replace('button_role_toggle_', '');
+    const m      = interaction.member;
+    const role   = interaction.guild.roles.cache.get(roleId);
+    if (!role) return interaction.reply({ content: 'Cargo nao encontrado.', flags: MessageFlags.Ephemeral });
+    if (m.roles.cache.has(roleId)) {
+      await m.roles.remove(role);
+      await interaction.reply({ content: 'Cargo **' + role.name + '** removido!', flags: MessageFlags.Ephemeral });
+    } else {
+      await m.roles.add(role);
+      await interaction.reply({ content: 'Cargo **' + role.name + '** adicionado!', flags: MessageFlags.Ephemeral });
+    }
+  } catch (e) {
+    await interaction.reply({ content: 'Erro: ' + e.message, flags: MessageFlags.Ephemeral }).catch(() => {});
+  }
+});
+
+// ── Reaction Role — adicionar cargo ───────────────────────────────────────────
+client.on('messageReactionAdd', async (reaction, user) => {
+  if (user.bot) return;
+  try {
+    if (reaction.partial) await reaction.fetch();
+    if (reaction.message.partial) await reaction.message.fetch();
+    const emoji = reaction.emoji.id
+      ? '<:' + reaction.emoji.name + ':' + reaction.emoji.id + '>'
+      : reaction.emoji.name;
+    const doc = await mongoDB.collection('reaction_roles').findOne({
+      guildId:   reaction.message.guild.id,
+      messageId: reaction.message.id,
+      emoji,
+    });
+    if (!doc) return;
+    const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
+    if (!member) return;
+    const role = reaction.message.guild.roles.cache.get(doc.roleId);
+    if (role) await member.roles.add(role).catch(() => {});
+  } catch (_) {}
+});
+
+// ── Reaction Role — remover cargo ────────────────────────────────────────────
+client.on('messageReactionRemove', async (reaction, user) => {
+  if (user.bot) return;
+  try {
+    if (reaction.partial) await reaction.fetch();
+    if (reaction.message.partial) await reaction.message.fetch();
+    const emoji = reaction.emoji.id
+      ? '<:' + reaction.emoji.name + ':' + reaction.emoji.id + '>'
+      : reaction.emoji.name;
+    const doc = await mongoDB.collection('reaction_roles').findOne({
+      guildId:   reaction.message.guild.id,
+      messageId: reaction.message.id,
+      emoji,
+    });
+    if (!doc) return;
+    const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
+    if (!member) return;
+    const role = reaction.message.guild.roles.cache.get(doc.roleId);
+    if (role) await member.roles.remove(role).catch(() => {});
   } catch (_) {}
 });
 
