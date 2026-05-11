@@ -1838,9 +1838,15 @@ client.once('ready', async () => {
   let _statusIndex = 0;
   const rotatePresence = async () => {
     if (!client.user) return;
-    const totalGuilds = await getTotalGuilds(); // atualiza em tempo real a cada rotação
+    const totalGuilds = await getTotalGuilds(); // servidores que o bot está
+    // Soma todas as criações históricas da collection daily_usage
+    let totalCreations = 0;
+    try {
+      const allDocs = await mongoDB.collection('daily_usage').find({}).toArray();
+      totalCreations = allDocs.reduce((a, d) => a + (d.count || 0), 0);
+    } catch (_) {}
     const statuses = [
-      { name: `🏗️ ${totalGuilds} servidores criados`,        type: ActivityType.Custom },
+      { name: `🏗️ ${totalCreations} servidores criados`,        type: ActivityType.Custom },
       { name: `⚡ Architect ${VERSION} · Premium disponível`, type: ActivityType.Custom },
       { name: `🛡️ Protegendo ${totalGuilds} comunidades`,    type: ActivityType.Custom },
       { name: `🤖 Velroc Systems`,                     type: ActivityType.Custom },
