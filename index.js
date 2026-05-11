@@ -292,7 +292,7 @@ const E = {
   cargos:     '<:roles:1500524514470133853>',
   canais:     '<:canal:1500524470270562304>',
   loading:    '<:recarregando:1500524465249845368>',
-  config:     '<:configuracao:1500524495562215455>',
+  config:     '<:configuração:1500524495562215455>',
   servidores: '<:system:1500524458467918027>',
   erro:       '<:erro:1500524467648991252>',
   backup:     '<:download:1500524477078044672>',
@@ -1895,15 +1895,15 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('unlock').setDescription('Destranca um canal').addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(false)),
     new SlashCommandBuilder().setName('slowmode').setDescription('Modo lento').addIntegerOption(o => o.setName('segundos').setDescription('Segundos (0 = desativar)').setRequired(true).setMinValue(0).setMaxValue(21600)).addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(false)),
     new SlashCommandBuilder().setName('clear').setDescription('Apaga mensagens').addIntegerOption(o => o.setName('quantidade').setDescription('Quantidade (máx: 100)').setRequired(true).setMinValue(1).setMaxValue(100)),
-    new SlashCommandBuilder().setName('embed').setDescription('Cria embed personalizado').addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true)).addStringOption(o => o.setName('descricao').setDescription('Descrição').setRequired(true)).addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(false)).addStringOption(o => o.setName('cor').setDescription('Cor hex').setRequired(false)).addStringOption(o => o.setName('imagem').setDescription('URL da imagem').setRequired(false)).addStringOption(o => o.setName('rodape').setDescription('Rodapé').setRequired(false)),
+    new SlashCommandBuilder().setName('embed').setDescription('Cria embed personalizado').addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true)).addStringOption(o => o.setName('descrição').setDescription('Descrição').setRequired(true)).addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(false)).addStringOption(o => o.setName('cor').setDescription('Cor hex').setRequired(false)).addStringOption(o => o.setName('imagem').setDescription('URL da imagem').setRequired(false)).addStringOption(o => o.setName('rodape').setDescription('Rodapé').setRequired(false)),
     new SlashCommandBuilder().setName('anuncio').setDescription('Envia anúncio').addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true)).addStringOption(o => o.setName('mensagem').setDescription('Mensagem').setRequired(true)).addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)).addBooleanOption(o => o.setName('marcar_everyone').setDescription('Marcar @everyone?').setRequired(false)),
     new SlashCommandBuilder().setName('idioma').setDescription('Altera o idioma do bot no servidor').addStringOption(o => o.setName('lang').setDescription('Idioma').setRequired(true).addChoices({ name: '🇧🇷 Português', value: 'pt' }, { name: '🇺🇸 English', value: 'en' }, { name: '🇪🇸 Español', value: 'es' }, { name: '🇫🇷 Français', value: 'fr' }, { name: '🇩🇪 Deutsch', value: 'de' })),
     new SlashCommandBuilder().setName('doar').setDescription('Apoie o desenvolvimento do Architect'),
     new SlashCommandBuilder().setName('dm').setDescription('Enviar mensagem oficial').addStringOption(o => o.setName('mensagem').setDescription('Mensagem').setRequired(true)),
-    new SlashCommandBuilder().setName('premium').setDescription('Gerenciar Premium do Architect').addUserOption(o => o.setName('usuario').setDescription('Usuário').setRequired(true)).addStringOption(o => o.setName('plano').setDescription('Plano').setRequired(true).addChoices({ name: '⚡ Semanal (7 dias)', value: 'semanal' }, { name: '💎 Mensal (30 dias)', value: 'mensal' }, { name: '👑 Anual (365 dias)', value: 'anual' }, { name: '❌ Remover', value: 'remover' })),
+    new SlashCommandBuilder().setName('premium').setDescription('Gerenciar Premium do Architect').addUserOption(o => o.setName('usuário').setDescription('Usuário').setRequired(true)).addStringOption(o => o.setName('plano').setDescription('Plano').setRequired(true).addChoices({ name: '⚡ Semanal (7 dias)', value: 'semanal' }, { name: '💎 Mensal (30 dias)', value: 'mensal' }, { name: '👑 Anual (365 dias)', value: 'anual' }, { name: '❌ Remover', value: 'remover' })),
     new SlashCommandBuilder().setName('info').setDescription('Informações do Architect'),
     new SlashCommandBuilder().setName('help').setDescription('Lista de comandos'),
-    new SlashCommandBuilder().setName('usuarios').setDescription('Estatísticas de uso do Architect hoje').addStringOption(o => o.setName('data').setDescription('Data no formato YYYY-MM-DD (padrão: hoje)').setRequired(false)),
+    new SlashCommandBuilder().setName('usuários').setDescription('Estatísticas de uso do Architect hoje').addStringOption(o => o.setName('data').setDescription('Data no formato YYYY-MM-DD (padrão: hoje)').setRequired(false)),
     new SlashCommandBuilder().setName('tickets').setDescription('Mostra o ranking de atendimentos da staff neste servidor'),
 
     // ── Novos comandos ────────────────────────────────────────────────────────
@@ -1926,8 +1926,9 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('ia_config').setDescription('(Premium) Personaliza o prompt da IA para você')
       .addStringOption(o => o.setName('prompt').setDescription('Descreva como a IA deve se comportar / quantidade de cargos etc').setRequired(true)),
 
-    new SlashCommandBuilder().setName('set_parceria').setDescription('Define o cargo de parceria do servidor')
-      .addRoleOption(o => o.setName('cargo').setDescription('Cargo que ativa a mensagem de parceria').setRequired(true))
+    new SlashCommandBuilder().setName('set_parceria').setDescription('Define o canal e cargo de parceria do servidor')
+      .addChannelOption(o => o.setName('canal').setDescription('Canal onde as parcerias serão enviadas').setRequired(true))
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo necessário para usar /parceria').setRequired(false))
       .addStringOption(o => o.setName('mensagem').setDescription('Mensagem personalizada (opcional)').setRequired(false)),
 
     new SlashCommandBuilder().setName('ia_detect').setDescription('Ativa a detecção inteligente de conteúdo suspeito')
@@ -1945,7 +1946,7 @@ client.once('ready', async () => {
 
     // ── Parceria manual ───────────────────────────────────────────────────────
     new SlashCommandBuilder().setName('parceria').setDescription('Registra uma nova parceria no servidor')
-      .addStringOption(o => o.setName('descricao').setDescription('Descrição da parceria / servidor parceiro').setRequired(true))
+      .addStringOption(o => o.setName('descrição').setDescription('Descrição da parceria / servidor parceiro').setRequired(true))
       .addStringOption(o => o.setName('invite').setDescription('Link de convite do servidor parceiro').setRequired(false)),
 
     // ── set_parceria atualizado ────────────────────────────────────────────────
@@ -1965,10 +1966,10 @@ client.once('ready', async () => {
 
     // ── Informações ───────────────────────────────────────────────────────────
     new SlashCommandBuilder().setName('userinfo').setDescription('Informações detalhadas de um usuário')
-      .addUserOption(o => o.setName('usuario').setDescription('Usuário (padrão: você)').setRequired(false)),
+      .addUserOption(o => o.setName('usuário').setDescription('Usuário (padrão: você)').setRequired(false)),
     new SlashCommandBuilder().setName('serverinfo').setDescription('Informações detalhadas do servidor'),
     new SlashCommandBuilder().setName('avatar').setDescription('Exibe o avatar de um usuário')
-      .addUserOption(o => o.setName('usuario').setDescription('Usuário (padrão: você)').setRequired(false)),
+      .addUserOption(o => o.setName('usuário').setDescription('Usuário (padrão: você)').setRequired(false)),
     new SlashCommandBuilder().setName('roleinfo').setDescription('Informações de um cargo')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)),
 
@@ -1995,19 +1996,19 @@ client.once('ready', async () => {
       .addStringOption(o => o.setName('mensagem_id').setDescription('ID da mensagem').setRequired(true))
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
       .addStringOption(o => o.setName('emoji').setDescription('Emoji da reacao').setRequired(true))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal da mensagem (padrao: atual)').setRequired(false)),
+      .addChannelOption(o => o.setName('canal').setDescription('Canal da mensagem (padrão: atual)').setRequired(false)),
 
     new SlashCommandBuilder().setName('button_role').setDescription('Cria painel com botao para dar/remover cargo')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
       .addStringOption(o => o.setName('titulo').setDescription('Titulo do painel').setRequired(false))
-      .addStringOption(o => o.setName('descricao').setDescription('Descricao do painel').setRequired(false))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal para enviar (padrao: atual)').setRequired(false)),
+      .addStringOption(o => o.setName('descrição').setDescription('Descrição do painel').setRequired(false))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal para enviar (padrão: atual)').setRequired(false)),
 
     // ── Ticket Setup ──────────────────────────────────────────────────────────
     new SlashCommandBuilder().setName('ticket_criar').setDescription('Configura o sistema de tickets do servidor')
       .addChannelOption(o => o.setName('canal').setDescription('Canal onde o painel de tickets será enviado').setRequired(true))
       .addStringOption(o => o.setName('titulo').setDescription('Título do painel').setRequired(false))
-      .addStringOption(o => o.setName('descricao').setDescription('Descrição do painel').setRequired(false))
+      .addStringOption(o => o.setName('descrição').setDescription('Descrição do painel').setRequired(false))
       .addStringOption(o => o.setName('categorias').setDescription('Categorias separadas por vírgula (ex: Suporte,Dúvidas,Parceria)').setRequired(false))
       .addRoleOption(o => o.setName('cargo_staff').setDescription('Cargo que pode ver e gerenciar tickets').setRequired(false)),
 
@@ -2627,16 +2628,16 @@ client.on('interactionCreate', async interaction => {
     const tipo = interaction.options.getString('tipo');
     const alvo = interaction.options.getString('alvo') || '';
     const tudo = interaction.options.getBoolean('tudo') || false;
-    let descricao = '', acao = '';
+    let descrição = '', acao = '';
 
     if (tipo === 'cargos') {
-      if (tudo || alvo.toLowerCase() === 'everyone') { descricao = '<:deletar:1500524511081140384> Todos os cargos serão deletados.'; acao = 'delete_roles_all'; }
-      else { descricao = `<:deletar:1500524511081140384> Cargos: ${alvo}`; acao = 'delete_roles_specific'; }
+      if (tudo || alvo.toLowerCase() === 'everyone') { descrição = '<:deletar:1500524511081140384> Todos os cargos serão deletados.'; acao = 'delete_roles_all'; }
+      else { descrição = `<:deletar:1500524511081140384> Cargos: ${alvo}`; acao = 'delete_roles_specific'; }
     } else if (tipo === 'canais') {
-      if (tudo || alvo.toLowerCase() === 'everyone') { descricao = '<:deletar:1500524511081140384> Todos os canais serão deletados.'; acao = 'delete_channels_all'; }
-      else { descricao = `<:deletar:1500524511081140384> Canais: ${alvo}`; acao = 'delete_channels_specific'; }
+      if (tudo || alvo.toLowerCase() === 'everyone') { descrição = '<:deletar:1500524511081140384> Todos os canais serão deletados.'; acao = 'delete_channels_all'; }
+      else { descrição = `<:deletar:1500524511081140384> Canais: ${alvo}`; acao = 'delete_channels_specific'; }
     } else {
-      descricao = '<:deletar:1500524511081140384> TUDO será deletado.'; acao = 'delete_all';
+      descrição = '<:deletar:1500524511081140384> TUDO será deletado.'; acao = 'delete_all';
     }
 
     const confirmId = `${interaction.id}`;
@@ -2655,7 +2656,7 @@ client.on('interactionCreate', async interaction => {
         .setEmoji({ id: '1500524485231509785', name: 'negar' })
         .setStyle(ButtonStyle.Secondary),
     );
-    await interaction.reply(v2WithRow(v2Simple(C_RED, '<:atencao:1500524473827459263> Confirmar Deleção', `> <:atencao:1500524473827459263> **Esta ação é irreversível!**\n\n${descricao}`, `Architect ${VERSION}`), row));
+    await interaction.reply(v2WithRow(v2Simple(C_RED, '<:atencao:1500524473827459263> Confirmar Deleção', `> <:atencao:1500524473827459263> **Esta ação é irreversível!**\n\n${descrição}`, `Architect ${VERSION}`), row));
   }
 
   // ── /cargo_criar ─────────────────────────────────────────────────────────────
@@ -2814,14 +2815,14 @@ client.on('interactionCreate', async interaction => {
   // ── /embed ───────────────────────────────────────────────────────────────────
   else if (commandName === 'embed') {
     const titulo    = interaction.options.getString('titulo');
-    const descricao = interaction.options.getString('descricao');
+    const descrição = interaction.options.getString('descrição');
     const cor       = interaction.options.getString('cor') || '#9b59b6';
     const canal     = interaction.options.getChannel('canal') || interaction.channel;
     const imagem    = interaction.options.getString('imagem') || null;
     const rodape    = interaction.options.getString('rodape') || null;
     if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     try {
-      const customV2 = v2Simple(hex(cor.replace('#','').length === 6 ? cor : '#9b59b6'), titulo, descricao + (imagem ? `\n${imagem}` : ''), rodape || null);
+      const customV2 = v2Simple(hex(cor.replace('#','').length === 6 ? cor : '#9b59b6'), titulo, descrição + (imagem ? `\n${imagem}` : ''), rodape || null);
       await canal.send(customV2);
       await interaction.reply({ content: `${E.sucesso} Embed enviado em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
@@ -2872,7 +2873,7 @@ client.on('interactionCreate', async interaction => {
       console.error('[/chat]', e.message);
       await interaction.editReply({
         ...v2Simple(C_RED, E.erro + ' Erro no Chat',
-          'Nao consegui processar sua pergunta: ' + e.message,
+          'Não consegui processar sua pergunta: ' + e.message,
           'Architect ' + VERSION),
       }).catch(() => {});
     }
@@ -2885,10 +2886,10 @@ client.on('interactionCreate', async interaction => {
     try {
       const respostaTexto = await mistralChat(pergunta);
 
-      // Remove tudo que o TTS nao deve ler: markdown, emojis, mencoes, etc.
+      // Remove tudo que o TTS não deve ler: markdown, emojis, mencoes, etc.
       const limparParaTTS = (texto) => texto
         .replace(/<a?:[a-zA-Z0-9_]+:[0-9]+>/g, '')   // emojis customizados <:nome:id>
-        .replace(/<@!?[0-9]+>/g, '')                   // mencoes de usuario
+        .replace(/<@!?[0-9]+>/g, '')                   // mencoes de usuário
         .replace(/<@&[0-9]+>/g, '')                    // mencoes de cargo
         .replace(/<#[0-9]+>/g, '')                     // mencoes de canal
         .replace(/\*\*(.+?)\*\*/g, '$1')            // **negrito**
@@ -2918,7 +2919,7 @@ client.on('interactionCreate', async interaction => {
         console.error('[/google_voice]', audioErr.message);
         await interaction.editReply({
           ...v2Simple(C_RED, E.erro + ' Erro no Audio',
-            'Nao consegui gerar o audio: ' + audioErr.message,
+            'Não consegui gerar o audio: ' + audioErr.message,
             'Architect ' + VERSION),
         }).catch(() => {});
       } finally {
@@ -2928,7 +2929,7 @@ client.on('interactionCreate', async interaction => {
       console.error('[/google_voice]', e.message);
       await interaction.editReply({
         ...v2Simple(C_RED, E.erro + ' Erro',
-          'Nao consegui processar sua pergunta: ' + e.message,
+          'Não consegui processar sua pergunta: ' + e.message,
           'Architect ' + VERSION),
       }).catch(() => {});
     }
@@ -2993,7 +2994,7 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'premium') {
     if (!PREMIUM_OWNERS.includes(interaction.user.id))
       return interaction.reply({ content: `${E.erro} Sem permissão.`, flags: MessageFlags.Ephemeral });
-    const target = interaction.options.getUser('usuario');
+    const target = interaction.options.getUser('usuário');
     const plano  = interaction.options.getString('plano');
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -3101,16 +3102,18 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
   else if (commandName === 'set_parceria') {
     if (!member.permissions.has(PermissionFlagsBits.Administrator))
       return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const canal          = interaction.options.getChannel('canal');
     const cargoPermitido = interaction.options.getRole('cargo');
-    const canal          = interaction.channel;
     const mensagem       = interaction.options.getString('mensagem') || null;
-    if (!cargoPermitido)
-      return interaction.reply({ content: `${E.erro} Cargo inválido!`, flags: MessageFlags.Ephemeral });
+    if (!canal)
+      return interaction.reply({ content: `${E.erro} Canal inválido!`, flags: MessageFlags.Ephemeral });
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     await mongoDB.collection('settings').updateOne(
       { guildId: guild.id },
       { $set: {
-        'parceria.roleId':    cargoPermitido.id,
+        'parceria.channelId': canal.id,
+        'parceria.roleId':    cargoPermitido?.id || null,
+        partnershipChannelId: canal.id,
         'parceria.canalId':   canal.id,
         'parceria.mensagem':  mensagem,
       }},
@@ -3173,8 +3176,8 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
     ));
   }
 
-  // ── /usuarios ────────────────────────────────────────────────────────────────
-  else if (commandName === 'usuarios') {
+  // ── /usuários ────────────────────────────────────────────────────────────────
+  else if (commandName === 'usuários') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
       const dataParam = interaction.options.getString('data');
@@ -3215,7 +3218,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
         `Architect ${VERSION} • Dados de ${dateFormatted}`
       ));
     } catch (e) {
-      console.error('[/usuarios]', e.message);
+      console.error('[/usuários]', e.message);
       await interaction.editReply({ content: `${E.erro} Erro ao buscar estatísticas: ${e.message}` });
     }
   }
@@ -3261,7 +3264,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
 ` +
       `**🔧 Geral**
 ` +
-      `\`/status\` \`/info\` \`/idioma\` \`/usuarios\` \`/doar\` \`/tickets\` \`/help\`
+      `\`/status\` \`/info\` \`/idioma\` \`/usuários\` \`/doar\` \`/tickets\` \`/help\`
 
 ` +
       `**Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
@@ -3307,7 +3310,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const canal      = interaction.options.getChannel('canal');
     const titulo     = interaction.options.getString('titulo')     || '🎫 Suporte — Abrir Ticket';
-    const descricao  = interaction.options.getString('descricao')  || 'Clique abaixo para abrir um ticket e nossa equipe irá te atender em breve.';
+    const descrição  = interaction.options.getString('descrição')  || 'Clique abaixo para abrir um ticket e nossa equipe irá te atender em breve.';
     const catsRaw    = interaction.options.getString('categorias') || 'Suporte';
     const cargoStaff = interaction.options.getRole('cargo_staff');
     const cats       = catsRaw.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5);
@@ -3321,14 +3324,14 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
           ticketCategories: cats.map(name => ({ name, emoji: '🎫' })),
           ticketStaffRole:  cargoStaff?.id || null,
           ticketTitle:      titulo,
-          ticketDesc:       descricao,
+          ticketDesc:       descrição,
           updatedAt:        new Date(),
       }},
       { upsert: true }
     );
 
     // Monta painel V2
-    const panelV2 = v2Simple(C_ORANGE, titulo, descricao, `Architect ${VERSION} • Sistema de Tickets`);
+    const panelV2 = v2Simple(C_ORANGE, titulo, descrição, `Architect ${VERSION} • Sistema de Tickets`);
 
     let components = [];
     if (cats.length > 1) {
@@ -3600,11 +3603,11 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
         { upsert: true }
       );
       await interaction.editReply(v2Simple(C_GREEN, E.sucesso + ' Reaction Role Configurado!',
-        '**Mensagem:** ' + msgId + '\n**Cargo:** <@&' + cargo.id + '>\n**Emoji:** ' + emoji + '\n\nMembros que reagirem com ' + emoji + ' receberao o cargo automaticamente.',
+        '**Mensagem:** ' + msgId + '\n**Cargo:** <@&' + cargo.id + '>\n**Emoji:** ' + emoji + '\n\nMembros que reagirem com ' + emoji + ' receberão o cargo automaticamente.',
         'Architect ' + VERSION
       ));
     } catch (e) {
-      await interaction.editReply({ ...errorEmbed('Nao encontrei a mensagem. Verifique o ID e canal: ' + e.message) });
+      await interaction.editReply({ ...errorEmbed('Não encontrei a mensagem. Verifique o ID e canal: ' + e.message) });
     }
   }
 
@@ -3614,7 +3617,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     const cargo     = interaction.options.getRole('cargo');
     const titulo    = interaction.options.getString('titulo')    || 'Obter cargo: ' + cargo.name;
-    const descricao = interaction.options.getString('descricao') || 'Clique no botao abaixo para receber ou remover o cargo <@&' + cargo.id + '>.';
+    const descrição = interaction.options.getString('descrição') || 'Clique no botao abaixo para receber ou remover o cargo <@&' + cargo.id + '>.';
     const canal     = interaction.options.getChannel('canal')    || interaction.channel;
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const btn  = new ButtonBuilder()
@@ -3623,7 +3626,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       .setStyle(ButtonStyle.Primary)
       .setEmoji('🎭');
     const row     = new ActionRowBuilder().addComponents(btn);
-    const panelV2 = v2Simple(C_ORANGE, titulo, descricao, 'Architect ' + VERSION + ' • Button Role');
+    const panelV2 = v2Simple(C_ORANGE, titulo, descrição, 'Architect ' + VERSION + ' • Button Role');
     const msg = await canal.send({ flags: panelV2.flags, components: [...panelV2.components, row] });
     await mongoDB.collection('button_roles').updateOne(
       { guildId: guild.id, messageId: msg.id },
@@ -3649,12 +3652,12 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
     );
     if (cargo) {
       await interaction.reply(v2Simple(C_GREEN, E.sucesso + ' Autorole Configurado!',
-        '**Cargo:** <@&' + cargo.id + '>\nNovos membros receberao este cargo automaticamente.',
+        '**Cargo:** <@&' + cargo.id + '>\nNovos membros receberão este cargo automaticamente.',
         'Architect ' + VERSION
       ));
     } else {
       await interaction.reply(v2Simple(C_RED, E.sucesso + ' Autorole Desativado!',
-        'Novos membros nao receberao mais cargo automatico.',
+        'Novos membros não receberão mais cargo automatico.',
         'Architect ' + VERSION
       ));
     }
@@ -3675,34 +3678,40 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
         { upsert: true }
       );
       await interaction.editReply(v2Simple(C_GREEN, E.sucesso + ' Contador Configurado!',
-        '**Canal:** <#' + canal.id + '>\nO nome do canal sera atualizado automaticamente quando membros entrarem ou sairem.',
+        '**Canal:** <#' + canal.id + '>\nO nome do canal será atualizado automaticamente quando membros entrarem ou saírem.',
         'Architect ' + VERSION
       ));
     } catch (e) {
-      await interaction.editReply({ ...errorEmbed('Nao consegui editar o canal: ' + e.message) });
+      await interaction.editReply({ ...errorEmbed('Não consegui editar o canal: ' + e.message) });
     }
   }
 
   // ── /parceria ─────────────────────────────────────────────────────────────────
   else if (commandName === 'parceria') {
-    if (!member.permissions.has(PermissionFlagsBits.ManageGuild))
-      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
-    const descricao = interaction.options.getString('descricao');
-    const invite    = interaction.options.getString('invite') || 'Nao informado';
+    const descrição = interaction.options.getString('descrição');
+    const invite    = interaction.options.getString('invite') || 'Não informado';
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    // Busca canal de parceria configurado
     const cfg = await mongoDB.collection('guild_configs').findOne({ guildId: guild.id });
-    const canalId = cfg?.partnershipChannelId;
-    if (!canalId) return interaction.editReply({ ...errorEmbed('Canal de parceria nao configurado. Use /set_parceria primeiro.') });
+    const canalId = cfg?.partnershipChannelId || cfg?.parceria?.channelId;
+    if (!canalId)
+      return interaction.editReply({ ...errorEmbed('Canal de parceria não configurado. Use **/set_parceria** primeiro.') });
+    // Verifica cargo se configurado
+    const roleId = cfg?.parceria?.roleId;
+    if (roleId && !member.roles.cache.has(roleId) && !member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.editReply({ ...errorEmbed(`Você precisa do cargo <@&${roleId}> para usar este comando.`) });
     const canal = guild.channels.cache.get(canalId);
-    if (!canal) return interaction.editReply({ ...errorEmbed('Canal de parceria nao encontrado.') });
+    if (!canal)
+      return interaction.editReply({ ...errorEmbed('Canal de parceria não encontrado. Reconfigure com **/set_parceria**.') });
     await canal.send(v2Simple(C_ORANGE, '🤝 Nova Parceria!',
-      '**Servidor:** ' + guild.name + '\n**Descricao:** ' + descricao + '\n**Invite:** ' + invite + '\n**Enviado por:** ' + member.user.tag,
-      'Architect ' + VERSION
+      `**Servidor:** ${guild.name}
+**Descrição:** ${descrição}
+**Invite:** ${invite}
+**Enviado por:** ${member.user.tag}`,
+      `Architect ${VERSION}`
     ));
-    await interaction.editReply(v2Simple(C_GREEN, E.sucesso + ' Parceria Registrada!',
-      'A parceria foi enviada para <#' + canalId + '>.',
-      'Architect ' + VERSION
+    await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Parceria Registrada!`,
+      `A parceria foi enviada para <#${canalId}>.`,
+      `Architect ${VERSION}`
     ));
   }
 
@@ -3841,7 +3850,7 @@ client.on('messageCreate', async message => {
       const w = await message.channel.send('<@' + message.author.id + '> AutoMod: ' + motivo + ' — Mensagem removida.');
       setTimeout(() => w.delete().catch(() => {}), 5000);
       await sendLog(message.guild.id, 'ban', v2Simple(C_RED, 'AutoMod — ' + motivo,
-        '**Usuario:** ' + message.author.tag + '\n**Canal:** <#' + message.channel.id + '>\n**Conteudo:** ' + message.content.substring(0, 200),
+        '**Usuário:** ' + message.author.tag + '\n**Canal:** <#' + message.channel.id + '>\n**Conteúdo:** ' + message.content.substring(0, 200),
         'Architect ' + VERSION
       ));
     }
@@ -3854,11 +3863,11 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.customId.startsWith('giveaway_enter_')) return;
   try {
     const doc = await mongoDB.collection('giveaways').findOne({ guildId: interaction.guild.id, messageId: interaction.message.id, ended: false });
-    if (!doc) return interaction.reply({ content: 'Sorteio nao encontrado ou encerrado.', flags: MessageFlags.Ephemeral });
+    if (!doc) return interaction.reply({ content: 'Sorteio não encontrado ou encerrado.', flags: MessageFlags.Ephemeral });
     if (doc.participants.includes(interaction.user.id))
-      return interaction.reply({ content: 'Voce ja esta participando!', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Você ja esta participando!', flags: MessageFlags.Ephemeral });
     await mongoDB.collection('giveaways').updateOne({ _id: doc._id }, { $push: { participants: interaction.user.id } });
-    await interaction.reply({ content: 'Voce entrou no sorteio! Total: **' + (doc.participants.length + 1) + '**', flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: 'Você entrou no sorteio! Total: **' + (doc.participants.length + 1) + '**', flags: MessageFlags.Ephemeral });
   } catch (_) {}
 });
 
@@ -3871,7 +3880,7 @@ client.on('interactionCreate', async interaction => {
     const roleId = interaction.customId.replace('button_role_toggle_', '');
     const m      = interaction.member;
     const role   = interaction.guild.roles.cache.get(roleId);
-    if (!role) return interaction.reply({ content: 'Cargo nao encontrado.', flags: MessageFlags.Ephemeral });
+    if (!role) return interaction.reply({ content: 'Cargo não encontrado.', flags: MessageFlags.Ephemeral });
     if (m.roles.cache.has(roleId)) {
       await m.roles.remove(role);
       await interaction.reply({ content: 'Cargo **' + role.name + '** removido!', flags: MessageFlags.Ephemeral });
@@ -3935,18 +3944,24 @@ client.on('messageReactionRemove', async (reaction, user) => {
 
 // ── Autorole — cargo automático para novos membros ───────────────────────────
 client.on('guildMemberAdd', async member => {
+  // Nota: requer Server Members Intent aprovado para funcionar
+  // Por ora funciona apenas em servidores com menos de 100 membros (Discord libera automaticamente)
   try {
     const cfg = await mongoDB.collection('guild_configs').findOne({ guildId: member.guild.id });
-    if (!cfg?.autoroleId) return;
-    const role = member.guild.roles.cache.get(cfg.autoroleId);
-    if (role) await member.roles.add(role).catch(() => {});
+    if (!cfg) return;
+
+    // Autorole
+    if (cfg.autoroleId) {
+      const role = member.guild.roles.cache.get(cfg.autoroleId);
+      if (role) await member.roles.add(role).catch(e => console.warn('[AUTOROLE]', e.message));
+    }
 
     // Atualiza contador se configurado
     if (cfg.contadorChannelId) {
       const canal = member.guild.channels.cache.get(cfg.contadorChannelId);
       if (canal) await canal.setName('👥 Membros: ' + member.guild.memberCount).catch(() => {});
     }
-  } catch (_) {}
+  } catch (e) { console.warn('[guildMemberAdd]', e.message); }
 });
 
 // ── Contador — atualiza quando membro sai ─────────────────────────────────────
