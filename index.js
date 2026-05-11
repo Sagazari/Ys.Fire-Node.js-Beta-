@@ -1991,6 +1991,18 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('autorole').setDescription('Define cargo automático para novos membros')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo (vazio para desativar)').setRequired(false)),
 
+    new SlashCommandBuilder().setName('reaction_role').setDescription('Configura cargo por reacao em uma mensagem')
+      .addStringOption(o => o.setName('mensagem_id').setDescription('ID da mensagem').setRequired(true))
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
+      .addStringOption(o => o.setName('emoji').setDescription('Emoji da reacao').setRequired(true))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal da mensagem (padrao: atual)').setRequired(false)),
+
+    new SlashCommandBuilder().setName('button_role').setDescription('Cria painel com botao para dar/remover cargo')
+      .addRoleOption(o => o.setName('cargo').setDescription('Cargo a dar/remover').setRequired(true))
+      .addStringOption(o => o.setName('titulo').setDescription('Titulo do painel').setRequired(false))
+      .addStringOption(o => o.setName('descricao').setDescription('Descricao do painel').setRequired(false))
+      .addChannelOption(o => o.setName('canal').setDescription('Canal para enviar (padrao: atual)').setRequired(false)),
+
     // ── Ticket Setup ──────────────────────────────────────────────────────────
     new SlashCommandBuilder().setName('ticket_criar').setDescription('Configura o sistema de tickets do servidor')
       .addChannelOption(o => o.setName('canal').setDescription('Canal onde o painel de tickets será enviado').setRequired(true))
@@ -3624,6 +3636,76 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
     ));
   }
 
+
+  // ── /autorole ─────────────────────────────────────────────────────────────────
+  else if (commandName === 'autorole') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageRoles))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const cargo = interaction.options.getRole('cargo');
+    await mongoDB.collection('guild_configs').updateOne(
+      { guildId: guild.id },
+      { $set: { guildId: guild.id, autoroleId: cargo ? cargo.id : null } },
+      { upsert: true }
+    );
+    if (cargo) {
+      await interaction.reply(v2Simple(C_GREEN, E.sucesso + ' Autorole Configurado!',
+        '**Cargo:** <@&' + cargo.id + '>\nNovos membros receberao este cargo automaticamente.',
+        'Architect ' + VERSION
+      ));
+    } else {
+      await interaction.reply(v2Simple(C_RED, E.sucesso + ' Autorole Desativado!',
+        'Novos membros nao receberao mais cargo automatico.',
+        'Architect ' + VERSION
+      ));
+    }
+  }
+
+  // ── /contador ─────────────────────────────────────────────────────────────────
+  else if (commandName === 'contador') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageChannels))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const canal = interaction.options.getChannel('canal');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    try {
+      const total = guild.memberCount;
+      await canal.setName('👥 Membros: ' + total);
+      await mongoDB.collection('guild_configs').updateOne(
+        { guildId: guild.id },
+        { $set: { guildId: guild.id, contadorChannelId: canal.id } },
+        { upsert: true }
+      );
+      await interaction.editReply(v2Simple(C_GREEN, E.sucesso + ' Contador Configurado!',
+        '**Canal:** <#' + canal.id + '>\nO nome do canal sera atualizado automaticamente quando membros entrarem ou sairem.',
+        'Architect ' + VERSION
+      ));
+    } catch (e) {
+      await interaction.editReply({ ...errorEmbed('Nao consegui editar o canal: ' + e.message) });
+    }
+  }
+
+  // ── /parceria ─────────────────────────────────────────────────────────────────
+  else if (commandName === 'parceria') {
+    if (!member.permissions.has(PermissionFlagsBits.ManageGuild))
+      return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
+    const descricao = interaction.options.getString('descricao');
+    const invite    = interaction.options.getString('invite') || 'Nao informado';
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    // Busca canal de parceria configurado
+    const cfg = await mongoDB.collection('guild_configs').findOne({ guildId: guild.id });
+    const canalId = cfg?.partnershipChannelId;
+    if (!canalId) return interaction.editReply({ ...errorEmbed('Canal de parceria nao configurado. Use /set_parceria primeiro.') });
+    const canal = guild.channels.cache.get(canalId);
+    if (!canal) return interaction.editReply({ ...errorEmbed('Canal de parceria nao encontrado.') });
+    await canal.send(v2Simple(C_ORANGE, '🤝 Nova Parceria!',
+      '**Servidor:** ' + guild.name + '\n**Descricao:** ' + descricao + '\n**Invite:** ' + invite + '\n**Enviado por:** ' + member.user.tag,
+      'Architect ' + VERSION
+    ));
+    await interaction.editReply(v2Simple(C_GREEN, E.sucesso + ' Parceria Registrada!',
+      'A parceria foi enviada para <#' + canalId + '>.',
+      'Architect ' + VERSION
+    ));
+  }
+
   } catch (err) {
     // Ignora silenciosamente erros de "já confirmada" — não há nada a fazer
     const ALREADY_REPLIED = ['InteractionAlreadyReplied', 'already been acknowledged'];
@@ -3847,6 +3929,33 @@ client.on('messageReactionRemove', async (reaction, user) => {
     if (!member) return;
     const role = reaction.message.guild.roles.cache.get(doc.roleId);
     if (role) await member.roles.remove(role).catch(() => {});
+  } catch (_) {}
+});
+
+
+// ── Autorole — cargo automático para novos membros ───────────────────────────
+client.on('guildMemberAdd', async member => {
+  try {
+    const cfg = await mongoDB.collection('guild_configs').findOne({ guildId: member.guild.id });
+    if (!cfg?.autoroleId) return;
+    const role = member.guild.roles.cache.get(cfg.autoroleId);
+    if (role) await member.roles.add(role).catch(() => {});
+
+    // Atualiza contador se configurado
+    if (cfg.contadorChannelId) {
+      const canal = member.guild.channels.cache.get(cfg.contadorChannelId);
+      if (canal) await canal.setName('👥 Membros: ' + member.guild.memberCount).catch(() => {});
+    }
+  } catch (_) {}
+});
+
+// ── Contador — atualiza quando membro sai ─────────────────────────────────────
+client.on('guildMemberRemove', async member => {
+  try {
+    const cfg = await mongoDB.collection('guild_configs').findOne({ guildId: member.guild.id });
+    if (!cfg?.contadorChannelId) return;
+    const canal = member.guild.channels.cache.get(cfg.contadorChannelId);
+    if (canal) await canal.setName('👥 Membros: ' + member.guild.memberCount).catch(() => {});
   } catch (_) {}
 });
 
