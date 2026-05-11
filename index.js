@@ -3770,16 +3770,59 @@ async function mistralChat(pergunta) {
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
-  // Google Translate TTS — sem chave, sem pacote, HTTP puro
-  const fs  = require('fs');
-  const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=' + encodeURIComponent(texto.substring(0, 200));
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error('TTS HTTP ' + res.status);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(outputPath, buffer);
+  // Google Translate TTS — divide em chunks e concatena os MP3s
+  const fs = require('fs');
+
+  // Divide o texto em sentenças de até 200 chars sem cortar palavras
+  const dividirTexto = (txt, max = 190) => {
+    const chunks = [];
+    // Tenta dividir por pontuação natural primeiro
+    const sentencas = txt.replace(/([.!?;:])\s+/g, '$1|').split('|').filter(Boolean);
+    let atual = '';
+    for (const s of sentencas) {
+      if ((atual + ' ' + s).trim().length <= max) {
+        atual = (atual + ' ' + s).trim();
+      } else {
+        if (atual) chunks.push(atual);
+        // Se a sentença sozinha for maior que max, divide por palavras
+        if (s.length > max) {
+          const palavras = s.split(' ');
+          let sub = '';
+          for (const p of palavras) {
+            if ((sub + ' ' + p).trim().length <= max) {
+              sub = (sub + ' ' + p).trim();
+            } else {
+              if (sub) chunks.push(sub);
+              sub = p;
+            }
+          }
+          if (sub) atual = sub;
+        } else {
+          atual = s;
+        }
+      }
+    }
+    if (atual) chunks.push(atual);
+    return chunks.filter(Boolean);
+  };
+
+  const chunks  = dividirTexto(texto.substring(0, 2000)); // limite total de 2000 chars
+  const buffers = [];
+
+  for (const chunk of chunks) {
+    const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q=' + encodeURIComponent(chunk);
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error('TTS HTTP ' + res.status + ' no chunk: ' + chunk.substring(0, 30));
+    buffers.push(Buffer.from(await res.arrayBuffer()));
+    // Pequeno delay entre requests para não ser bloqueado
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Concatenação binária direta — funciona nativamente com MP3
+  fs.writeFileSync(outputPath, Buffer.concat(buffers));
 }
 
 client.on('channelDelete', async channel => {
