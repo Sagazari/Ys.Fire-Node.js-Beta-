@@ -2163,6 +2163,11 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply(replyPayload).catch(async () => {
           await interaction.user.send({ ...replyPayload }).catch(() => {});
         });
+
+        // DM de voto no top.gg após criação bem-sucedida
+        interaction.user.send(
+          `Se você gostou do Architect, vote aqui para ajudar: https://top.gg/bot/1353210073832357992?s=03ad7aa496c89\nObrigado! 🙏`
+        ).catch(() => {});
       } catch (e) {
         const errEmbed = errorEmbed(e.message);
         await interaction.editReply(errEmbed).catch(async () => {
