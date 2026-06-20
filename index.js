@@ -813,7 +813,7 @@ Return ONLY a raw JSON array (no markdown, no backticks):
     roles = await callMistralRaw(laneName, [
       { role: 'system', content: rolesSystem },
       { role: 'user',   content: rolesUser },
-    ]);
+    ], 3000);
     if (!Array.isArray(roles) || roles.length === 0)
       throw new Error('Resposta de cargos inválida — array vazio ou malformado.');
     const stripCustomEmojiRole = str => String(str).replace(/<a?:\w+:\d+>/g, '').replace(/\s{2,}/g, ' ').trim();
@@ -999,7 +999,7 @@ Return ONLY a raw JSON array:
     categories = await callMistralRaw(laneName, [
       { role: 'system', content: catsSystem },
       { role: 'user',   content: catsUser },
-    ], isPremium ? 16000 : 8000);
+    ], isPremium ? 6000 : 4000);
     if (!Array.isArray(categories) || categories.length === 0)
       throw new Error('Resposta de categorias inválida — array vazio ou malformado.');
     // Sanitize custom emojis from all names (last line of defense)
@@ -2120,7 +2120,7 @@ client.on('interactionCreate', async interaction => {
         const totalChannels = structure.categories?.reduce((a, c) => a + (c.channels?.length || 0), 0) || 0;
 
         // Resumo de tipos de canais
-        const allChannels = (structure.categories || []).flatMap(c => c.channels || []);
+        const allChannels = (structure.categories || []).flatMap(c => c.channels || [], 3000);
         const countByType = allChannels.reduce((acc, ch) => { acc[ch.type || 'text'] = (acc[ch.type || 'text'] || 0) + 1; return acc; }, {});
         const typeLines = Object.entries(countByType)
           .map(([t, n]) => {
@@ -3220,7 +3220,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       const premDocs  = await mongoDB.collection('premium').find({}).toArray();
       const activePremium = premDocs.filter(d => new Date(d.expiresAt) > new Date());
 
-      const usersNormal  = new Set(usageDoc?.users_normal  || []);
+      const usersNormal  = new Set(usageDoc?.users_normal  || [], 4000);
       const usersPremium = new Set(usageDoc?.users_premium || []);
       const totalUsers   = new Set([...usersNormal, ...usersPremium]);
 
