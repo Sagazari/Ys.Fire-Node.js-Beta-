@@ -512,36 +512,17 @@ async function runAutoBackups() {
 
 // ── Mistral API ────────────────────────────────────────────────────────────────
 // 1 req/s por chave — cada lane tem sua própria chave e respeita o limite
-// Lê o body da response via stream manual — evita "Premature close" no Node fetch
-// com responses grandes (bug conhecido no undici/Node 18-26 com payloads >50KB)
-async function _readBody(res) {
-  // Tenta res.text() primeiro; se falhar, lê via stream chunk a chunk
-  try {
-    return await res.text();
-  } catch (_) {}
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    res.body.on('data', chunk => chunks.push(chunk));
-    res.body.on('end',  () => resolve(Buffer.concat(chunks).toString('utf8')));
-    res.body.on('error', reject);
-  });
-}
-
 async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) {
   const key = MISTRAL_KEYS[laneName] || MISTRAL_KEYS.normal;
   if (!key) { console.error(`[MISTRAL/${laneName}] Chave não definida!`); throw new Error('Chave Mistral não configurada.'); }
-
-  // Respostas de cargos/categorias são grandes — mais retries
-  const maxRetries = maxTokens >= 6000 ? Math.max(retries, 6) : retries;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${maxRetries}...`);
+      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${retries}...`);
       const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
-        signal:  AbortSignal.timeout(120000),
+        body: JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
+        signal: AbortSignal.timeout(90000),
       });
       console.log(`[MISTRAL/${laneName}] HTTP ${res.status}`);
 
@@ -551,21 +532,12 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
-      if (!res.ok) {
-        const errText = await _readBody(res).catch(() => '(sem body)');
-        throw new Error(`Mistral HTTP ${res.status}: ${errText}`);
-      }
+      if (!res.ok) throw new Error(`Mistral HTTP ${res.status}: ${await res.text()}`);
 
-      // Lê body via stream manual para evitar Premature close em respostas grandes
-      const rawBody = await _readBody(res);
-      console.log(`[MISTRAL/${laneName}] Body lido: ${rawBody.length} chars`);
-
-      let data;
-      try { data = JSON.parse(rawBody); }
-      catch (e) { throw new Error(`JSON inválido no body (${rawBody.length} chars): ${rawBody.substring(0, 100)}`); }
-
+      const data = await res.json();
       const content = (data.choices?.[0]?.message?.content || '').trim();
-      if (!parseJson) return content;
+
+      if (!parseJson) return content; // texto puro
 
       // Remove markdown code fences
       let raw = content
@@ -591,11 +563,9 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
       }
 
     } catch (err) {
-      const isPremature = err?.message?.toLowerCase().includes('premature') || err?.message?.toLowerCase().includes('econnreset');
-      console.error(`[MISTRAL/${laneName}] Tentativa ${attempt}/${maxRetries} [${isPremature ? 'rede' : 'outro'}]:`, err.message);
-      if (attempt === maxRetries) throw err;
-      // Premature close → retry quase imediato; outros erros → backoff
-      await new Promise(r => setTimeout(r, isPremature ? 500 : attempt * 2000));
+      console.error(`[MISTRAL/${laneName}] Tentativa ${attempt}/${retries}:`, err.message);
+      if (attempt === retries) throw err;
+      await new Promise(r => setTimeout(r, attempt * 2000));
     }
   }
 }
@@ -4432,16 +4402,22 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// GET /health — UptimeRobot keepalive
+// GET /health — UptimeRobot keepalive (responde mesmo durante boot)
+const _startTime = Date.now();
 app.get('/health', (req, res) => {
-  res.json({
-    status:  'ok',
+  const ready = client.isReady?.() ?? false;
+  res.status(200).json({
+    status:  ready ? 'ok' : 'booting',
     version: VERSION,
     guilds:  client.guilds?.cache?.size || 0,
     uptime:  Math.floor(process.uptime()),
     latency: client.ws?.ping || 0,
+    boot_ms: Date.now() - _startTime,
   });
 });
+
+// GET /ping — rota ultra-simples para UptimeRobot (resposta imediata, sem dependência do client)
+app.get('/ping', (req, res) => res.status(200).send('pong'));
 
 // GET / — redirect to dashboard or login
 app.get('/', (req, res) => {
@@ -4461,11 +4437,13 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Express só sobe no Shard 0 (ou quando não há sharding) — evita conflito de porta
+// Express sobe IMEDIATAMENTE — não espera o client Discord estar pronto
+// Isso garante que o /health e /ping respondam durante o boot (crítico no Render free tier)
 const isMainShard = !client.shard || (client.shard.ids?.[0] === 0);
 if (isMainShard) {
-  app.listen(process.env.PORT || 3000, () => {
-    console.log(`<:aceitar:1500524505746116800> Dashboard server na porta ${process.env.PORT || 3000} (Shard 0)`);
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`<:aceitar:1500524505746116800> Dashboard server na porta ${PORT} (Shard 0)`);
   });
 } else {
   console.log(`[SHARD #${client.shard?.ids?.[0]}] Express não iniciado (apenas Shard 0 serve HTTP).`);
