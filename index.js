@@ -512,17 +512,40 @@ async function runAutoBackups() {
 
 // ── Mistral API ────────────────────────────────────────────────────────────────
 // 1 req/s por chave — cada lane tem sua própria chave e respeita o limite
+// HTTP Keep-Alive agent — mantém conexão TCP viva, evita "Premature close"
+const https = require('https');
+const _keepAliveAgent = new https.Agent({
+  keepAlive:        true,
+  keepAliveMsecs:   30000,
+  maxSockets:       20,
+  maxFreeSockets:   10,
+  timeout:          120000,
+});
+
+// Erros de rede que devem ser retentados imediatamente
+const NETWORK_ERRORS = ['premature close', 'econnreset', 'econnrefused', 'enotfound', 'etimedout', 'fetch failed', 'socket hang up', 'network error'];
+const isNetworkError = e => NETWORK_ERRORS.some(s => e.message?.toLowerCase().includes(s));
+
 async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) {
   const key = MISTRAL_KEYS[laneName] || MISTRAL_KEYS.normal;
   if (!key) { console.error(`[MISTRAL/${laneName}] Chave não definida!`); throw new Error('Chave Mistral não configurada.'); }
-  for (let attempt = 1; attempt <= retries; attempt++) {
+
+  // Mais retries para respostas grandes (mais suscetíveis a Premature close)
+  const effectiveRetries = maxTokens >= 8000 ? Math.max(retries, 6) : retries;
+
+  for (let attempt = 1; attempt <= effectiveRetries; attempt++) {
     try {
-      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${retries}...`);
+      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${effectiveRetries} (maxTokens=${maxTokens})...`);
       const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method:  'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
-        signal: AbortSignal.timeout(90000),
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type':  'application/json',
+          'Connection':    'keep-alive',
+        },
+        body:   JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
+        signal: AbortSignal.timeout(120000),
+        agent:  _keepAliveAgent,
       });
       console.log(`[MISTRAL/${laneName}] HTTP ${res.status}`);
 
@@ -537,13 +560,11 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
       const data = await res.json();
       const content = (data.choices?.[0]?.message?.content || '').trim();
 
-      if (!parseJson) return content; // texto puro
+      if (!parseJson) return content;
 
-      // Remove markdown code fences
       let raw = content
         .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/gi, '').trim();
 
-      // Detecta se é array ou objeto
       const isArr = raw.trimStart().startsWith('[');
       const open  = isArr ? '[' : '{';
       const close = isArr ? ']' : '}';
@@ -563,9 +584,12 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
       }
 
     } catch (err) {
-      console.error(`[MISTRAL/${laneName}] Tentativa ${attempt}/${retries}:`, err.message);
-      if (attempt === retries) throw err;
-      await new Promise(r => setTimeout(r, attempt * 2000));
+      const network = isNetworkError(err);
+      console.error(`[MISTRAL/${laneName}] Tentativa ${attempt}/${effectiveRetries} [${network ? 'rede' : 'outro'}]:`, err.message);
+      if (attempt === effectiveRetries) throw err;
+      // Erros de rede: retry imediato na 1ª vez, depois backoff curto
+      const wait = network ? (attempt === 1 ? 500 : attempt * 1000) : attempt * 2000;
+      await new Promise(r => setTimeout(r, wait));
     }
   }
 }
