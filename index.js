@@ -511,37 +511,18 @@ async function runAutoBackups() {
 }
 
 // ── Mistral API ────────────────────────────────────────────────────────────────
-// HTTP Keep-Alive agent — mantém conexão TCP viva, evita "Premature close"
-const { Agent: HttpsAgent } = require('https');
-const _keepAliveAgent = new HttpsAgent({
-  keepAlive:      true,
-  keepAliveMsecs: 30000,
-  maxSockets:     20,
-  maxFreeSockets: 10,
-  timeout:        120000,
-});
-
-// Erros de rede → retry imediato
-const _NET_ERRS = ['premature close', 'econnreset', 'econnrefused', 'enotfound', 'etimedout', 'fetch failed', 'socket hang up'];
-const _isNetErr = e => _NET_ERRS.some(s => e?.message?.toLowerCase().includes(s));
-
 // 1 req/s por chave — cada lane tem sua própria chave e respeita o limite
 async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) {
   const key = MISTRAL_KEYS[laneName] || MISTRAL_KEYS.normal;
   if (!key) { console.error(`[MISTRAL/${laneName}] Chave não definida!`); throw new Error('Chave Mistral não configurada.'); }
-
-  // Respostas grandes (cargos/canais) precisam de mais tentativas
-  const maxRetries = maxTokens >= 8000 ? Math.max(retries, 6) : retries;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${maxRetries} (maxTokens=${maxTokens})...`);
+      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${retries}...`);
       const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method:  'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json', 'Connection': 'keep-alive' },
-        body:    JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
-        signal:  AbortSignal.timeout(120000),
-        agent:   _keepAliveAgent,
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
+        signal: AbortSignal.timeout(90000),
       });
       console.log(`[MISTRAL/${laneName}] HTTP ${res.status}`);
 
@@ -582,11 +563,9 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
       }
 
     } catch (err) {
-      const net = _isNetErr(err);
-      console.error(`[MISTRAL/${laneName}] Tentativa ${attempt}/${maxRetries} [${net ? 'rede' : 'outro'}]:`, err.message);
-      if (attempt === maxRetries) throw err;
-      // Erros de rede: retry quase imediato; outros: backoff normal
-      await new Promise(r => setTimeout(r, net ? (attempt === 1 ? 300 : attempt * 800) : attempt * 2000));
+      console.error(`[MISTRAL/${laneName}] Tentativa ${attempt}/${retries}:`, err.message);
+      if (attempt === retries) throw err;
+      await new Promise(r => setTimeout(r, attempt * 2000));
     }
   }
 }
@@ -648,6 +627,14 @@ const client = new Client({
 
 // ── Anti-Nuke Tracker ──────────────────────────────────────────────────────────
 const nukeTracker = new Map();
+// Limpa nukeTracker de entradas antigas a cada 30min (evita leak de memória)
+setInterval(() => {
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  for (const [guildId, gMap] of nukeTracker) {
+    for (const [key, ts] of gMap) { if (ts < cutoff) gMap.delete(key); }
+    if (gMap.size === 0) nukeTracker.delete(guildId);
+  }
+}, 30 * 60 * 1000);
 function trackNukeAction(guildId, userId) {
   if (!nukeTracker.has(guildId)) nukeTracker.set(guildId, new Map());
   const gMap = nukeTracker.get(guildId);
@@ -1560,6 +1547,8 @@ const pendingRestore = new Map();
 const staffCallCooldown = new Map();
 const ticketClaimed     = new Map();
 const ticketStats       = new Map();
+// Limpa ticketStats a cada hora (dados em memória, persistência no mongo)
+setInterval(() => ticketStats.clear(), 60 * 60 * 1000);
 
 // ── Components V2 Helpers ───────────────────────────────────────────────────────
 // Retorna { flags, components } prontos para passar em reply/editReply
@@ -1767,9 +1756,10 @@ function buildProgressEmbed(title, info, steps) {
   };
 }
 
-function errorEmbed(msg) {
+function errorEmbed(msg, ephemeral = true) {
   return {
-    flags: MessageFlags.IsComponentsV2,
+    // Combina IsComponentsV2 + Ephemeral com bitwise OR
+    flags: MessageFlags.IsComponentsV2 | (ephemeral ? MessageFlags.Ephemeral : 0),
     components: [v2Container(C_RED, `## ${E.erro} Ocorreu um erro\n${msg.substring(0, 500)}\n\n-# Architect ${VERSION}`)],
   };
 }
@@ -1879,7 +1869,7 @@ client.once('ready', async () => {
 
   rotatePresence();
   if (!client._presenceInterval) {
-    client._presenceInterval = setInterval(rotatePresence, 10000); // troca status a cada 10s com contagem atualizada
+    client._presenceInterval = setInterval(rotatePresence, 60000); // troca status a cada 60s (era 10s — muito agressivo)
   }
 
   // Atualiza imediatamente quando o bot entra/sai de um servidor
@@ -2699,7 +2689,7 @@ client.on('interactionCreate', async interaction => {
     try {
       const role = await guild.roles.create({ name: nome, color: cor, permissions: adm ? [PermissionFlagsBits.Administrator] : [] });
       await interaction.reply(v2Simple(role.color, `${E.sucesso} Cargo Criado!`, `**${E.cargos} Nome:** ${role.name}   **🎨 Cor:** ${cor}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /canal_criar ─────────────────────────────────────────────────────────────
@@ -2713,7 +2703,7 @@ client.on('interactionCreate', async interaction => {
       if (topico) channelData.topic = topico;
       const ch = await guild.channels.create(channelData);
       await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Canal Criado!`, `**${E.canais} Nome:** ${ch.name}   **<:categoria:1500524490214473758> Tipo:** ${tipo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /status ──────────────────────────────────────────────────────────────────
@@ -2740,7 +2730,7 @@ client.on('interactionCreate', async interaction => {
       await target.ban({ reason: motivo, deleteMessageDays: dias });
       await interaction.reply(v2Simple(C_RED, `${E.banido} Membro Banido!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**<:deletar:1500524511081140384> Mensagens deletadas:** ${dias} dia(s)`, `Architect ${VERSION}`));
       await sendLog(guild.id, 'ban', v2Simple(C_RED, `🔨 Log — Ban`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Mensagens deletadas:** ${dias} dia(s)`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /kick ────────────────────────────────────────────────────────────────────
@@ -2754,7 +2744,7 @@ client.on('interactionCreate', async interaction => {
       await target.kick(motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.membros} Membro Expulso!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
       await sendLog(guild.id, 'ban', v2Simple(C_YELLOW, `👢 Log — Kick`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /mute ────────────────────────────────────────────────────────────────────
@@ -2768,7 +2758,7 @@ client.on('interactionCreate', async interaction => {
       await target.timeout(duracao * 60 * 1000, motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.mutado} Membro Mutado!`, `**${E.membros} Membro:** ${target.user.tag}   **<:time:1500524456840400999> Duração:** ${duracao} min   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
       await sendLog(guild.id, 'mute', v2Simple(C_YELLOW, `🔇 Log — Mute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Duração:** ${duracao} min\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /unmute ──────────────────────────────────────────────────────────────────
@@ -2780,7 +2770,7 @@ client.on('interactionCreate', async interaction => {
       await target.timeout(null);
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Membro Desmutado!`, `**${E.membros} Membro:** ${target.user.tag}`, `Architect ${VERSION}`));
       await sendLog(guild.id, 'mute', v2Simple(C_GREEN, `🔊 Log — Unmute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /warn ────────────────────────────────────────────────────────────────────
@@ -2796,7 +2786,7 @@ client.on('interactionCreate', async interaction => {
       const totalWarns = await mongoDB.collection('warns').countDocuments({ guildId: guild.id, userId: target.id });
       await interaction.reply(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Enviada!', `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**Total de warns:** ${totalWarns}`, `Architect ${VERSION}`));
       await sendLog(guild.id, 'warn', v2Simple(C_YELLOW, `⚠️ Log — Warn`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Total de warns:** ${totalWarns}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /lock ────────────────────────────────────────────────────────────────────
@@ -2808,7 +2798,7 @@ client.on('interactionCreate', async interaction => {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
       await interaction.reply(v2Simple(C_RED, `${E.lock} Canal Trancado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:lista:1500524503778988072> Motivo:** ${motivo}`, `Architect ${VERSION}`));
       await sendLog(guild.id, 'ban', v2Simple(C_RED, `🔒 Log — Canal Trancado`, `**Canal:** <#${canal.id}>\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /unlock ──────────────────────────────────────────────────────────────────
@@ -2818,7 +2808,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: null });
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Canal Destrancado!`, `**${E.canais} Canal:** <#${canal.id}>`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /slowmode ────────────────────────────────────────────────────────────────
@@ -2829,7 +2819,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await canal.setRateLimitPerUser(segundos);
       await interaction.reply(v2Simple(C_BLUE, `${E.config} Slowmode Configurado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:time:1500524456840400999> Intervalo:** ${segundos === 0 ? 'Desativado' : `${segundos}s`}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /clear ───────────────────────────────────────────────────────────────────
@@ -2857,7 +2847,7 @@ client.on('interactionCreate', async interaction => {
       const customV2 = v2Simple(hex(cor.replace('#','').length === 6 ? cor : '#9b59b6'), titulo, descrição + (imagem ? `\n${imagem}` : ''), rodape || null);
       await canal.send(customV2);
       await interaction.reply({ content: `${E.sucesso} Embed enviado em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /anuncio ─────────────────────────────────────────────────────────────────
@@ -2872,7 +2862,7 @@ client.on('interactionCreate', async interaction => {
       if (marcar) await canal.send({ content: '@everyone', allowedMentions: { parse: ['everyone'] } }).catch(() => {});
       await canal.send(anuncioV2);
       await interaction.reply({ content: `${E.sucesso} Anúncio enviado em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /idioma ───────────────────────────────────────────────────────────────────
@@ -2969,11 +2959,14 @@ client.on('interactionCreate', async interaction => {
 
   // ── /doar ────────────────────────────────────────────────────────────────────
   else if (commandName === 'doar') {
-    await interaction.reply({ ...v2Simple(C_ORANGE,
+    const doarPayload = v2Simple(C_ORANGE,
       lang.doarTitle,
       `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
       `Architect ${VERSION} • ${lang.doarThanks}`
-    ), flags: MessageFlags.Ephemeral });
+    );
+    // Combina flags com bitwise OR para não sobrescrever IsComponentsV2
+    doarPayload.flags = (doarPayload.flags || 0) | MessageFlags.Ephemeral;
+    await interaction.reply(doarPayload);
   }
 
   // ── /info ────────────────────────────────────────────────────────────────────
@@ -3425,7 +3418,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       await canal.send({ content: `<@&${cargo.id}> — ${mensagem}`, allowedMentions: { roles: [cargo.id] } });
       if (!eraMencionavel) await cargo.setMentionable(false);
       await interaction.reply({ content: `${E.sucesso} Menção enviada em <#${canal.id}>!`, flags: MessageFlags.Ephemeral });
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /automod ──────────────────────────────────────────────────────────────────
@@ -3583,7 +3576,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       await target.setNickname(apelido);
       await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Apelido Alterado!`,
         `**Membro:** ${target.user.tag}\n**Apelido:** ${apelido || 'Removido'}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /move ─────────────────────────────────────────────────────────────────────
@@ -3598,7 +3591,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       await target.voice.setChannel(canal);
       await interaction.reply(v2Simple(C_GREEN, `${E.sucesso} Membro Movido!`,
         `**Membro:** ${target.user.tag}\n**Para:** <#${canal.id}>`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
   // ── /reset ────────────────────────────────────────────────────────────────────
@@ -3613,7 +3606,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       await ch.delete();
       await newCh.send(v2Simple(C_BLUE, `🔄 Canal Resetado!`, `**Motivo:** ${motivo}\n**Por:** ${member.user.tag}`, `Architect ${VERSION}`));
       await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `🔄 Log — Reset de Canal`, `**Canal:** #${ch.name}\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, `Architect ${VERSION}`));
-    } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
+    } catch (e) { await interaction.reply(errorEmbed(e.message)); }
   }
 
 
@@ -3911,6 +3904,10 @@ client.on('messageCreate', async message => {
       if (!client._spamMap) client._spamMap = new Map();
       const key = 'spam_' + message.guild.id + '_' + message.author.id;
       const now = Date.now();
+      // Limpa entradas antigas do spamMap periodicamente
+      if (client._spamMap.size > 500) {
+        for (const [k, arr] of client._spamMap) { if (!arr.length || (now - arr[arr.length - 1]) > 10000) client._spamMap.delete(k); }
+      }
       const hist = (client._spamMap.get(key) || []).filter(t => now - t < 5000);
       hist.push(now);
       client._spamMap.set(key, hist);
@@ -4505,3 +4502,12 @@ async function startup() {
 }
 
 startup();
+
+// ── Monitor de memória — loga uso a cada 5min para diagnóstico ────────────────
+setInterval(() => {
+  const mem = process.memoryUsage();
+  const mb  = v => Math.round(v / 1024 / 1024);
+  console.log(`[MEM] RSS=${mb(mem.rss)}MB  Heap=${mb(mem.heapUsed)}/${mb(mem.heapTotal)}MB  Ext=${mb(mem.external)}MB`);
+  // Força GC se disponível (node --expose-gc)
+  if (global.gc) global.gc();
+}, 5 * 60 * 1000);
