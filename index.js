@@ -195,7 +195,7 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
 const VERSION        = 'v2.0.0';
-const MISTRAL_MODEL  = 'mistral-small-2503';
+const MISTRAL_MODEL  = 'open-mistral-nemo'; // Mais rápido que small-2503, resolve Premature close
 
 // ── Mistral Keys ───────────────────────────────────────────────────────────────
 // MISTRAL_KEY_A → fila normal | MISTRAL_KEY_B → fila Premium (exclusiva)
