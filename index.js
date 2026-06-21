@@ -512,14 +512,15 @@ async function runAutoBackups() {
 
 // ── Mistral API ────────────────────────────────────────────────────────────────
 // 1 req/s por chave — cada lane tem sua própria chave e respeita o limite
-// Lê o body via stream chunk a chunk — evita "Premature close" com respostas grandes
-// (bug do undici/Node fetch ao consumir payloads >50KB de uma vez)
+// Lê o body via stream — compatível com node-fetch e fetch nativo
 async function _readBody(res) {
-  const chunks = [];
-  for await (const chunk of res.body) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  }
-  return Buffer.concat(chunks).toString('utf8');
+  // node-fetch expõe res.body como um Node.js Readable stream
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    res.body.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    res.body.on('end',  () => resolve(Buffer.concat(chunks).toString('utf8')));
+    res.body.on('error', reject);
+  });
 }
 
 async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) {
