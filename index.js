@@ -644,6 +644,18 @@ const client = new Client({
     GatewayIntentBits.GuildModeration,
   ],
   partials: ['MESSAGE', 'CHANNEL', 'REACTION'],
+  sweepers: {
+    // Limpa membros do cache a cada 10min (mantém apenas bots e o próprio bot)
+    guildMembers: {
+      interval: 600,
+      filter: () => member => !member.user.bot,
+    },
+    // Limpa mensagens do cache a cada 5min
+    messages: {
+      interval: 300,
+      lifetime: 300,
+    },
+  },
 });
 
 // ── Anti-Nuke Tracker ──────────────────────────────────────────────────────────
@@ -1803,8 +1815,9 @@ function v2WithRow(v2Payload, row) {
 // FIX: interaction.editReply pode falhar se o canal foi deletado — envolvido em try/catch com fallback para DM
 function startCountdown(interaction, confirmId, prompt, structure, tipo = null) {
   let secondsLeft = 60;
+  // Atualiza a cada 10s em vez de 1s — reduz editReply de 60x para 6x por confirmação
   const interval  = setInterval(async () => {
-    secondsLeft--;
+    secondsLeft -= 10;
     if (secondsLeft <= 0 || !pendingCreate.has(confirmId)) {
       clearInterval(interval);
       if (pendingCreate.has(confirmId)) {
@@ -1819,7 +1832,7 @@ function startCountdown(interaction, confirmId, prompt, structure, tipo = null) 
     await interaction.editReply(
       v2WithRow(buildConfirmEmbed(prompt, structure, secondsLeft), buildConfirmRow(confirmId)),
     ).catch(() => {});
-  }, 1000);
+  }, 10000);
 }
 
 // ── Guild Create Welcome ───────────────────────────────────────────────────────
@@ -1879,7 +1892,7 @@ client.once('ready', async () => {
 
   rotatePresence();
   if (!client._presenceInterval) {
-    client._presenceInterval = setInterval(rotatePresence, 10000); // troca status a cada 10s com contagem atualizada
+    client._presenceInterval = setInterval(rotatePresence, 60000); // troca status a cada 60s
   }
 
   // Atualiza imediatamente quando o bot entra/sai de um servidor
