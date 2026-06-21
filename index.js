@@ -510,6 +510,104 @@ async function runAutoBackups() {
   } catch (e) { console.error('[AUTO-BACKUP]:', e.message); }
 }
 
+// ── sendBuildLog — feed de servidores criados ────────────────────────────────
+async function sendBuildLog(sourceGuild, userId, prompt, structure, totalChannels) {
+  try {
+    // Busca TODOS os guilds que configuraram set_build
+    const allSettings = await mongoDB.collection('settings').find({ buildChannelId: { $exists: true } }).toArray();
+    if (!allSettings.length) return;
+
+    let creator;
+    try { creator = await client.users.fetch(userId); } catch (_) {}
+    const creatorName = creator ? `${creator.username}` : `<@${userId}>`;
+    const creatorMention = `<@${userId}>`;
+
+    const now      = new Date();
+    const dateStr  = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr  = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    const roles      = structure.roles?.length || 0;
+    const categories = structure.categories?.length || 0;
+    const channels   = totalChannels || (structure.categories || []).reduce((a, c) => a + (c.channels?.length || 0), 0);
+
+    // Distribuição por tipo de canal
+    const allChs   = (structure.categories || []).flatMap(c => c.channels || []);
+    const byType   = allChs.reduce((acc, ch) => { acc[ch.type || 'text'] = (acc[ch.type || 'text'] || 0) + 1; return acc; }, {});
+    const typeIcons = { text: '💬', voice: '🔊', forum: '📋', announcement: '📢', stage: '🎙️' };
+    const typeStr  = Object.entries(byType).map(([t, n]) => `${typeIcons[t] || '📌'} **${n}** ${t}`).join('  ·  ');
+
+    // Top 5 categorias com contagem de canais
+    const catPreview = (structure.categories || []).slice(0, 5)
+      .map(c => `> 📁 **${c.name}** · ${c.channels?.length || 0} canais`)
+      .join('\n');
+    const moreCount = Math.max(0, categories - 5);
+
+    // Tenta gerar convite
+    let inviteStr = '';
+    try {
+      const publicCh = sourceGuild.channels.cache.find(c =>
+        c.type === 0 && // GUILD_TEXT
+        c.permissionsFor(sourceGuild.roles.everyone)?.has('ViewChannel')
+      );
+      if (publicCh) {
+        const inv = await publicCh.createInvite({ maxAge: 0, maxUses: 0, reason: 'Build log' });
+        inviteStr = `\n🔗 **Convite:** ${inv.url}`;
+      }
+    } catch (_) {}
+
+    const iconUrl = sourceGuild.iconURL({ extension: 'png', size: 256 });
+
+    const logContent = [
+      `## 🏗️ Novo servidor criado!`,
+      ``,
+      `👤 **Criado por:** ${creatorMention} (${creatorName})`,
+      `🏠 **Servidor:** ${sourceGuild.name}`,
+      `📅 **Data:** ${dateStr} às ${timeStr}`,
+      inviteStr,
+      ``,
+      `📊 **Estrutura**`,
+      `> 🎭 **${roles}** cargos  ╱  📁 **${categories}** categorias  ╱  💬 **${channels}** canais`,
+      ...(typeStr ? [`> ${typeStr}`] : []),
+      ``,
+      ...(catPreview ? [`📂 **Categorias criadas**`, catPreview, ...(moreCount > 0 ? [`> *+ ${moreCount} categoria(s)*`] : []), ``] : []),
+      `💬 **Prompt usado**`,
+      `> *${(prompt || '').substring(0, 200)}${(prompt || '').length > 200 ? '…' : ''}*`,
+      ``,
+      `-# Architect ${VERSION} · Velroc Systems`,
+    ].join('\n');
+
+    const containerComponents = [{ type: 10, content: logContent }];
+    if (iconUrl) {
+      containerComponents.push({
+        type: 11,
+        items: [{ media: { url: iconUrl } }],
+      });
+    }
+
+    const payload = {
+      flags: MessageFlags.IsComponentsV2,
+      components: [{
+        type: 17,
+        accent_color: hex('9b59b6'),
+        components: containerComponents,
+      }],
+    };
+
+    // Posta em todos os canais configurados
+    for (const settings of allSettings) {
+      try {
+        const targetGuild = client.guilds.cache.get(settings.guildId);
+        if (!targetGuild) continue;
+        const ch = targetGuild.channels.cache.get(settings.buildChannelId);
+        if (!ch) continue;
+        await ch.send(payload);
+      } catch (_) {}
+    }
+  } catch (e) {
+    console.warn('[sendBuildLog]', e.message);
+  }
+}
+
 // ── Mistral API ────────────────────────────────────────────────────────────────
 // 1 req/s por chave — cada lane tem sua própria chave e respeita o limite
 // Lê o body — fetch nativo do Node 18+ usa res.text() sem bugs de gzip
@@ -1972,6 +2070,9 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('ia_config').setDescription('(Premium) Personaliza o prompt da IA para você')
       .addStringOption(o => o.setName('prompt').setDescription('Descreva como a IA deve se comportar / quantidade de cargos etc').setRequired(true)),
 
+    new SlashCommandBuilder().setName('set_build').setDescription('Define o canal onde aparecerão os servidores criados pelo bot')
+      .addChannelOption(o => o.setName('canal').setDescription('Canal para o feed de criações').setRequired(true)),
+
     new SlashCommandBuilder().setName('set_parceria').setDescription('Define o canal e cargo de parceria do servidor')
       .addChannelOption(o => o.setName('canal').setDescription('Canal onde as parcerias serão enviadas').setRequired(true))
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo necessário para usar /parceria').setRequired(false))
@@ -2206,6 +2307,9 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply(replyPayload).catch(async () => {
           await interaction.user.send({ ...replyPayload }).catch(() => {});
         });
+
+        // Feed de build — posta em todos os canais configurados com /set_build
+        sendBuildLog(interaction.guild, interaction.user.id, prompt, structure, totalChannels).catch(() => {});
 
         // DM de voto no top.gg após criação bem-sucedida
         interaction.user.send(
@@ -3158,6 +3262,24 @@ client.on('interactionCreate', async interaction => {
 
 **📝 Prompt:**
 ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
+      `Architect ${VERSION}`
+    ));
+  }
+
+  // ── /set_build ────────────────────────────────────────────────────────────────
+  else if (commandName === 'set_build') {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator))
+      return interaction.reply({ ...errorEmbed('Apenas administradores podem usar este comando.'), flags: MessageFlags.Ephemeral });
+    const canal = interaction.options.getChannel('canal');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await mongoDB.collection('settings').updateOne(
+      { guildId: guild.id },
+      { $set: { buildChannelId: canal.id } },
+      { upsert: true }
+    );
+    await interaction.editReply(v2Simple(C_PURPLE,
+      '🏗️ Feed de Criações Configurado!',
+      `Todos os servidores criados com o Architect aparecerão em <#${canal.id}> em tempo real.\n\n> Use \`/criar_servidor\` em qualquer servidor para ver o feed em ação.`,
       `Architect ${VERSION}`
     ));
   }
