@@ -14,7 +14,7 @@ const {
 
 // ── Canvas (geração de imagem PNG nativa, sem sharp/librsvg) ─────────────────
 // Importa node-fetch para baixar o ícone do servidor
-const fetch = require('node-fetch');
+// fetch nativo do Node 18+ (removido node-fetch v2 que tem bug de gzip)
 
 let createCanvas, loadImage;
 try {
@@ -512,15 +512,9 @@ async function runAutoBackups() {
 
 // ── Mistral API ────────────────────────────────────────────────────────────────
 // 1 req/s por chave — cada lane tem sua própria chave e respeita o limite
-// Lê o body via stream — compatível com node-fetch
+// Lê o body — fetch nativo do Node 18+ usa res.text() sem bugs de gzip
 async function _readBody(res) {
-  return new Promise((resolve, reject) => {
-    let text = '';
-    res.body.setEncoding('utf8');
-    res.body.on('data',  chunk => { text += chunk; });
-    res.body.on('end',   () => resolve(text));
-    res.body.on('error', reject);
-  });
+  return res.text();
 }
 
 async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) {
@@ -534,9 +528,12 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
       console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${maxRetries}...`);
       const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method:  'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
-        signal:  AbortSignal.timeout(120000),
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type':  'application/json',
+        },
+        body:   JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
+        signal: AbortSignal.timeout(120000),
       });
       console.log(`[MISTRAL/${laneName}] HTTP ${res.status}`);
 
