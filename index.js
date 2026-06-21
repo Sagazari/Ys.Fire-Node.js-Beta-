@@ -512,13 +512,13 @@ async function runAutoBackups() {
 
 // ── Mistral API ────────────────────────────────────────────────────────────────
 // 1 req/s por chave — cada lane tem sua própria chave e respeita o limite
-// Lê o body via stream — compatível com node-fetch e fetch nativo
+// Lê o body via stream — compatível com node-fetch
 async function _readBody(res) {
-  // node-fetch expõe res.body como um Node.js Readable stream
   return new Promise((resolve, reject) => {
-    const chunks = [];
-    res.body.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-    res.body.on('end',  () => resolve(Buffer.concat(chunks).toString('utf8')));
+    let text = '';
+    res.body.setEncoding('utf8');
+    res.body.on('data',  chunk => { text += chunk; });
+    res.body.on('end',   () => resolve(text));
     res.body.on('error', reject);
   });
 }
@@ -645,18 +645,7 @@ const client = new Client({
     GatewayIntentBits.GuildModeration,
   ],
   partials: ['MESSAGE', 'CHANNEL', 'REACTION'],
-  sweepers: {
-    // Limpa membros do cache a cada 10min (mantém apenas bots e o próprio bot)
-    guildMembers: {
-      interval: 600,
-      filter: () => member => !member.user.bot,
-    },
-    // Limpa mensagens do cache a cada 5min
-    messages: {
-      interval: 300,
-      lifetime: 300,
-    },
-  },
+
 });
 
 // ── Anti-Nuke Tracker ──────────────────────────────────────────────────────────
