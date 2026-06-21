@@ -777,15 +777,16 @@ ROLE ARCHITECTURE (adapt naming and emojis deeply to the server's theme — avoi
 ━ THEME-EXCLUSIVE (3–6): Roles that ONLY make sense for this specific server. These should surprise the user with their creativity and specificity.
 
 COLOR HIERARCHY LAW: Colors must visually descend from warm/vibrant (ownership) to cool/muted (newcomers). No two roles share the same hex. The full set should look like a professionally designed color system.`
-    : `You are an expert Discord server architect. Generate a realistic, complete role hierarchy.
+    : `You are a skilled Discord server architect. Create a solid, realistic role hierarchy tailored to this server's theme.
 RULES:
-- Return ONLY a valid JSON array. No markdown, no explanation.
-- All role names in Brazilian Portuguese with correct accents.
+- Return ONLY a valid JSON array. No markdown, no explanation, no backticks.
+- All role names in Brazilian Portuguese with correct accents and an emoji prefix.
+- Use ONLY standard unicode emojis — NEVER custom Discord emojis like <:name:id>.
 - Generate exactly ${minRoles}–${maxRoles} roles.
-- Every role needs a unique hex color.
-- Include: 1 owner, 2 staff, 2 mod, 2 member tiers, 1 bot, 1 muted, theme-specific roles.
-- Realistic permissions per tier.
-- Permissions: ADMINISTRATOR, MANAGE_GUILD, MANAGE_CHANNELS, MANAGE_ROLES, KICK_MEMBERS, BAN_MEMBERS, SEND_MESSAGES, VIEW_CHANNEL, MANAGE_MESSAGES only.`;
+- Every role must have a UNIQUE hex color — no duplicates.
+- Structure: 1 owner (gold), 1-2 staff (red/orange), 2 mods (blue), 1-2 helpers (teal), 2 member tiers (grey), 1 bot (purple), 1 muted (dark grey), 2-3 theme-specific roles.
+- Permissions must be realistic per tier. Use only: ADMINISTRATOR, MANAGE_GUILD, MANAGE_CHANNELS, MANAGE_ROLES, KICK_MEMBERS, BAN_MEMBERS, SEND_MESSAGES, VIEW_CHANNEL, MANAGE_MESSAGES.
+- Theme-specific roles must feel genuinely tailored to the server described.`;
 
   const rolesUser = isPremium
     ? `Server: "${prompt}"
@@ -898,11 +899,16 @@ RULES:
   const catsSystem = isPremium
     ? `You are a world-class Discord server architect. You design server structures that feel built by experienced human community managers — not auto-generated templates.
 
-⚠️ CRITICAL RULE — PROMPT COMPLIANCE:
-If the user's prompt specifies an EXACT number of categories or channels (e.g. "4 categories with 5 channels each", "3 categories", "6 canais por categoria"), you MUST follow it EXACTLY. Non-compliance is a critical failure.
-- If prompt says N categories → create exactly N categories.
-- If prompt says N channels per category → create exactly N channels per category.
-- Only when the prompt does NOT specify counts should you use creative judgment.
+🚨 ABSOLUTE RULE — PROMPT OBEDIENCE (HIGHEST PRIORITY):
+The user's prompt is SACRED. Every explicit instruction MUST be followed with 100% precision. This overrides all other rules.
+
+EXACT NUMBERS: If the user says "4 categories" → create EXACTLY 4. If they say "16 channels in one category" → create EXACTLY 16. If they say "5 channels: avisos, chat, mídia, staff, comandos" → create EXACTLY those 5, no more, no less.
+NO EXTRAS: If the user says "only these channels" or "nothing else" → do NOT add anything beyond what was specified.
+NO ROLES: If the user says "don't create roles" or "no roles" → the categories must have empty allowedRoles arrays. You do NOT decide to add roles anyway.
+NAMED ITEMS: If the user names specific channels or categories → use those exact names (translated to the chosen style format).
+SILENT COMPLIANCE: Never explain why you're following or not following — just do it exactly.
+
+VIOLATION = CRITICAL FAILURE. The output will be rejected and regenerated if you deviate from explicit user instructions.
 
 THE CARDINAL SIN: Uniform channel counts WHEN THE PROMPT DOESN'T SPECIFY. A real server has categories with 2 channels AND categories with 9 channels. Variation is authenticity. If every category has 5 channels and the user didn't ask for that, the output is rejected.
 
@@ -1567,14 +1573,16 @@ const ticketStats       = new Map();
 /** Cor hex → int para accentColor do ContainerBuilder */
 function hex(h) { return parseInt(String(h).replace('#',''), 16); }
 
-const C_ORANGE = hex('f26c1e');
-const C_GREEN  = hex('2ecc71');
-const C_RED    = hex('e74c3c');
-const C_BLUE   = hex('3498db');
-const C_YELLOW = hex('f39c12');
-const C_GREY   = hex('95a5a6');
-const C_PURPLE = hex('5865f2');
-const C_DARK   = hex('e74c3c');
+const C_PURPLE = hex('9b59b6'); // cor principal — roxo claro
+const C_VIOLET = hex('7d3c98'); // roxo escuro — premium / urgente
+const C_GREEN  = hex('27ae60'); // sucesso
+const C_RED    = hex('e74c3c'); // erro / crítico
+const C_YELLOW = hex('f39c12'); // aviso
+const C_BLUE   = hex('2980b9'); // info
+const C_GREY   = hex('636e72'); // neutro
+const C_DARK   = hex('2c3e50'); // fundo escuro
+// Alias de compatibilidade
+const C_ORANGE = C_PURPLE;
 
 /** Monta um componente V2 simples: título + corpo + rodapé */
 function v2Simple(accentColor, title, body, footer) {
@@ -1659,31 +1667,41 @@ function buildQueueEmbed(prompt, laneName, position, secsAhead) {
 
   return {
     flags: MessageFlags.IsComponentsV2,
-    components: [v2Container(isPrem ? C_ORANGE : C_PURPLE, content)],
+    components: [v2Container(isPrem ? C_VIOLET : C_PURPLE, content)],
   };
 }
 
 function buildAnalysisEmbed(prompt, logs) {
-  const logLines = logs.slice(-8)
-    .map((l, i, arr) => i === arr.length - 1
-      ? `${E.gerando} \`${l.tag}\` ${l.msg}`
-      : `${E.check} \`${l.tag}\` ${l.msg}`
-    ).join('\n') || `${E.gerando} \`INIT\` Iniciando análise...`;
-
-  const lastTag  = logs.length > 0 ? logs[logs.length - 1].tag : '';
-  const done     = lastTag === 'CONCLUÍDO';
-  const total    = 5; // etapas: ANÁLISE, MISTRAL, CARGOS, CATEGORIAS, BOAS-VINDAS/REGRAS
+  const lastTag = logs.length > 0 ? logs[logs.length - 1].tag : '';
+  const done    = lastTag === 'CONCLUÍDO';
+  const total   = 5;
   const progress = done ? total : Math.min(logs.length, total);
-  const barFilled = Math.round((progress / total) * 16);
-  const bar = `\`[${'█'.repeat(barFilled)}${'░'.repeat(16 - barFilled)}] ${Math.round((progress / total) * 100)}%\``;
+  const pct      = Math.round((progress / total) * 100);
+
+  // Barra moderna com blocos graduais
+  const BAR_LEN  = 14;
+  const filled   = Math.round((progress / total) * BAR_LEN);
+  const barBlock = '█'.repeat(filled) + '░'.repeat(BAR_LEN - filled);
+  const bar      = `\`${barBlock}\` **${pct}%**`;
+
+  // Ícone por etapa
+  const STAGE_ICONS = ['🔍','🤖','🎭','🏗️','✨'];
+  const logLines = logs.slice(-6).map((l, i, arr) => {
+    const isLast = i === arr.length - 1;
+    const icon   = isLast && !done ? '⏳' : '✅';
+    return `${icon} **${l.tag}** — ${l.msg}`;
+  }).join('\n') || '⏳ **INIT** — Inicializando...';
+
+  const header = done
+    ? `## ✅ Estrutura gerada com sucesso!`
+    : `## ⚙️ Construindo servidor…`;
 
   const content = [
-    `## ${done ? `${E.sucesso} Geração concluída!` : `${E.gerando} Gerando estrutura…`}`,
-    `> *${prompt.substring(0, 150)}${prompt.length > 150 ? '…' : ''}*`,
+    header,
+    `> 💬 *${prompt.substring(0, 120)}${prompt.length > 120 ? '…' : ''}*`,
     ``,
     `**Progresso:** ${bar}`,
     ``,
-    `**Log em tempo real:**`,
     logLines,
     ``,
     `-# Architect ${VERSION} · Velroc Systems`,
@@ -1691,7 +1709,7 @@ function buildAnalysisEmbed(prompt, logs) {
 
   return {
     flags: MessageFlags.IsComponentsV2,
-    components: [v2Container(done ? C_GREEN : C_ORANGE, content)],
+    components: [v2Container(done ? C_GREEN : C_PURPLE, content)],
   };
 }
 
@@ -1701,60 +1719,61 @@ function buildCountdownBar(seconds, total) {
 }
 
 function buildConfirmEmbed(prompt, structure, secondsLeft) {
-  const totalChannels = structure.categories.reduce((a, c) => a + (c.channels?.length || 0), 0);
-  const urgent  = secondsLeft <= 20;
-  const warning = secondsLeft <= 40 && secondsLeft > 20;
+  const totalChannels = (structure.categories || []).reduce((a, c) => a + (c.channels?.length || 0), 0);
+  const urgent  = secondsLeft <= 15;
+  const warning = secondsLeft <= 35 && secondsLeft > 15;
 
-  // Barra de progresso colorida por urgência
-  const barIcon = urgent ? '🔴' : warning ? '🟡' : '🟢';
+  // Barra de tempo regressiva
+  const BAR_LEN  = 16;
+  const filled   = Math.round((secondsLeft / 60) * BAR_LEN);
+  const timeBar  = (urgent ? '🔴' : warning ? '🟡' : '🟣') + ' `' + '█'.repeat(filled) + '░'.repeat(BAR_LEN - filled) + '` **' + secondsLeft + 's**';
 
-  // Preview de categorias (máx 4)
-  const catPreview = (structure.categories || []).slice(0, 4)
-    .map(c => `> ${E.cats} **${c.name}** — ${c.channels?.length || 0} canais`)
+  // Preview compacto de categorias (máx 5)
+  const cats = structure.categories || [];
+  const catPreview = cats.slice(0, 5)
+    .map(c => `> 📁 **${c.name}** · ${c.channels?.length || 0} canais`)
     .join('\n');
-  const moreCount = Math.max(0, (structure.categories?.length || 0) - 4);
+  const moreCount = Math.max(0, cats.length - 5);
 
   const content = [
-    `## <:atencao:1500524473827459263> Confirmação de Criação`,
-    `> ⚠️ Esta ação **apagará toda a estrutura atual** e recriará do zero.`,
+    `## ⚠️ Confirmar Criação`,
+    `> Esta ação **substituirá toda a estrutura atual** do servidor.`,
     ``,
-    `**<:lista:1500524503778988072> Prompt:**`,
-    `> *${prompt.substring(0, 180)}${prompt.length > 180 ? '…' : ''}*`,
+    `📝 **Prompt**`,
+    `> *${prompt.substring(0, 160)}${prompt.length > 160 ? '…' : ''}*`,
     ``,
-    `**${E.servidores} Resumo da estrutura:**`,
-    `> ${E.cargos} **${structure.roles?.length || 0}** cargos  ·  ${E.cats} **${structure.categories?.length || 0}** categorias  ·  ${E.canais} **${totalChannels}** canais`,
+    `📊 **Estrutura gerada**`,
+    `> 🎭 **${structure.roles?.length || 0}** cargos  ╱  📁 **${cats.length}** categorias  ╱  💬 **${totalChannels}** canais`,
     ``,
-    ...(catPreview ? [`**Categorias:**`, catPreview, ...(moreCount > 0 ? [`> *… e mais ${moreCount} categoria(s)*`] : []), ``] : []),
-    `**${barIcon} Expira em ${secondsLeft}s:** ${buildCountdownBar(secondsLeft, 60)}`,
+    ...(catPreview ? [catPreview, ...(moreCount > 0 ? [`> *+ ${moreCount} categoria(s)*`] : []), ``] : []),
+    `⏱️ **Expira em:** ${timeBar}`,
     ``,
-    `-# Architect ${VERSION} · Confirme ou cancele antes do tempo acabar`,
+    `-# Architect ${VERSION} · Use os botões abaixo para confirmar ou cancelar`,
   ].join('\n');
 
   return {
     flags: MessageFlags.IsComponentsV2,
-    components: [v2Container(urgent ? C_RED : warning ? C_YELLOW : C_ORANGE, content)],
+    components: [v2Container(urgent ? C_RED : warning ? C_YELLOW : C_PURPLE, content)],
   };
 }
 
 function buildProgressEmbed(title, info, steps) {
-  const last = steps.slice(-10);
+  const last = steps.slice(-8);
   const log  = last.length > 0
-    ? last.map((s, i) => i === last.length - 1 ? `${E.gerando} ${s}` : `${E.check} ${s}`).join('\n')
-    : `${E.gerando} Iniciando...`;
+    ? last.map((s, i) => i === last.length - 1 ? `⏳ ${s}` : `✅ ${s}`).join('\n')
+    : `⏳ Iniciando construção...`;
 
-  // Estima progresso pelo número de steps
   const estimatedTotal = 40;
   const pct  = Math.min(100, Math.round((steps.length / estimatedTotal) * 100));
-  const barF = Math.round(pct / 6.25); // 16 blocos
-  const bar  = `\`[${'█'.repeat(barF)}${'░'.repeat(16 - barF)}] ${pct}%\``;
+  const barF = Math.round((pct / 100) * 16);
+  const bar  = `🟣 \`${'█'.repeat(barF)}${'░'.repeat(16 - barF)}\` **${pct}%**`;
 
   const content = [
-    `## ${title}`,
-    `> *${info.substring(0, 150)}*`,
+    `## 🏗️ ${title}`,
+    `> *${info.substring(0, 140)}*`,
     ``,
     `**Construção:** ${bar}`,
     ``,
-    `**Log:**`,
     log,
     ``,
     `-# Architect ${VERSION} · Não feche o Discord durante a construção`,
@@ -1762,14 +1781,14 @@ function buildProgressEmbed(title, info, steps) {
 
   return {
     flags: MessageFlags.IsComponentsV2,
-    components: [v2Container(C_ORANGE, content)],
+    components: [v2Container(C_PURPLE, content)],
   };
 }
 
-function errorEmbed(msg) {
+function errorEmbed(msg, ephemeral = true) {
   return {
-    flags: MessageFlags.IsComponentsV2,
-    components: [v2Container(C_RED, `## ${E.erro} Ocorreu um erro\n${msg.substring(0, 500)}\n\n-# Architect ${VERSION}`)],
+    flags: MessageFlags.IsComponentsV2 | (ephemeral ? MessageFlags.Ephemeral : 0),
+    components: [v2Container(C_RED, `## ❌ Algo deu errado\n> ${msg.substring(0, 400)}\n\n-# Architect ${VERSION} · Tente novamente ou contate o suporte`)],
   };
 }
 
