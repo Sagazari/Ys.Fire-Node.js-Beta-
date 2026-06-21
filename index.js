@@ -2089,6 +2089,9 @@ client.on('interactionCreate', async interaction => {
   // ── Global error boundary ─────────────────────────────────────────────────
   try {
 
+  // ── Guard: bot ainda não está pronto (WebSocket reconectando) ─────────────
+  if (!client.isReady()) return;
+
   // ── Guard: ignora interações fora de servidor (DMs, etc.) ────────────────
   if (!interaction.guild || !interaction.guildId) return;
   if (interaction.isButton()) {
@@ -2411,8 +2414,16 @@ client.on('interactionCreate', async interaction => {
     const prompt = interaction.options.getString('prompt');
     const userId = interaction.user.id;
 
-    // Defer imediatamente — ANTES de qualquer await, para garantir resposta em <3s ao Discord
-    await interaction.deferReply();
+    // Defer imediatamente com timeout — se não responder em 2.5s, aborta silenciosamente
+    try {
+      await Promise.race([
+        interaction.deferReply(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('deferReply timeout')), 2500)),
+      ]);
+    } catch (deferErr) {
+      console.warn('[criar_servidor] deferReply falhou:', deferErr.message);
+      return; // Discord já marcou como "não respondeu", não há nada a fazer
+    }
 
     const isPremium = await resolveIsPremium(userId, guild);
 
