@@ -1,27 +1,21 @@
-/**
- * Architect — Shard Manager
- * Entry point para produção. Substitui o `node index.js` direto.
- * Use: node shard.js
- */
-
 const { ShardingManager } = require('discord.js');
 require('dotenv').config();
 
 if (!process.env.DISCORD_TOKEN) {
-  console.error('[SHARD] DISCORD_TOKEN não encontrado! Defina no .env / Render.');
+  console.error('[SHARD] DISCORD_TOKEN não encontrado!');
   process.exit(1);
 }
 
 const manager = new ShardingManager('./index.js', {
   token:       process.env.DISCORD_TOKEN,
-  totalShards: 1,    // Forçar 1 shard — Render free tier não suporta múltiplos processos
+  totalShards: 'auto', // Discord define o mínimo necessário (2 para +1000 servidores)
   mode:        'process',
   respawn:     true,
+  shardArgs:   ['--max-old-space-size=200'], // limita heap por shard a 200MB
 });
 
 manager.on('shardCreate', shard => {
   console.log(`[SHARD] Shard #${shard.id} iniciado.`);
-
   shard.on('ready',        ()  => console.log(`[SHARD #${shard.id}] Ready ✅`));
   shard.on('disconnect',   ()  => console.warn(`[SHARD #${shard.id}] Desconectado ⚠️`));
   shard.on('reconnecting', ()  => console.log(`[SHARD #${shard.id}] Reconectando...`));
@@ -29,8 +23,9 @@ manager.on('shardCreate', shard => {
   shard.on('error',        (e) => console.error(`[SHARD #${shard.id}] Erro: ${e.message}`));
 });
 
-manager.spawn({ timeout: 120000 }) // 2 min — tempo suficiente para boot completo no Render
-  .then(() => console.log(`[SHARD] Todos os shards iniciados! Total: ${manager.totalShards}`))
+// Spawn um shard por vez com intervalo de 10s — evita pico de RAM simultâneo
+manager.spawn({ amount: 'auto', delay: 10000, timeout: 120000 })
+  .then(() => console.log(`[SHARD] Todos os shards prontos! Total: ${manager.totalShards}`))
   .catch(e => {
     console.error('[SHARD] Falha ao iniciar shards:', e.message);
     process.exit(1);
