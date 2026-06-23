@@ -13,10 +13,10 @@ if (!process.env.DISCORD_TOKEN) {
 }
 
 const manager = new ShardingManager('./index.js', {
-  token:      process.env.DISCORD_TOKEN,
-  totalShards: 'auto', // Discord calcula automaticamente (1 shard a cada 1000 servidores)
-  mode:       'process',
-  respawn:    true,    // reinicia shard se cair
+  token:       process.env.DISCORD_TOKEN,
+  totalShards: 1,    // Forçar 1 shard — Render free tier não suporta múltiplos processos
+  mode:        'process',
+  respawn:     true,
 });
 
 manager.on('shardCreate', shard => {
@@ -29,8 +29,8 @@ manager.on('shardCreate', shard => {
   shard.on('error',        (e) => console.error(`[SHARD #${shard.id}] Erro: ${e.message}`));
 });
 
-manager.spawn({ timeout: 30000 })
-  .then(() => console.log(`[SHARD] Todos os shards iniciados com sucesso! Total: ${manager.totalShards}`))
+manager.spawn({ timeout: 120000 }) // 2 min — tempo suficiente para boot completo no Render
+  .then(() => console.log(`[SHARD] Todos os shards iniciados! Total: ${manager.totalShards}`))
   .catch(e => {
     console.error('[SHARD] Falha ao iniciar shards:', e.message);
     process.exit(1);
