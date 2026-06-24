@@ -8,10 +8,10 @@ if (!process.env.DISCORD_TOKEN) {
 
 const manager = new ShardingManager('./index.js', {
   token:       process.env.DISCORD_TOKEN,
-  totalShards: 'auto', // Discord define o mínimo necessário (2 para +1000 servidores)
+  totalShards: 2,     // Fixo em 2 — mínimo para +1000 servidores, máximo que o Render free aguenta
   mode:        'process',
   respawn:     true,
-  shardArgs:   ['--max-old-space-size=200'], // limita heap por shard a 200MB
+  shardArgs:   ['--max-old-space-size=180'], // 2 shards × 180MB = 360MB, sobra margem nos 512MB
 });
 
 manager.on('shardCreate', shard => {
@@ -23,8 +23,8 @@ manager.on('shardCreate', shard => {
   shard.on('error',        (e) => console.error(`[SHARD #${shard.id}] Erro: ${e.message}`));
 });
 
-// Spawn um shard por vez com intervalo de 10s — evita pico de RAM simultâneo
-manager.spawn({ amount: 'auto', delay: 10000, timeout: 120000 })
+// Spawna um shard por vez com 15s de intervalo — evita pico simultâneo de RAM
+manager.spawn({ amount: 2, delay: 15000, timeout: 120000 })
   .then(() => console.log(`[SHARD] Todos os shards prontos! Total: ${manager.totalShards}`))
   .catch(e => {
     console.error('[SHARD] Falha ao iniciar shards:', e.message);
