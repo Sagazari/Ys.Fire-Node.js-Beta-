@@ -259,28 +259,38 @@ async function processLane(laneName) {
   const entry = lane.queue.shift();
   await broadcastQueueUpdate(laneName);
 
-  // Timeout de segurança — se a task travar por mais de 120s, desbloqueamos a lane
-  let taskDone = false;
-  const safetyTimeout = setTimeout(() => {
-    if (!taskDone) {
-      console.error(`[LANE/${laneName}] <:atencao:1500524473827459263> Timeout de segurança acionado — lane desbloqueada forçadamente.`);
-      entry.reject(new Error('Timeout de segurança da lane.'));
-      lane.busy = false;
-      processLane(laneName);
-    }
-  }, 120_000);
-
-  try { entry.resolve(await entry.task()); }
-  catch (e) { entry.reject(e); }
-  finally {
-    taskDone = true;
+  // `settled` garante que a lane só é liberada UMA vez, seja pelo timeout de
+  // segurança ou pela conclusão real da task — evita que ambos os caminhos
+  // liberem a lane e disparem processamento duplicado/concorrente.
+  let settled = false;
+  const advanceLane = () => {
+    if (settled) return;
+    settled = true;
     clearTimeout(safetyTimeout);
     const elapsed = Date.now() - lane.lastRun;
     const wait    = Math.max(0, 1100 - elapsed);
-    await new Promise(r => setTimeout(r, wait));
-    lane.lastRun = Date.now();
-    lane.busy    = false;
-    processLane(laneName);
+    setTimeout(() => {
+      lane.lastRun = Date.now();
+      lane.busy    = false;
+      processLane(laneName);
+    }, wait);
+  };
+
+  // Timeout de segurança — se a task travar por mais de 120s, desbloqueamos a lane
+  const safetyTimeout = setTimeout(() => {
+    if (settled) return;
+    console.error(`[LANE/${laneName}] <:atencao:1500524473827459263> Timeout de segurança acionado — lane desbloqueada forçadamente.`);
+    entry.reject(new Error('Timeout de segurança da lane.'));
+    advanceLane();
+  }, 120_000);
+
+  try {
+    const result = await entry.task();
+    if (!settled) entry.resolve(result);
+  } catch (e) {
+    if (!settled) entry.reject(e);
+  } finally {
+    advanceLane();
   }
 }
 
@@ -444,7 +454,7 @@ async function resolveIsPremium(userId, guild) {
 }
 
 // ── Daily Creation Limit (usuários normais) ────────────────────────────────────
-const DAILY_LIMIT_NORMAL = 3;
+const DAILY_LIMIT_NORMAL = 2;
 
 function getTodayKey() {
   const d = new Date();
@@ -707,6 +717,52 @@ function callMistral(laneName, messages, maxTokens = 8000) {
   });
 }
 
+// ── Moderação de Conteúdo ─────────────────────────────────────────────────────
+// Bloqueia prompts com conteúdo sexual/pornográfico, discurso de ódio (racismo,
+// homofobia, transfobia etc.), assédio, violência extrema ou discriminação antes
+// de qualquer geração de servidor. Roda na fila normal (barato/rápido) sempre,
+// independente do usuário ser Premium.
+const MODERATION_SYSTEM = `Você é um filtro de moderação de conteúdo. Sua única tarefa é analisar o pedido de um usuário para criação de um servidor Discord e decidir se o conteúdo é apropriado.
+
+Responda ESTRITAMENTE em JSON, sem nenhum texto extra, no formato:
+{"safe": true} ou {"safe": false, "categoria": "nome_da_categoria", "motivo": "breve explicação em português"}
+
+Marque como NÃO seguro (safe: false) se o pedido contiver, sugerir ou pedir explicitamente:
+- Conteúdo sexual, pornográfico, erótico ou nudez (categoria: "sexual")
+- Homofobia, transfobia, LGBTfobia ou discurso de ódio contra orientação sexual/identidade de gênero (categoria: "homofobia")
+- Racismo, xenofobia ou discriminação de qualquer grupo étnico, religioso, de gênero ou nacionalidade (categoria: "discriminacao")
+- Incitação a violência real, terrorismo, apologia a crimes graves ou grupos extremistas (categoria: "violencia")
+- Assédio, bullying ou humilhação direcionada a pessoas reais (categoria: "assedio")
+- Conteúdo envolvendo exploração ou sexualização de menores, em qualquer hipótese (categoria: "csam")
+- Linguagem extremamente ofensiva/slurs usados de forma pejorativa como tema central do servidor (categoria: "linguagem_ofensiva")
+
+Pedidos comuns e inofensivos (comunidades, jogos, animes, negócios, estudos, RPG, servidores militares fictícios, etc.) são SEMPRE seguros, mesmo que mencionem temas maduros de forma não explícita (ex: um servidor sobre um jogo de terror não é inseguro). Na dúvida entre um pedido claramente normal e ser excessivamente restritivo, prefira "safe": true. Só marque como inseguro quando o conteúdo problemático for explícito ou for claramente o propósito central do servidor.`;
+
+async function moderatePrompt(prompt) {
+  try {
+    const raw = await callMistralText('normal', [
+      { role: 'system', content: MODERATION_SYSTEM },
+      { role: 'user',   content: prompt },
+    ], 150, 2);
+
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return { safe: true }; // Falha ao parsear → não bloqueia (evita falso positivo por erro técnico)
+
+    const parsed = JSON.parse(match[0]);
+    if (parsed.safe === false) {
+      return {
+        safe: false,
+        categoria: parsed.categoria || 'inapropriado',
+        motivo: parsed.motivo || 'O conteúdo solicitado viola as diretrizes de uso do Architect.',
+      };
+    }
+    return { safe: true };
+  } catch (e) {
+    console.error('[MODERATION] Erro ao verificar prompt:', e.message);
+    return { safe: true }; // Em caso de erro técnico, não bloqueia a criação
+  }
+}
+
 // ── MongoDB ────────────────────────────────────────────────────────────────────
 let mongoDB;
 async function connectDB() {
@@ -886,6 +942,11 @@ RULES:
 - Permissions must be realistic per tier. Use only: ADMINISTRATOR, MANAGE_GUILD, MANAGE_CHANNELS, MANAGE_ROLES, KICK_MEMBERS, BAN_MEMBERS, SEND_MESSAGES, VIEW_CHANNEL, MANAGE_MESSAGES.
 - Theme-specific roles must feel genuinely tailored to the server described.`;
 
+  // Injeta prompt customizado do usuário (ia_config premium) — aplicado a cargos e categorias
+  const customInstruction = userCustomPrompt
+    ? `\n\n[INSTRUÇÃO PERSONALIZADA DO USUÁRIO — priorize isto ao decidir nomes, tom e estilo]:\n${userCustomPrompt}`
+    : '';
+
   const rolesUser = isPremium
     ? `Server: "${prompt}"
 
@@ -901,16 +962,11 @@ Return ONLY a raw JSON array (no markdown, no backticks):
 [{"name":"👑 Proprietário","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Silenciado","color":"#636e72","hoist":false,"mentionable":false,"permissions":[]}]`
     : `Server: "${prompt}"\n\nReturn JSON array:\n[{"name":"👑 Dono","color":"#f1c40f","hoist":true,"mentionable":false,"permissions":["ADMINISTRATOR"]},{"name":"🔇 Mutado","color":"#7f8c8d","hoist":false,"mentionable":false,"permissions":[]}]\nGenerate all ${minRoles}–${maxRoles} roles. Return only the JSON array.`;
 
-  // Injeta prompt customizado do usuário (ia_config premium)
-  const customInstruction = userCustomPrompt
-    ? `\n\n[INSTRUÇÃO PERSONALIZADA DO USUÁRIO]:\n${userCustomPrompt}`
-    : '';
-
   let roles;
   try {
     roles = await callMistralRaw(laneName, [
       { role: 'system', content: rolesSystem },
-      { role: 'user',   content: rolesUser },
+      { role: 'user',   content: rolesUser + customInstruction },
     ], 3000);
     if (!Array.isArray(roles) || roles.length === 0)
       throw new Error('Resposta de cargos inválida — array vazio ou malformado.');
@@ -1101,7 +1157,7 @@ Return ONLY a raw JSON array:
   try {
     categories = await callMistralRaw(laneName, [
       { role: 'system', content: catsSystem },
-      { role: 'user',   content: catsUser },
+      { role: 'user',   content: catsUser + customInstruction },
     ], isPremium ? 6000 : 4000);
     if (!Array.isArray(categories) || categories.length === 0)
       throw new Error('Resposta de categorias inválida — array vazio ou malformado.');
@@ -2550,6 +2606,17 @@ client.on('interactionCreate', async interaction => {
 
     const isPremium = await resolveIsPremium(userId, guild);
 
+    // ── Moderação de conteúdo — bloqueia pedidos impróprios antes de gastar cota ──
+    await interaction.editReply({ ...v2Simple(C_ORANGE, `${E.loading} Verificando...`, 'Analisando se o pedido segue as diretrizes de uso...', `Architect ${VERSION}`) }).catch(() => {});
+    const moderation = await moderatePrompt(prompt);
+    if (!moderation.safe) {
+      return interaction.editReply({ ...v2Simple(C_RED,
+        `${E.erro} Pedido Bloqueado`,
+        `Seu pedido não pôde ser processado por violar as diretrizes de uso do Architect.\n\n**Motivo:** ${moderation.motivo}\n\n> Reformule o pedido removendo conteúdo impróprio (sexual, discriminatório, ofensivo etc.) e tente novamente.`,
+        `Architect ${VERSION}`
+      ) });
+    }
+
     // ── Limite diário para usuários normais ──────────────────────────────────
     const limitCheck = await checkDailyLimit(userId, isPremium);
     if (!limitCheck.allowed) {
@@ -2558,6 +2625,13 @@ client.on('interactionCreate', async interaction => {
         `Você já usou suas **${limitCheck.limit} criações gratuitas** de hoje.\n\n> Volte amanhã ou adquira o ${E.premium} **Premium** para criações ilimitadas!\n\n**Uso hoje:** ${limitCheck.used}/${limitCheck.limit} criações`,
         `Architect ${VERSION}`
       ) });
+    }
+
+    // Busca instrução personalizada do usuário (recurso Premium /ia_config)
+    let userCustomPrompt = null;
+    if (isPremium) {
+      const iaCfg = await mongoDB.collection('ia_config').findOne({ userId }).catch(() => null);
+      if (iaCfg?.prompt) userCustomPrompt = iaCfg.prompt;
     }
 
     // Escolhe a lane correta conforme Premium ou Normal
@@ -2612,7 +2686,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.editReply({ ...buildAnalysisEmbed(prompt, logs) }).catch(() => {});
             // Registra uso diário (apenas para não-premium)
             if (!isPremium) await incrementDailyUsage(userId);
-            return generateStructure(prompt, onLog, isPremium);
+            return generateStructure(prompt, onLog, isPremium, userCustomPrompt);
           },
           resolve, reject,
           userId, interaction, prompt,
@@ -2651,6 +2725,10 @@ client.on('interactionCreate', async interaction => {
     const userId    = interaction.user.id;
     const isPremium = await resolveIsPremium(userId, guild);
 
+    if (!prompt) {
+      return interaction.reply({ ...errorEmbed('Tipo de template inválido.'), flags: MessageFlags.Ephemeral });
+    }
+
     // ── Limite diário para usuários normais ──────────────────────────────────
     const limitCheck = await checkDailyLimit(userId, isPremium);
     if (!limitCheck.allowed) {
@@ -2662,6 +2740,13 @@ client.on('interactionCreate', async interaction => {
     }
 
     await interaction.deferReply();
+
+    // Busca instrução personalizada do usuário (recurso Premium /ia_config)
+    let userCustomPrompt = null;
+    if (isPremium) {
+      const iaCfg = await mongoDB.collection('ia_config').findOne({ userId }).catch(() => null);
+      if (iaCfg?.prompt) userCustomPrompt = iaCfg.prompt;
+    }
 
     const chosenLane = getLane(isPremium);
     const posInLane  = chosenLane.queue.length + (chosenLane.busy ? 1 : 0);
@@ -2708,7 +2793,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.editReply({ ...buildAnalysisEmbed(prompt, logs) }).catch(() => {});
             // Registra uso diário (apenas para não-premium)
             if (!isPremium) await incrementDailyUsage(userId);
-            return generateStructure(prompt, onLog, isPremium);
+            return generateStructure(prompt, onLog, isPremium, userCustomPrompt);
           },
           resolve, reject,
           userId, interaction, prompt,
@@ -3251,6 +3336,17 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: `${E.premium} Este comando é exclusivo para usuários **Premium**!`, flags: MessageFlags.Ephemeral });
     const promptCustom = interaction.options.getString('prompt');
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    // Modera a instrução personalizada — ela é injetada em toda geração futura do usuário
+    const moderation = await moderatePrompt(promptCustom);
+    if (!moderation.safe) {
+      return interaction.editReply({ ...v2Simple(C_RED,
+        `${E.erro} Instrução Bloqueada`,
+        `Essa instrução personalizada não pôde ser salva por violar as diretrizes de uso do Architect.\n\n**Motivo:** ${moderation.motivo}`,
+        `Architect ${VERSION}`
+      ) });
+    }
+
     await mongoDB.collection('ia_config').updateOne(
       { userId: interaction.user.id },
       { $set: { userId: interaction.user.id, prompt: promptCustom, updatedAt: new Date() } },
@@ -4515,6 +4611,12 @@ app.post('/api/guild/:id/generate', requireAuth, async (req, res) => {
     const userId    = req.session.user.id;
     const isPremium = await resolveIsPremium(userId, guild);
 
+    // Moderação de conteúdo — mesmo filtro do Discord aplicado ao dashboard web
+    const moderation = await moderatePrompt(prompt);
+    if (!moderation.safe) {
+      return res.status(400).json({ error: `Pedido bloqueado: ${moderation.motivo}` });
+    }
+
     // Check daily limit
     const limitCheck = await checkDailyLimit(userId, isPremium);
     if (!limitCheck.allowed)
@@ -4522,7 +4624,12 @@ app.post('/api/guild/:id/generate', requireAuth, async (req, res) => {
 
     // If not confirmed, just generate preview
     if (!confirm) {
-      const structure = await generateStructure(prompt, () => {}, isPremium);
+      let userCustomPrompt = null;
+      if (isPremium) {
+        const iaCfg = await mongoDB.collection('ia_config').findOne({ userId }).catch(() => null);
+        if (iaCfg?.prompt) userCustomPrompt = iaCfg.prompt;
+      }
+      const structure = await generateStructure(prompt, () => {}, isPremium, userCustomPrompt);
       if (!isPremium) await incrementDailyUsage(userId);
       return res.json({ ok: true, preview: {
         roles:      structure.roles.length,
