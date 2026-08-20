@@ -589,7 +589,7 @@ async function sendBuildLog(sourceGuild, userId, prompt, structure, totalChannel
     const containerComponents = [{ type: 10, content: logContent }];
     if (iconUrl) {
       containerComponents.push({
-        type: 11,
+        type: 12, // MediaGallery
         items: [{ media: { url: iconUrl } }],
       });
     }
@@ -894,17 +894,35 @@ async function handleTicketOpen(interaction, categoryName) {
 }
 
 // ── Generate Structure ─────────────────────────────────────────────────────────
+// Detecta se o usuário escreveu uma estrutura explícita/literal no prompt
+// (lista de categorias/canais com nomes, emojis ou formato próprio).
+// Quando isso acontece, o bot deve REPRODUZIR exatamente o que foi pedido,
+// em vez de forçar um estilo aleatório ou inventar itens extras.
+function hasExplicitStructure(p) {
+  const text = String(p || '');
+  const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  if (lines.length >= 3) return true;
+  // Lista separada por vírgula/barra/traço logo após "assim:", "com:", ":" etc.
+  const afterColon = text.includes(':') ? text.split(':').slice(1).join(':') : '';
+  if (afterColon) {
+    const segs = afterColon.split(/[\/,|·›»\n]/).map(s => s.trim()).filter(Boolean);
+    if (segs.length >= 3) return true;
+  }
+  return false;
+}
+
 async function generateStructure(prompt, onLog, isPremium = false, userCustomPrompt = null) {
   const laneName = getLaneName(isPremium);
   prompt = prompt.replace(/"/g, "'").replace(/`/g, "'").trim();
+  const explicitStructure = hasExplicitStructure(prompt);
 
   await onLog(E.gerando, 'ANÁLISE',  `Interpretando prompt${isPremium ? ' (Premium <:nitro:1500524497688723566>)' : ''}...`);
   await onLog(E.loading, 'MISTRAL',  `Conectando via Fila ${isPremium ? 'Premium' : 'Normal'}...`);
 
   // ─── ETAPA 1: Cargos ───────────────────────────────────────────────────────
   await onLog(E.cargos, 'CARGOS', 'Gerando hierarquia de cargos...');
-  const minRoles = isPremium ? 18 : 8;
-  const maxRoles = isPremium ? 30 : 14;
+  const minRoles = isPremium ? 14 : 6;
+  const maxRoles = isPremium ? 24 : 11;
 
   const rolesSystem = isPremium
     ? `You are a world-class Discord community architect with 10+ years of experience managing servers with 50,000–500,000 members for brands, esports organizations, and cultural communities. Your role hierarchies feel handcrafted by a seasoned community director — not auto-generated.
@@ -913,7 +931,10 @@ OUTPUT CONTRACT:
 - Return ONLY a raw JSON array. No markdown, no backticks, no prose, no explanation.
 - All role names in Brazilian Portuguese with correct diacritics and a fitting emoji prefix.
 - CRITICAL: Use ONLY standard unicode emojis. NEVER use custom Discord emojis like <:name:id> — they will break the roles.
-- Generate exactly ${minRoles}–${maxRoles} roles — precision matters.
+- Exactly ONE emoji per role name — never two or more, never decorative symbols. Discord names render literally, so keep them clean.
+- NEVER use markdown in names (no **bold**, __underline__, ~~strike~~, \`code\`) — role names show the raw characters, they don't render markdown.
+- If the user's prompt already lists specific role names explicitly, use those exact names (adapted only to add one fitting emoji) instead of inventing your own — obedience to an explicit request beats creativity.
+- Generate exactly ${minRoles}–${maxRoles} roles — precision matters. If the user explicitly asked for a specific number or a specific list of roles, that exact number overrides this range.
 - Each role MUST have a unique hex color — no duplicates allowed.
 - hoist:true for all ownership, staff, and highlighted community tiers.
 - mentionable:true only for staff and pinged community roles.
@@ -936,7 +957,10 @@ RULES:
 - Return ONLY a valid JSON array. No markdown, no explanation, no backticks.
 - All role names in Brazilian Portuguese with correct accents and an emoji prefix.
 - Use ONLY standard unicode emojis — NEVER custom Discord emojis like <:name:id>.
-- Generate exactly ${minRoles}–${maxRoles} roles.
+- Exactly ONE emoji per role name — never stack multiple emojis or symbols.
+- NEVER use markdown in names (no **bold**, __underline__, ~~strike~~, \`code\`) — names show raw characters.
+- If the user's prompt already lists specific role names explicitly, use those exact names instead of inventing your own.
+- Generate exactly ${minRoles}–${maxRoles} roles, proportional to a normal small/mid community — do not over-build. If the user explicitly asked for a number or list, that overrides this range.
 - Every role must have a UNIQUE hex color — no duplicates.
 - Structure: 1 owner (gold), 1-2 staff (red/orange), 2 mods (blue), 1-2 helpers (teal), 2 member tiers (grey), 1 bot (purple), 1 muted (dark grey), 2-3 theme-specific roles.
 - Permissions must be realistic per tier. Use only: ADMINISTRATOR, MANAGE_GUILD, MANAGE_CHANNELS, MANAGE_ROLES, KICK_MEMBERS, BAN_MEMBERS, SEND_MESSAGES, VIEW_CHANNEL, MANAGE_MESSAGES.
@@ -970,7 +994,11 @@ Return ONLY a raw JSON array (no markdown, no backticks):
     ], 3000);
     if (!Array.isArray(roles) || roles.length === 0)
       throw new Error('Resposta de cargos inválida — array vazio ou malformado.');
-    const stripCustomEmojiRole = str => String(str).replace(/<a?:\w+:\d+>/g, '').replace(/\s{2,}/g, ' ').trim();
+    const stripCustomEmojiRole = str => String(str)
+      .replace(/<a?:\w+:\d+>/g, '')
+      .replace(/\*\*|__|~~|`|\*/g, '') // remove markdown (negrito/itálico/etc) — nomes de cargo não renderizam markdown
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     // Sanitize: remove duplicate names, ensure required fields
     const seen = new Set();
     roles = roles.filter(r => {
@@ -1048,7 +1076,27 @@ RULES:
                   : '╭⎯⎯⎯╴ ✦ ';
   const chSep = chosenChStyle.sep;
 
-  console.log(`[ESTILOS] Categoria: ${chosenCatStyle.id} (${chosenCatStyle.example}) | Canal: ${chosenChStyle.id} (${chosenChStyle.example})`);
+  // Quando o usuário já escreveu um formato explícito no prompt, NÃO forçamos
+  // nenhum estilo aleatório por cima — a IA deve reproduzir literalmente o
+  // que foi pedido, e o pós-processamento (abaixo) não reescreve os nomes.
+  const styleBlock = explicitStructure
+    ? `🚨 O usuário forneceu uma estrutura EXPLÍCITA no prompt (nomes, emojis e/ou formato próprios de categorias e canais).
+Reproduza EXATAMENTE o que foi pedido — mesmos nomes, mesmos emojis, mesma ordem, mesmo separador/formato visual usado pelo usuário. NÃO aplique nenhum outro estilo, prefixo ou separador por cima. NÃO adicione categorias/canais que não foram pedidos. NÃO omita nenhum item pedido. Se algo não ficou 100% claro, use o bom senso mas mantenha a fidelidade ao que foi escrito.`
+    : `STYLE — STRICTLY ENFORCED (do NOT deviate):
+CATEGORY style: ${chosenCatStyle.id} → format: ${chosenCatStyle.pattern}
+  Every single category name MUST start with: "${catPrefix}"
+  Example: "${chosenCatStyle.example}"
+  DO NOT use any other category prefix or format.
+
+CHANNEL style: ${chosenChStyle.id} → separator: "${chSep}"
+  Every single channel name MUST follow: EMOJI${chSep}channel-name
+  Example: "${chosenChStyle.example}"
+  DO NOT use any other channel separator or format.
+
+STYLE ENFORCEMENT IS ABSOLUTE — mixing styles is a critical failure. Every category and every channel must match the assigned style exactly.
+No spaces around separators. Channel names: lowercase-with-hyphens only.`;
+
+  console.log(`[ESTILOS] explicitStructure=${explicitStructure} | Categoria: ${chosenCatStyle.id} (${chosenCatStyle.example}) | Canal: ${chosenChStyle.id} (${chosenChStyle.example})`);
 
   const catsSystem = isPremium
     ? `You are a world-class Discord server architect. You design server structures that feel built by experienced human community managers — not auto-generated templates.
@@ -1070,8 +1118,10 @@ OUTPUT CONTRACT:
 - Return ONLY a raw JSON array. No markdown, no backticks, no prose, no explanation.
 - ALL names in Brazilian Portuguese with correct diacritics and fitting emojis.
 - CRITICAL: Use ONLY standard unicode emojis (e.g. 📢 🎮 🔊). NEVER use custom Discord emojis like <:name:id> or <a:name:id> — they will break the server.
-- Generate 8–13 categories total (or EXACTLY as requested). ONLY what this server genuinely needs — no filler.
-- Channel counts PER category must VARY organically unless user specified: some categories have 2–3 channels, others 6–9.
+- Exactly ONE emoji per category name and ONE emoji per channel name — never stack emojis or symbols.
+- NEVER use markdown (no **bold**, __underline__, \`code\`) in names — they render as literal characters, not formatted text.
+- Generate 8–13 categories total (or EXACTLY as requested). ONLY what this server genuinely needs — no filler, no padding just to look "complete".
+- Channel counts PER category must VARY organically unless user specified: some categories have 2–3 channels, others 6–9. Prefer fewer, well-thought-out channels over a large number of shallow ones.
 - Channel types: use text, voice, forum, announcement, stage. Vary them meaningfully — not every category gets one of each.
 - Voice channels should reflect real usage: a gaming server might have 6 voice rooms with different purposes; a study server might have 4 focus rooms. Name them creatively.
 - NEVER create redundant channels: no "avisos-e-informações", "chat-e-conversa" or any compound name joining two concepts. Each channel has ONE purpose.
@@ -1080,19 +1130,7 @@ OUTPUT CONTRACT:
 - Role names MUST be distinct from channel names.
 - rateLimitPerUser: 0 on announcements/voice/stage/forum, 5 on general social text, 10 on support/media text, 3 on bot channels.
 
-STYLE — STRICTLY ENFORCED (do NOT deviate):
-CATEGORY style: ${chosenCatStyle.id} → format: ${chosenCatStyle.pattern}
-  Every single category name MUST start with: "${catPrefix}"
-  Example: "${chosenCatStyle.example}"
-  DO NOT use any other category prefix or format.
-
-CHANNEL style: ${chosenChStyle.id} → separator: "${chSep}"
-  Every single channel name MUST follow: EMOJI${chSep}channel-name
-  Example: "${chosenChStyle.example}"
-  DO NOT use any other channel separator or format.
-
-STYLE ENFORCEMENT IS ABSOLUTE — mixing styles is a critical failure. Every category and every channel must match the assigned style exactly.
-No spaces around separators. Channel names: lowercase-with-hyphens only.
+${styleBlock}
 
 CHANNEL TOPICS (premium quality):
 - 1–2 sentences, specific to this server's theme and culture. Never boilerplate.
@@ -1111,21 +1149,20 @@ CATEGORIES TO INCLUDE (adapt names and contents deeply to the theme):
 5–7. Theme-specific zones — 2–3 areas deeply tied to this server's niche. Vary channel counts.
 8. Support/helpdesk — Usually 2–4 channels.
 Optional: events, premium lounge, archives — only if they genuinely fit.`
-    : `You are an expert Discord server architect. Design a complete server structure.
+    : `You are an expert Discord server architect. Design a complete, realistic, PROPORTIONAL server structure — like a normal small/mid community, not a maxed-out mega server.
 MANDATORY RULES:
 - Return ONLY a raw valid JSON array. No markdown, no backticks, no explanation.
 - All names in Brazilian Portuguese with correct accents.
-- Generate ${minCats}–8 categories — only what genuinely fits this server.
-- Channel counts must VARY per category (some 2–3, some 5–6). Never uniform.
+- Generate ${minCats}–7 categories — only what genuinely fits this server. Do not pad with categories the server doesn't need. If the user asked for something small/simple, keep it small/simple.
+- Channel counts must VARY per category (some 2–3, some 4–5). Keep each category lean — avoid stuffing many channels into one category just to look complete.
+- Exactly ONE emoji per category name and ONE emoji per channel name — never stack emojis or symbols. Restraint reads as more professional than clutter.
+- NEVER use markdown (no **bold**, __underline__, \`code\`) in names — they render as literal characters.
 - NEVER create compound channel names joining two concepts (e.g. "avisos-e-informações").
 - nsfw: false. NEVER lock channels. Roles ≠ channel names.
 - rateLimitPerUser: 0 announcements/voice/forum, 5 social, 10 support/media, 3 bots.
 - allowedRoles from actual role list. Never empty.
 
-STYLE — STRICTLY ENFORCED:
-Category style ${chosenCatStyle.id}: every category name MUST start with "${catPrefix}" → Example: "${chosenCatStyle.example}"
-Channel style ${chosenChStyle.id}: every channel name MUST use separator "${chSep}" → Example: "${chosenChStyle.example}"
-DO NOT mix. DO NOT use any other format. This is non-negotiable.`;
+${styleBlock}`;
 
   const catsUser = isPremium
     ? `Server: "${prompt}"
@@ -1143,15 +1180,14 @@ ANTI-PATTERNS TO AVOID:
 ✗ Generic voice rooms: "Voice 1", "Sala de Voz"
 ✗ Boilerplate topics copied from template language
 ✗ Staff zone being empty or having 1 channel
-✗ No stage or forum channels anywhere
-✗ Category names that don't start with "${catPrefix}"
-✗ Channel names that don't use separator "${chSep}"
+✗ Over-building: adding categories/channels the server doesn't actually need
+${explicitStructure ? '✗ Deviating in any way from the exact structure the user described' : `✗ Category names that don't start with "${catPrefix}"\n✗ Channel names that don't use separator "${chSep}"`}
 
-REMINDER: Category style is ${chosenCatStyle.id}, channel style is ${chosenChStyle.id}. Apply to 100% of items.
+${explicitStructure ? 'REMINDER: the user gave an explicit structure — reproduce it with maximum fidelity, do not restyle it.' : `REMINDER: Category style is ${chosenCatStyle.id}, channel style is ${chosenChStyle.id}. Apply to 100% of items.`}
 
 Return ONLY a raw JSON array:
 [{"name":"${chosenCatStyle.example.replace('Informações','Informações')}","allowedRoles":["👑 Proprietário","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais da equipe. Apenas a staff publica aqui.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Leia antes de participar. O descumprimento resulta em punição.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]`
-    : `Server: "${prompt}"\nRoles: ${roleNames}\n\nSTYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.\n\nReturn JSON array:\n[{"name":"${chosenCatStyle.example}","allowedRoles":["👑 Dono","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nVary channel counts. Return only the JSON array.`;
+    : `Server: "${prompt}"\nRoles: ${roleNames}\n\n${explicitStructure ? 'The user already wrote an explicit structure above — reproduce it exactly (names, emojis, order, format), do not restyle it.' : `STYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.`}\n\nReturn JSON array:\n[{"name":"${chosenCatStyle.example}","allowedRoles":["👑 Dono","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nKeep it proportional — don't over-build. Return only the JSON array.`;
 
   let categories;
   try {
@@ -1162,55 +1198,62 @@ Return ONLY a raw JSON array:
     if (!Array.isArray(categories) || categories.length === 0)
       throw new Error('Resposta de categorias inválida — array vazio ou malformado.');
     // Sanitize custom emojis from all names (last line of defense)
-    const stripCustomEmoji = str => String(str).replace(/<a?:\w+:\d+>/g, '').replace(/\s{2,}/g, ' ').trim();
+    const stripCustomEmoji = str => String(str)
+      .replace(/<a?:\w+:\d+>/g, '')
+      .replace(/\*\*|__|~~|`/g, '') // remove markdown que não renderiza em nomes de canal/categoria
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     // Sanitize categories and channels
     categories = categories
       .filter(cat => cat && cat.name && Array.isArray(cat.channels) && cat.channels.length > 0)
       .map(cat => {
-        // ── Força o estilo de categoria sorteado ──────────────────────────────
         let catName = stripCustomEmoji(String(cat.name)).substring(0, 100).trim();
-        // Remove qualquer prefixo de estilo existente e aplica o correto
-        catName = catName
-          .replace(/^╭────\s*/,  '')
-          .replace(/^╭⎯⎯⎯╴\s*✦\s*/, '')
-          .replace(/^➢\s*/,       '')
-          .trim();
-        if (chosenCatStyle.id === 'A') catName = `╭──── ${catName}`;
-        else if (chosenCatStyle.id === 'B') catName = `➢ ${catName.toUpperCase()}`;
-        else catName = `╭⎯⎯⎯╴ ✦ ${catName}`;
+
+        if (!explicitStructure) {
+          // ── Força o estilo de categoria sorteado (apenas quando o usuário
+          //    NÃO especificou um formato próprio no prompt) ─────────────────
+          catName = catName
+            .replace(/^╭────\s*/,  '')
+            .replace(/^╭⎯⎯⎯╴\s*✦\s*/, '')
+            .replace(/^➢\s*/,       '')
+            .trim();
+          if (chosenCatStyle.id === 'A') catName = `╭──── ${catName}`;
+          else if (chosenCatStyle.id === 'B') catName = `➢ ${catName.toUpperCase()}`;
+          else catName = `╭⎯⎯⎯╴ ✦ ${catName}`;
+        }
+        // Quando explicitStructure=true, mantemos o nome tal como o modelo
+        // reproduziu (fiel ao que o usuário pediu), só com limpeza básica.
 
         const channels = (Array.isArray(cat.channels) ? cat.channels : [])
           .filter(ch => ch && ch.name)
           .map(ch => {
-            // ── Força o estilo de canal sorteado ───────────────────────────────
             let chName = String(ch.name).substring(0, 100).trim().toLowerCase();
-            // Remove qualquer separador existente e aplica o correto
-            // Extrai emoji (se houver) e o nome do canal
-            const separators = ['┃', '」', '╺╸', '|', '「'];
-            let emoji = '';
-            let bare  = chName;
-            for (const sep of separators) {
-              const idx = chName.indexOf(sep);
-              if (idx !== -1) {
-                // Tudo antes do separador é o emoji, depois é o nome
-                const before = chName.slice(0, idx).trim();
-                const after  = chName.slice(idx + sep.length).trim();
-                // Verifica se o "before" parece ser emoji (curto)
-                if (before.length <= 6 && after.length > 0) {
-                  emoji = before;
-                  bare  = after;
-                  break;
+
+            if (!explicitStructure) {
+              // ── Força o estilo de canal sorteado ─────────────────────────────
+              const separators = ['┃', '」', '╺╸', '|', '「'];
+              let emoji = '';
+              let bare  = chName;
+              for (const sep of separators) {
+                const idx = chName.indexOf(sep);
+                if (idx !== -1) {
+                  const before = chName.slice(0, idx).trim();
+                  const after  = chName.slice(idx + sep.length).trim();
+                  if (before.length <= 6 && after.length > 0) {
+                    emoji = before;
+                    bare  = after;
+                    break;
+                  }
                 }
               }
+              bare = stripCustomEmoji(bare).replace(/^「/, '').replace(/」$/, '').trim();
+              if (emoji) emoji = stripCustomEmoji(emoji);
+              if (chosenChStyle.id === '1') chName = emoji ? `${emoji}┃${bare}` : `📌┃${bare}`;
+              else if (chosenChStyle.id === '2') chName = emoji ? `「${emoji}」${bare}` : `「📌」${bare}`;
+              else chName = emoji ? `${emoji}╺╸${bare}` : `📌╺╸${bare}`;
+            } else {
+              chName = stripCustomEmoji(chName);
             }
-            // Remove 「 」 soltos
-            bare = stripCustomEmoji(bare).replace(/^「/, '').replace(/」$/, '').trim();
-            // Remove custom emoji from emoji part too
-            if (emoji) emoji = stripCustomEmoji(emoji);
-            // Reconstrói com o separador correto
-            if (chosenChStyle.id === '1') chName = emoji ? `${emoji}┃${bare}` : `📌┃${bare}`;
-            else if (chosenChStyle.id === '2') chName = emoji ? `「${emoji}」${bare}` : `「📌」${bare}`;
-            else chName = emoji ? `${emoji}╺╸${bare}` : `📌╺╸${bare}`;
 
             return {
               name:             chName.substring(0, 100),
@@ -1793,28 +1836,22 @@ function formatETA(secs) {
 
 function buildQueueEmbed(prompt, laneName, position, secsAhead) {
   const isPrem    = laneName === 'premium';
-  const laneLabel = isPrem ? '✦ Premium' : 'Normal';
+  const laneLabel = isPrem ? 'Premium' : 'Normal';
   const maxDisplay = 12;
   const filled = Math.max(0, maxDisplay - Math.min(position - 1, maxDisplay));
-  const bar = `\`[${'█'.repeat(filled)}${'░'.repeat(maxDisplay - filled)}]\``;
+  const bar = `\`${'█'.repeat(filled)}${'░'.repeat(maxDisplay - filled)}\``;
 
   const normalQ  = lanes.normal.queue.filter(e => e.userId !== null).length;
   const premiumQ = lanes.premium.queue.filter(e => e.userId !== null).length;
 
-  // Ícone dinâmico por posição
-  const posIcon = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `#${position}`;
-
   const content = [
-    `## ${isPrem ? E.premium : '🟦'} Fila ${laneLabel} — Posição ${posIcon}`,
+    `## Fila ${laneLabel} · Posição #${position}`,
     `> *${prompt.substring(0, 80)}${prompt.length > 80 ? '…' : ''}*`,
     ``,
-    `**⏳ Tempo estimado:** ${formatETA(secsAhead)}`,
-    `**Tipo de fila:** ${isPrem ? `${E.premium} Premium` : '🟦 Normal'}`,
+    `**Tempo estimado:** ${formatETA(secsAhead)}`,
     `**Progresso:** ${bar}`,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `🟦 **Fila Normal** ${lanes.normal.busy ? E.loading : E.sucesso} — ${normalQ} na fila`,
-    `${E.premium} **Fila Premium** ${lanes.premium.busy ? E.loading : E.sucesso} — ${premiumQ} na fila`,
+    `Normal: ${normalQ} na fila  ·  Premium: ${premiumQ} na fila`,
     ``,
     `-# Architect ${VERSION} · Este painel atualiza automaticamente`,
   ].join('\n');
@@ -1832,27 +1869,21 @@ function buildAnalysisEmbed(prompt, logs) {
   const progress = done ? total : Math.min(logs.length, total);
   const pct      = Math.round((progress / total) * 100);
 
-  // Barra moderna com blocos graduais
   const BAR_LEN  = 14;
   const filled   = Math.round((progress / total) * BAR_LEN);
-  const barBlock = '█'.repeat(filled) + '░'.repeat(BAR_LEN - filled);
-  const bar      = `\`${barBlock}\` **${pct}%**`;
+  const bar      = `\`${'█'.repeat(filled)}${'░'.repeat(BAR_LEN - filled)}\` **${pct}%**`;
 
-  // Ícone por etapa
-  const STAGE_ICONS = ['🔍','🤖','🎭','🏗️','✨'];
   const logLines = logs.slice(-6).map((l, i, arr) => {
     const isLast = i === arr.length - 1;
     const icon   = isLast && !done ? '⏳' : '✅';
-    return `${icon} **${l.tag}** — ${l.msg}`;
-  }).join('\n') || '⏳ **INIT** — Inicializando...';
+    return `${icon} ${l.tag} — ${l.msg}`;
+  }).join('\n') || '⏳ Inicializando...';
 
-  const header = done
-    ? `## ✅ Estrutura gerada com sucesso!`
-    : `## ⚙️ Construindo servidor…`;
+  const header = done ? `## Estrutura gerada` : `## Construindo servidor…`;
 
   const content = [
     header,
-    `> 💬 *${prompt.substring(0, 120)}${prompt.length > 120 ? '…' : ''}*`,
+    `> *${prompt.substring(0, 120)}${prompt.length > 120 ? '…' : ''}*`,
     ``,
     `**Progresso:** ${bar}`,
     ``,
@@ -1877,30 +1908,27 @@ function buildConfirmEmbed(prompt, structure, secondsLeft) {
   const urgent  = secondsLeft <= 15;
   const warning = secondsLeft <= 35 && secondsLeft > 15;
 
-  // Barra de tempo regressiva
   const BAR_LEN  = 16;
   const filled   = Math.round((secondsLeft / 60) * BAR_LEN);
-  const timeBar  = (urgent ? '🔴' : warning ? '🟡' : '🟣') + ' `' + '█'.repeat(filled) + '░'.repeat(BAR_LEN - filled) + '` **' + secondsLeft + 's**';
+  const timeBar  = '`' + '█'.repeat(filled) + '░'.repeat(BAR_LEN - filled) + '` **' + secondsLeft + 's**';
 
-  // Preview compacto de categorias (máx 5)
   const cats = structure.categories || [];
   const catPreview = cats.slice(0, 5)
-    .map(c => `> 📁 **${c.name}** · ${c.channels?.length || 0} canais`)
+    .map(c => `> **${c.name}** · ${c.channels?.length || 0} canais`)
     .join('\n');
   const moreCount = Math.max(0, cats.length - 5);
 
   const content = [
-    `## ⚠️ Confirmar Criação`,
+    `## Confirmar Criação`,
     `> Esta ação **substituirá toda a estrutura atual** do servidor.`,
     ``,
-    `📝 **Prompt**`,
+    `**Prompt**`,
     `> *${prompt.substring(0, 160)}${prompt.length > 160 ? '…' : ''}*`,
     ``,
-    `📊 **Estrutura gerada**`,
-    `> 🎭 **${structure.roles?.length || 0}** cargos  ╱  📁 **${cats.length}** categorias  ╱  💬 **${totalChannels}** canais`,
+    `**Estrutura gerada:** ${structure.roles?.length || 0} cargos · ${cats.length} categorias · ${totalChannels} canais`,
     ``,
     ...(catPreview ? [catPreview, ...(moreCount > 0 ? [`> *+ ${moreCount} categoria(s)*`] : []), ``] : []),
-    `⏱️ **Expira em:** ${timeBar}`,
+    `**Expira em:** ${timeBar}`,
     ``,
     `-# Architect ${VERSION} · Use os botões abaixo para confirmar ou cancelar`,
   ].join('\n');
@@ -1920,10 +1948,10 @@ function buildProgressEmbed(title, info, steps) {
   const estimatedTotal = 40;
   const pct  = Math.min(100, Math.round((steps.length / estimatedTotal) * 100));
   const barF = Math.round((pct / 100) * 16);
-  const bar  = `🟣 \`${'█'.repeat(barF)}${'░'.repeat(16 - barF)}\` **${pct}%**`;
+  const bar  = `\`${'█'.repeat(barF)}${'░'.repeat(16 - barF)}\` **${pct}%**`;
 
   const content = [
-    `## 🏗️ ${title}`,
+    `## ${title}`,
     `> *${info.substring(0, 140)}*`,
     ``,
     `**Construção:** ${bar}`,
@@ -1942,7 +1970,7 @@ function buildProgressEmbed(title, info, steps) {
 function errorEmbed(msg, ephemeral = true) {
   return {
     flags: MessageFlags.IsComponentsV2 | (ephemeral ? MessageFlags.Ephemeral : 0),
-    components: [v2Container(C_RED, `## ❌ Algo deu errado\n> ${msg.substring(0, 400)}\n\n-# Architect ${VERSION} · Tente novamente ou contate o suporte`)],
+    components: [v2Container(C_RED, `## Algo deu errado\n> ${msg.substring(0, 400)}\n\n-# Architect ${VERSION} · Tente novamente ou contate o suporte`)],
   };
 }
 
@@ -2126,6 +2154,9 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('ia_config').setDescription('(Premium) Personaliza o prompt da IA para você')
       .addStringOption(o => o.setName('prompt').setDescription('Descreva como a IA deve se comportar / quantidade de cargos etc').setRequired(true)),
 
+    new SlashCommandBuilder().setName('editar').setDescription('(Premium) Pede para a IA alterar algo específico do servidor')
+      .addStringOption(o => o.setName('instrucao').setDescription('Ex: "mude a cor do cargo Moderador para vermelho"').setRequired(true)),
+
     new SlashCommandBuilder().setName('set_build').setDescription('Define o canal onde aparecerão os servidores criados pelo bot')
       .addChannelOption(o => o.setName('canal').setDescription('Canal para o feed de criações').setRequired(true)),
 
@@ -2303,17 +2334,15 @@ client.on('interactionCreate', async interaction => {
         const countByType = allChannels.reduce((acc, ch) => { acc[ch.type || 'text'] = (acc[ch.type || 'text'] || 0) + 1; return acc; }, {});
         const typeLines = Object.entries(countByType)
           .map(([t, n]) => {
-            const icons = { text: '<:canal:1500524470270562304>', voice: '🔊', forum: '<:lista:1500524503778988072>', announcement: '<:avisos:1500524507171918006>', stage: '🎙️' };
-            return `${icons[t] || '📌'} **${n}** ${t}`;
+            const labels = { text: 'texto', voice: 'voz', forum: 'fórum', announcement: 'avisos', stage: 'palco' };
+            return `${n} ${labels[t] || t}`;
           }).join('  ·  ');
 
         const successContent = [
-          `## ${E.sucesso} Servidor criado com sucesso!`,
+          `## Servidor criado com sucesso`,
           ``,
-          `> Toda a estrutura foi aplicada com sucesso no servidor.`,
-          ``,
-          `**${E.cargos} Cargos:** ${structure.roles?.length || 0}  ·  **${E.cats} Categorias:** ${structure.categories?.length || 0}  ·  **${E.canais} Canais:** ${totalChannels}`,
-          ...(typeLines ? [`**Distribuição:** ${typeLines}`] : []),
+          `**Cargos:** ${structure.roles?.length || 0}  ·  **Categorias:** ${structure.categories?.length || 0}  ·  **Canais:** ${totalChannels}`,
+          ...(typeLines ? [`-# ${typeLines}`] : []),
           ``,
           `-# Architect ${VERSION} · architect.velroc.workers.dev`,
         ].join('\n');
@@ -2343,7 +2372,7 @@ client.on('interactionCreate', async interaction => {
         // imageBuffer é sempre um Buffer PNG (ou null se canvas não disponível)
         if (imageBuffer) {
           containerComponents.push({
-            type: 11, // MediaGallery
+            type: 12, // MediaGallery (tipo 11 é "Thumbnail" — por isso a imagem nunca aparecia)
             items: [{ media: { url: 'attachment://architect-resultado.png' } }],
           });
         }
@@ -2371,6 +2400,24 @@ client.on('interactionCreate', async interaction => {
         interaction.user.send(
           `Se você gostou do Architect, vote aqui para ajudar: https://top.gg/bot/1353210073832357992?s=03ad7aa496c89\nObrigado! 🙏`
         ).catch(() => {});
+
+        // DM de upsell Premium — apenas para quem criou SEM Premium
+        if (!isPremium) {
+          interaction.user.send(
+            v2Simple(
+              C_YELLOW,
+              `<:nitro:1500524497688723566> Quer uma experiência melhor?`,
+              [
+                `Seu servidor foi criado no plano gratuito.`,
+                ``,
+                `Com o **Premium**, o Architect pensa com muito mais profundidade, segue seu prompt à risca (nomes, formato, quantidade exata) e libera comandos exclusivos como o **/editar**.`,
+                ``,
+                `**Assine o Premium:**\nhttps://discord.gg/UZ6b6MkeB2`,
+              ].join('\n'),
+              `Architect ${VERSION}`
+            )
+          ).catch(() => {});
+        }
       } catch (e) {
         const errEmbed = errorEmbed(e.message);
         await interaction.editReply(errEmbed).catch(async () => {
@@ -3362,6 +3409,129 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
     ));
   }
 
+  // ── /editar (Premium) ────────────────────────────────────────────────────────
+  else if (commandName === 'editar') {
+    const isPremiumUser = await resolveIsPremium(interaction.user.id, interaction.guild);
+    if (!isPremiumUser)
+      return interaction.reply({ content: `${E.premium} O comando /editar é exclusivo para servidores/usuários **Premium**!`, flags: MessageFlags.Ephemeral });
+    if (!member.permissions.has(PermissionFlagsBits.ManageGuild))
+      return interaction.reply({ ...errorEmbed('Você precisa da permissão "Gerenciar Servidor" para usar /editar.'), flags: MessageFlags.Ephemeral });
+
+    const instrucao = interaction.options.getString('instrucao');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const moderation = await moderatePrompt(instrucao);
+    if (!moderation.safe) {
+      return interaction.editReply(v2Simple(C_RED,
+        `${E.erro} Instrução Bloqueada`,
+        `Essa instrução não pôde ser executada por violar as diretrizes de uso do Architect.\n\n**Motivo:** ${moderation.motivo}`,
+        `Architect ${VERSION}`
+      ));
+    }
+
+    try {
+      const guild = interaction.guild;
+      const channelList = guild.channels.cache
+        .filter(c => [ChannelType.GuildText, ChannelType.GuildVoice, ChannelType.GuildForum, ChannelType.GuildAnnouncement, ChannelType.GuildStageVoice, ChannelType.GuildCategory].includes(c.type))
+        .map(c => ({ name: c.name, type: ChannelType.GuildCategory === c.type ? 'category' : c.type }));
+      const roleList = guild.roles.cache
+        .filter(r => r.name !== '@everyone' && !r.managed)
+        .map(r => ({ name: r.name, color: `#${r.color.toString(16).padStart(6, '0')}`, hoist: r.hoist, mentionable: r.mentionable }));
+
+      const editSystem = `You are a precise Discord server editing assistant. The user wants to make ONE specific, targeted change to an existing server element (a channel, category, or role) — NOT create or delete anything.
+
+Return ONLY a raw JSON object (no markdown, no prose):
+{"kind":"channel"|"role","target":"<exact current name from the provided list>","action":"rename"|"topic"|"color"|"nsfw"|"slowmode"|"hoist"|"mentionable","value":"<new value>"}
+
+RULES:
+- "target" MUST exactly match one name from the lists provided (case-sensitive match preferred, but pick the closest existing item).
+- "action" must fit "kind": channel → rename/topic/nsfw/slowmode; role → rename/color/hoist/mentionable.
+- For "color", value must be a hex string like "#ff0000".
+- For "nsfw"/"hoist"/"mentionable", value must be "true" or "false".
+- For "slowmode", value must be an integer of seconds (0-21600) as a string.
+- If the instruction doesn't clearly map to exactly one existing item, pick the single closest match — never invent a new name that doesn't exist in the lists.
+- Keep new names/topics in Brazilian Portuguese, matching the style already used on the server.`;
+
+      const editUser = `Existing channels/categories: ${JSON.stringify(channelList)}
+Existing roles: ${JSON.stringify(roleList)}
+
+User instruction: "${instrucao}"
+
+Return only the JSON object describing the single edit to perform.`;
+
+      const laneName = getLaneName(true);
+      const action = await callMistralRaw(laneName, [
+        { role: 'system', content: editSystem },
+        { role: 'user',   content: editUser },
+      ], 500);
+
+      if (!action || !action.kind || !action.target || !action.action)
+        throw new Error('Não consegui entender qual alteração fazer. Tente ser mais específico (ex: "mude a cor do cargo Moderador para vermelho").');
+
+      let resultLine = '';
+
+      if (action.kind === 'role') {
+        const role = guild.roles.cache.find(r => r.name.toLowerCase() === String(action.target).toLowerCase())
+          || guild.roles.cache.find(r => r.name.toLowerCase().includes(String(action.target).toLowerCase()));
+        if (!role) throw new Error(`Cargo "${action.target}" não encontrado.`);
+        if (role.managed || role.name === '@everyone') throw new Error('Esse cargo não pode ser editado.');
+
+        if (action.action === 'rename') {
+          const newName = String(action.value).replace(/\*\*|__|~~|`/g, '').substring(0, 100);
+          await role.setName(newName);
+          resultLine = `Cargo renomeado: **${role.name}**`;
+        } else if (action.action === 'color') {
+          const c = /^#[0-9A-Fa-f]{6}$/.test(action.value) ? action.value : '#99aab5';
+          await role.setColor(c);
+          resultLine = `Cor do cargo **${role.name}** alterada para \`${c}\``;
+        } else if (action.action === 'hoist') {
+          await role.setHoist(String(action.value) === 'true');
+          resultLine = `Exibição separada do cargo **${role.name}** definida como \`${action.value}\``;
+        } else if (action.action === 'mentionable') {
+          await role.setMentionable(String(action.value) === 'true');
+          resultLine = `Cargo **${role.name}** agora ${String(action.value) === 'true' ? 'pode' : 'não pode'} ser mencionado`;
+        } else {
+          throw new Error('Ação inválida para cargo.');
+        }
+      } else if (action.kind === 'channel') {
+        const channel = guild.channels.cache.find(c => c.name.toLowerCase() === String(action.target).toLowerCase())
+          || guild.channels.cache.find(c => c.name.toLowerCase().includes(String(action.target).toLowerCase()));
+        if (!channel) throw new Error(`Canal "${action.target}" não encontrado.`);
+
+        if (action.action === 'rename') {
+          const newName = String(action.value).replace(/\*\*|__|~~|`/g, '').substring(0, 100);
+          await channel.setName(newName);
+          resultLine = `Canal renomeado: **${channel.name}**`;
+        } else if (action.action === 'topic') {
+          if (typeof channel.setTopic !== 'function') throw new Error('Esse canal não suporta tópico.');
+          await channel.setTopic(String(action.value).substring(0, 1024));
+          resultLine = `Tópico de **${channel.name}** atualizado`;
+        } else if (action.action === 'nsfw') {
+          if (typeof channel.setNSFW !== 'function') throw new Error('Esse canal não suporta NSFW.');
+          await channel.setNSFW(String(action.value) === 'true');
+          resultLine = `NSFW de **${channel.name}** definido como \`${action.value}\``;
+        } else if (action.action === 'slowmode') {
+          if (typeof channel.setRateLimitPerUser !== 'function') throw new Error('Esse canal não suporta slowmode.');
+          const secs = Math.max(0, Math.min(21600, parseInt(action.value, 10) || 0));
+          await channel.setRateLimitPerUser(secs);
+          resultLine = `Slowmode de **${channel.name}** definido para \`${secs}s\``;
+        } else {
+          throw new Error('Ação inválida para canal.');
+        }
+      } else {
+        throw new Error('Tipo de alvo desconhecido.');
+      }
+
+      await interaction.editReply(v2Simple(C_GREEN,
+        `${E.sucesso} Alteração aplicada`,
+        `${resultLine}\n\n> *"${instrucao}"*`,
+        `Architect ${VERSION}`
+      ));
+    } catch (e) {
+      await interaction.editReply(errorEmbed(e.message)).catch(() => {});
+    }
+  }
+
   // ── /set_build ────────────────────────────────────────────────────────────────
   else if (commandName === 'set_build') {
     if (!member.permissions.has(PermissionFlagsBits.Administrator))
@@ -3512,7 +3682,7 @@ ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       `${E.info} Comandos — Architect ${VERSION}`,
       `**🏗️ Criação IA**
 ` +
-      `\`/criar_servidor\` \`/template\` \`/ia_config\`
+      `\`/criar_servidor\` \`/template\` \`/ia_config\` \`/editar\`
 
 ` +
       `**💾 Backup & Proteção**
@@ -4532,7 +4702,7 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
     // Banner (imagem no topo do painel)
     if (config.ticketBanner) {
       deployComponents.push({
-        type: 11, // MediaGallery — exibe imagem dentro do container V2
+        type: 12, // MediaGallery — exibe imagem dentro do container V2
         items: [{ media: { url: config.ticketBanner } }],
       });
       deployComponents.push({ type: 14, divider: true, spacing: 1 }); // Separator
