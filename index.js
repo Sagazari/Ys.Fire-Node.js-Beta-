@@ -43,25 +43,25 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
 
     // ── Fundo gradiente ──────────────────────────────────────────────────────
     const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0,    '#0d1117');
-    bg.addColorStop(0.5,  '#1a1f2e');
-    bg.addColorStop(1,    '#0d1117');
+    bg.addColorStop(0,    '#15131c');
+    bg.addColorStop(0.5,  '#211d2c');
+    bg.addColorStop(1,    '#15131c');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
     // Glow laranja no canto superior esquerdo
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 320);
-    glow.addColorStop(0,   'rgba(242,108,30,0.18)');
-    glow.addColorStop(1,   'rgba(242,108,30,0)');
+    glow.addColorStop(0,   'rgba(179,157,219,0.18)');
+    glow.addColorStop(1,   'rgba(179,157,219,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
 
     // ── Borda superior laranja ───────────────────────────────────────────────
     const topBar = ctx.createLinearGradient(0, 0, W, 0);
-    topBar.addColorStop(0,    'rgba(242,108,30,0)');
-    topBar.addColorStop(0.3,  '#f26c1e');
-    topBar.addColorStop(0.7,  '#f26c1e');
-    topBar.addColorStop(1,    'rgba(242,108,30,0)');
+    topBar.addColorStop(0,    'rgba(179,157,219,0)');
+    topBar.addColorStop(0.3,  '#b39ddb');
+    topBar.addColorStop(0.7,  '#b39ddb');
+    topBar.addColorStop(1,    'rgba(179,157,219,0)');
     ctx.fillStyle = topBar;
     ctx.fillRect(0, 0, W, 3);
 
@@ -83,7 +83,7 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
         // Borda circular laranja
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = '#f26c1e';
+        ctx.strokeStyle = '#b39ddb';
         ctx.lineWidth = 3;
         ctx.stroke();
         avatarX = 174;
@@ -99,7 +99,7 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
     // Badge premium
     if (isPremium) {
       ctx.font      = 'bold 13px Arial';
-      ctx.fillStyle = '#f26c1e';
+      ctx.fillStyle = '#b39ddb';
       ctx.fillText('✦ PREMIUM', avatarX, 140);
     }
 
@@ -110,10 +110,10 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
 
     // ── Linha separadora ──────────────────────────────────────────────────────
     const sep = ctx.createLinearGradient(60, 0, W - 60, 0);
-    sep.addColorStop(0,    'rgba(242,108,30,0)');
-    sep.addColorStop(0.1,  'rgba(242,108,30,0.6)');
-    sep.addColorStop(0.9,  'rgba(242,108,30,0.6)');
-    sep.addColorStop(1,    'rgba(242,108,30,0)');
+    sep.addColorStop(0,    'rgba(179,157,219,0)');
+    sep.addColorStop(0.1,  'rgba(179,157,219,0.6)');
+    sep.addColorStop(0.9,  'rgba(179,157,219,0.6)');
+    sep.addColorStop(1,    'rgba(179,157,219,0)');
     ctx.fillStyle = sep;
     ctx.fillRect(60, 228, W - 120, 1);
 
@@ -134,13 +134,13 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
       roundRect(ctx, cx, cardY, cardW, cardH, 14);
       ctx.fill();
       // Borda do card
-      ctx.strokeStyle = 'rgba(242,108,30,0.3)';
+      ctx.strokeStyle = 'rgba(179,157,219,0.3)';
       ctx.lineWidth   = 1;
       roundRect(ctx, cx, cardY, cardW, cardH, 14);
       ctx.stroke();
       // Ícone
       ctx.font      = '22px Arial';
-      ctx.fillStyle = '#f26c1e';
+      ctx.fillStyle = '#b39ddb';
       ctx.fillText(s.icon, cx + 16, cardY + 36);
       // Valor
       ctx.font      = 'bold 30px Arial';
@@ -166,7 +166,7 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
     // Bolinha laranja
     ctx.beginPath();
     ctx.arc(W - 50, H - 26, 5, 0, Math.PI * 2);
-    ctx.fillStyle = '#f26c1e';
+    ctx.fillStyle = '#b39ddb';
     ctx.fill();
 
     return await canvas.toBuffer('image/png');
@@ -1121,7 +1121,7 @@ OUTPUT CONTRACT:
 - Exactly ONE emoji per category name and ONE emoji per channel name — never stack emojis or symbols.
 - NEVER use markdown (no **bold**, __underline__, \`code\`) in names — they render as literal characters, not formatted text.
 - Generate 8–13 categories total (or EXACTLY as requested). ONLY what this server genuinely needs — no filler, no padding just to look "complete".
-- Channel counts PER category must VARY organically unless user specified: some categories have 2–3 channels, others 6–9. Prefer fewer, well-thought-out channels over a large number of shallow ones.
+- MINIMUM 3 channels per category, most categories should have 4–7. Channel counts PER category must VARY organically unless user specified — never make every category the same size, and never collapse to 1–2 channels; that reads as broken, not minimalist.
 - Channel types: use text, voice, forum, announcement, stage. Vary them meaningfully — not every category gets one of each.
 - Voice channels should reflect real usage: a gaming server might have 6 voice rooms with different purposes; a study server might have 4 focus rooms. Name them creatively.
 - NEVER create redundant channels: no "avisos-e-informações", "chat-e-conversa" or any compound name joining two concepts. Each channel has ONE purpose.
@@ -1154,7 +1154,7 @@ MANDATORY RULES:
 - Return ONLY a raw valid JSON array. No markdown, no backticks, no explanation.
 - All names in Brazilian Portuguese with correct accents.
 - Generate ${minCats}–7 categories — only what genuinely fits this server. Do not pad with categories the server doesn't need. If the user asked for something small/simple, keep it small/simple.
-- Channel counts must VARY per category (some 2–3, some 4–5). Keep each category lean — avoid stuffing many channels into one category just to look complete.
+- MINIMUM 3 channels per category, most categories should have 3–6. Vary the count per category (don't make every one identical) but NEVER collapse to just 1–2 channels — that looks broken, not minimalist.
 - Exactly ONE emoji per category name and ONE emoji per channel name — never stack emojis or symbols. Restraint reads as more professional than clutter.
 - NEVER use markdown (no **bold**, __underline__, \`code\`) in names — they render as literal characters.
 - NEVER create compound channel names joining two concepts (e.g. "avisos-e-informações").
@@ -1185,16 +1185,16 @@ ${explicitStructure ? '✗ Deviating in any way from the exact structure the use
 
 ${explicitStructure ? 'REMINDER: the user gave an explicit structure — reproduce it with maximum fidelity, do not restyle it.' : `REMINDER: Category style is ${chosenCatStyle.id}, channel style is ${chosenChStyle.id}. Apply to 100% of items.`}
 
-Return ONLY a raw JSON array:
-[{"name":"${chosenCatStyle.example.replace('Informações','Informações')}","allowedRoles":["👑 Proprietário","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais da equipe. Apenas a staff publica aqui.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Leia antes de participar. O descumprimento resulta em punição.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]`
-    : `Server: "${prompt}"\nRoles: ${roleNames}\n\n${explicitStructure ? 'The user already wrote an explicit structure above — reproduce it exactly (names, emojis, order, format), do not restyle it.' : `STYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.`}\n\nReturn JSON array:\n[{"name":"${chosenCatStyle.example}","allowedRoles":["👑 Dono","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nKeep it proportional — don't over-build. Return only the JSON array.`;
+Return ONLY a raw JSON array. Example below shows just 2 categories for brevity — you must generate ALL the categories this server needs, most with 4+ channels (never just 1–2):
+[{"name":"${chosenCatStyle.example.replace('Informações','Informações')}","allowedRoles":["👑 Proprietário","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais da equipe. Apenas a staff publica aqui.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Leia antes de participar. O descumprimento resulta em punição.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"👋${chSep}apresentacoes","type":"text","topic":"Apresente-se para a comunidade.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":5,"nsfw":false}]},{"name":"${catPrefix}Comunidade","allowedRoles":["👑 Proprietário","✅ Membro"],"channels":[{"name":"💬${chSep}geral","type":"text","topic":"Conversa livre da comunidade.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":5,"nsfw":false},{"name":"🖼️${chSep}midias","type":"text","topic":"Compartilhe fotos e vídeos.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":10,"nsfw":false},{"name":"🔊${chSep}sala-1","type":"voice","topic":"","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"🔊${chSep}sala-2","type":"voice","topic":"","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"🎲${chSep}indicacoes","type":"text","topic":"Indique conteúdos relacionados ao tema do servidor.","allowedRoles":["👑 Proprietário","✅ Membro"],"rateLimitPerUser":5,"nsfw":false}]}]`
+    : `Server: "${prompt}"\nRoles: ${roleNames}\n\n${explicitStructure ? 'The user already wrote an explicit structure above — reproduce it exactly (names, emojis, order, format), do not restyle it.' : `STYLE (non-negotiable): Category prefix "${catPrefix}", channel separator "${chSep}". Apply to EVERY item.`}\n\nReturn ONLY a raw JSON array. Example below shows just 2 categories for brevity — generate ALL categories this server needs, most with 3-6 channels (never just 1-2):\n[{"name":"${chosenCatStyle.example}","allowedRoles":["👑 Dono","✅ Membro"],"channels":[{"name":"📢${chSep}avisos","type":"announcement","topic":"Comunicados oficiais.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"📜${chSep}regras","type":"text","topic":"Regras do servidor.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false},{"name":"👋${chSep}apresentacoes","type":"text","topic":"Apresente-se aqui.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":5,"nsfw":false}]},{"name":"${catPrefix}Comunidade","allowedRoles":["👑 Dono","✅ Membro"],"channels":[{"name":"💬${chSep}geral","type":"text","topic":"Conversa livre.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":5,"nsfw":false},{"name":"🖼️${chSep}midias","type":"text","topic":"Fotos e vídeos.","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":10,"nsfw":false},{"name":"🔊${chSep}sala-1","type":"voice","topic":"","allowedRoles":["👑 Dono","✅ Membro"],"rateLimitPerUser":0,"nsfw":false}]}]\nKeep it proportional — don't over-build, but never under-build either. Return only the JSON array.`;
 
   let categories;
   try {
     categories = await callMistralRaw(laneName, [
       { role: 'system', content: catsSystem },
       { role: 'user',   content: catsUser + customInstruction },
-    ], isPremium ? 6000 : 4000);
+    ], isPremium ? 7500 : 5500);
     if (!Array.isArray(categories) || categories.length === 0)
       throw new Error('Resposta de categorias inválida — array vazio ou malformado.');
     // Sanitize custom emojis from all names (last line of defense)
