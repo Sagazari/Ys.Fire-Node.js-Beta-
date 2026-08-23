@@ -629,6 +629,46 @@ async function _readBody(res) {
   return res.text();
 }
 
+// Repara um array JSON cortado no meio (resposta truncada por max_tokens):
+// varre o texto contando profundidade de chaves/colchetes (ignorando o que
+// está dentro de strings) e localiza o último item de nível superior que
+// fechou completamente — descarta o item pendurado/incompleto no final e
+// fecha o array ali. Retorna null se não conseguir recuperar nada útil.
+function repairTruncatedJsonArray(raw) {
+  const startIdx = raw.indexOf('[');
+  if (startIdx === -1) return null;
+  let depth = 0, inStr = false, esc = false, lastGoodEnd = -1;
+  for (let i = startIdx; i < raw.length; i++) {
+    const c = raw[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{' || c === '[') { depth++; continue; }
+    if (c === '}') {
+      depth--;
+      if (depth === 1) lastGoodEnd = i; // fechou um item de nível superior do array
+      continue;
+    }
+    if (c === ']') {
+      depth--;
+      if (depth === 0) { lastGoodEnd = i; break; } // array já estava completo
+      continue;
+    }
+  }
+  if (lastGoodEnd === -1) return null;
+  const candidate = raw.substring(startIdx, lastGoodEnd + 1);
+  const closed = candidate.trimEnd().endsWith(']') ? candidate : candidate + ']';
+  try {
+    const parsed = JSON.parse(closed);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (_) {}
+  return null;
+}
+
 async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) {
   const key = MISTRAL_KEYS[laneName] || MISTRAL_KEYS.normal;
   if (!key) { console.error(`[MISTRAL/${laneName}] Chave não definida!`); throw new Error('Chave Mistral não configurada.'); }
@@ -675,6 +715,11 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
       try { data = JSON.parse(rawBody); }
       catch (e) { throw new Error(`Body inválido (${rawBody.length} chars): ${rawBody.substring(0, 200)}`); }
 
+      const finishReason = data.choices?.[0]?.finish_reason;
+      if (finishReason === 'length') {
+        console.warn(`[MISTRAL/${laneName}] ⚠️ Resposta CORTADA por atingir max_tokens — tentando aproveitar o que foi gerado.`);
+      }
+
       const content = (data.choices?.[0]?.message?.content || '').trim();
       if (!parseJson) return content;
 
@@ -687,17 +732,31 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
       const s = raw.indexOf(open);
       const e = raw.lastIndexOf(close);
 
-      if (s === -1 || e === -1 || e <= s) {
+      if (s === -1) {
         console.error(`[MISTRAL/${laneName}] JSON não encontrado. Raw: ${raw.substring(0, 200)}`);
         throw new Error('IA retornou JSON inválido. Tente novamente.');
       }
 
-      try {
-        return JSON.parse(raw.substring(s, e + 1));
-      } catch (parseErr) {
-        console.error(`[MISTRAL/${laneName}] JSON parse falhou:`, parseErr.message, '| Raw:', raw.substring(s, Math.min(s + 300, e + 1)));
-        throw new Error('IA retornou JSON inválido. Tente novamente.');
+      // Tentativa normal: string já tem abertura e fechamento balanceados
+      if (e !== -1 && e > s) {
+        try {
+          return JSON.parse(raw.substring(s, e + 1));
+        } catch (_) { /* cai para o reparo abaixo */ }
       }
+
+      // Reparo: a resposta foi cortada no meio (finishReason === 'length' ou
+      // JSON malformado). Se for um array, aproveitamos os itens já completos
+      // em vez de descartar toda a geração.
+      if (isArr) {
+        const repaired = repairTruncatedJsonArray(raw);
+        if (repaired) {
+          console.warn(`[MISTRAL/${laneName}] JSON reparado — aproveitando ${repaired.length} item(ns) completos de uma resposta cortada.`);
+          return repaired;
+        }
+      }
+
+      console.error(`[MISTRAL/${laneName}] JSON parse falhou. Raw (${raw.length} chars):`, raw.substring(Math.max(0, s), Math.min(s + 300, raw.length)));
+      throw new Error('IA retornou JSON inválido. Tente novamente.');
 
     } catch (err) {
       const isNet = /premature|econnreset|econnrefused|etimedout|fetch failed|socket hang/i.test(err.message || '');
@@ -1148,6 +1207,7 @@ OUTPUT CONTRACT:
 - NEVER lock channels by default.
 - Role names MUST be distinct from channel names.
 - rateLimitPerUser: 0 on announcements/voice/stage/forum, 5 on general social text, 10 on support/media text, 3 on bot channels.
+- allowedRoles: set it on the CATEGORY (never empty). On individual CHANNELS, OMIT the "allowedRoles" field entirely UNLESS that channel needs DIFFERENT access than its category (e.g. a staff-only channel inside a public category) — omitted channels automatically inherit the category's allowedRoles. This keeps the JSON compact and avoids truncation, which matters a lot with a large role list.
 
 ${styleBlock}
 
@@ -1179,7 +1239,7 @@ MANDATORY RULES:
 - NEVER create compound channel names joining two concepts (e.g. "avisos-e-informações").
 - nsfw: false. NEVER lock channels. Roles ≠ channel names.
 - rateLimitPerUser: 0 announcements/voice/forum, 5 social, 10 support/media, 3 bots.
-- allowedRoles from actual role list. Never empty.
+- allowedRoles: set it on the CATEGORY (never empty). On individual CHANNELS, OMIT the "allowedRoles" field entirely UNLESS that channel needs DIFFERENT access than its category (e.g. a staff-only channel inside a public category) — omitted channels automatically inherit the category's allowedRoles. This keeps the JSON compact and avoids truncation, especially with many roles.
 
 ${styleBlock}`;
 
@@ -2663,15 +2723,15 @@ client.on('interactionCreate', async interaction => {
     const prompt = interaction.options.getString('prompt');
     const userId = interaction.user.id;
 
-    // Defer imediatamente com timeout — se não responder em 2.5s, aborta silenciosamente
+    // Defer imediatamente. IMPORTANTE: não usamos mais uma corrida artificial
+    // contra um timer de 2.5s — isso só fazia o bot desistir sozinho de pedidos
+    // que ainda estavam dentro da janela real de 3s do Discord, causando
+    // "O aplicativo não respondeu" por culpa nossa, não do Discord.
     try {
-      await Promise.race([
-        interaction.deferReply(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('deferReply timeout')), 2500)),
-      ]);
+      await interaction.deferReply();
     } catch (deferErr) {
       console.warn('[criar_servidor] deferReply falhou:', deferErr.message);
-      return; // Discord já marcou como "não respondeu", não há nada a fazer
+      return; // Interação já expirou do lado do Discord, não há nada a fazer
     }
 
     const isPremium = await resolveIsPremium(userId, guild);
