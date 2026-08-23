@@ -277,14 +277,16 @@ async function processLane(laneName) {
   };
 
   // Timeout de segurança — se a task travar por muito tempo, desbloqueamos a lane.
-  // Prompts grandes fazem 2 chamadas sequenciais à Mistral (cargos + categorias),
-  // cada uma podendo levar até 120s + retries — por isso a margem é generosa.
+  // IMPORTANTE: isso NÃO mata a chamada Mistral em segundo plano — por isso
+  // marcamos entry.cancelToken.cancelled=true, para que o onLog da task antiga
+  // pare de sobrescrever a mensagem de erro quando a resposta zumbi chegar depois.
   const safetyTimeout = setTimeout(() => {
     if (settled) return;
     console.error(`[LANE/${laneName}] <:atencao:1500524473827459263> Timeout de segurança acionado — lane desbloqueada forçadamente.`);
-    entry.reject(new Error('Timeout de segurança da lane.'));
+    if (entry.cancelToken) entry.cancelToken.cancelled = true;
+    entry.reject(new Error('A geração demorou demais e foi cancelada. Tente novamente — se persistir, tente um prompt um pouco mais curto.'));
     advanceLane();
-  }, 340_000);
+  }, 480_000);
 
   try {
     const result = await entry.task();
@@ -631,11 +633,18 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
   const key = MISTRAL_KEYS[laneName] || MISTRAL_KEYS.normal;
   if (!key) { console.error(`[MISTRAL/${laneName}] Chave não definida!`); throw new Error('Chave Mistral não configurada.'); }
 
-  const maxRetries = maxTokens >= 6000 ? Math.max(retries, 6) : retries;
+  // Gerar respostas grandes (muitos canais/categorias) leva mais tempo — o teto
+  // de espera por tentativa precisa escalar com max_tokens, senão a requisição
+  // é abortada ANTES de terminar de gerar (e isso conta como "falha", gastando
+  // retries à toa até estourar o timeout de segurança da fila).
+  const fetchTimeoutMs = Math.min(270_000, Math.max(120_000, Math.round(maxTokens * 22)));
+  // Respostas grandes já têm um teto de espera generoso por tentativa — não faz
+  // sentido tentar 6x (isso levaria a esperas de mais de 20 minutos). 3 tentativas bastam.
+  const maxRetries = maxTokens >= 6000 ? Math.max(Math.min(retries, 3), 3) : retries;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${maxRetries}...`);
+      console.log(`[MISTRAL/${laneName}] Tentativa ${attempt}/${maxRetries} (timeout ${Math.round(fetchTimeoutMs / 1000)}s)...`);
       const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method:  'POST',
         headers: {
@@ -643,7 +652,7 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
           'Content-Type':  'application/json',
         },
         body:   JSON.stringify({ model: MISTRAL_MODEL, max_tokens: maxTokens, temperature: 0.4, messages }),
-        signal: AbortSignal.timeout(120000),
+        signal: AbortSignal.timeout(fetchTimeoutMs),
       });
       console.log(`[MISTRAL/${laneName}] HTTP ${res.status}`);
 
@@ -995,7 +1004,7 @@ Return ONLY a raw JSON array (no markdown, no backticks):
     roles = await callMistralRaw(laneName, [
       { role: 'system', content: rolesSystem },
       { role: 'user',   content: rolesUser + customInstruction },
-    ], 3000);
+    ], 3000, 3);
     if (!Array.isArray(roles) || roles.length === 0)
       throw new Error('Resposta de cargos inválida — array vazio ou malformado.');
     const stripCustomEmojiRole = str => String(str)
@@ -1204,7 +1213,7 @@ Return ONLY a raw JSON array. Example below shows just 2 categories for brevity 
     categories = await callMistralRaw(laneName, [
       { role: 'system', content: catsSystem },
       { role: 'user',   content: catsUser + customInstruction },
-    ], isPremium ? (7500 + Math.min(4000, Math.floor(prompt.length / 2))) : (5500 + Math.min(2000, Math.floor(prompt.length / 3))));
+    ], isPremium ? Math.min(9000, 6500 + Math.floor(prompt.length / 3)) : Math.min(6500, 4500 + Math.floor(prompt.length / 4)));
     if (!Array.isArray(categories) || categories.length === 0)
       throw new Error('Resposta de categorias inválida — array vazio ou malformado.');
     // Sanitize custom emojis from all names (last line of defense)
@@ -2708,10 +2717,14 @@ client.on('interactionCreate', async interaction => {
 
     const logs  = [];
     let generationStarted = false;
+    const cancelToken = { cancelled: false };
 
     const onLog = async (icon, tag, msg) => {
       logs.push({ icon, tag, msg });
       console.log(`[${tag}] ${msg}`);
+      // Se a fila já desistiu dessa task (timeout de segurança), não sobrescreve
+      // a mensagem de erro que o usuário já está vendo.
+      if (cancelToken.cancelled) return;
       // Atualiza o embed de análise em tempo real durante a geração
       if (generationStarted) {
         await interaction.editReply({
@@ -2752,6 +2765,7 @@ client.on('interactionCreate', async interaction => {
           resolve, reject,
           userId, interaction, prompt,
           addedAt: Date.now(),
+          cancelToken,
         });
         processLane(chosenLane.name);
       });
@@ -2821,10 +2835,12 @@ client.on('interactionCreate', async interaction => {
 
     const logs  = [];
     let generationStartedT = false;
+    const cancelToken = { cancelled: false };
 
     const onLog = async (icon, tag, msg) => {
       logs.push({ icon, tag, msg });
       console.log(`[${tag}] ${msg}`);
+      if (cancelToken.cancelled) return;
       if (generationStartedT) {
         await interaction.editReply({ ...buildAnalysisEmbed(prompt, logs) }).catch(() => {});
       }
@@ -2859,6 +2875,7 @@ client.on('interactionCreate', async interaction => {
           resolve, reject,
           userId, interaction, prompt,
           addedAt: Date.now(),
+          cancelToken,
         });
         processLane(chosenLane.name);
       });
