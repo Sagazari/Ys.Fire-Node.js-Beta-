@@ -276,13 +276,15 @@ async function processLane(laneName) {
     }, wait);
   };
 
-  // Timeout de segurança — se a task travar por mais de 120s, desbloqueamos a lane
+  // Timeout de segurança — se a task travar por muito tempo, desbloqueamos a lane.
+  // Prompts grandes fazem 2 chamadas sequenciais à Mistral (cargos + categorias),
+  // cada uma podendo levar até 120s + retries — por isso a margem é generosa.
   const safetyTimeout = setTimeout(() => {
     if (settled) return;
     console.error(`[LANE/${laneName}] <:atencao:1500524473827459263> Timeout de segurança acionado — lane desbloqueada forçadamente.`);
     entry.reject(new Error('Timeout de segurança da lane.'));
     advanceLane();
-  }, 120_000);
+  }, 340_000);
 
   try {
     const result = await entry.task();
@@ -914,7 +916,9 @@ function hasExplicitStructure(p) {
 async function generateStructure(prompt, onLog, isPremium = false, userCustomPrompt = null) {
   const laneName = getLaneName(isPremium);
   prompt = prompt.replace(/"/g, "'").replace(/`/g, "'").trim();
-  const explicitStructure = hasExplicitStructure(prompt);
+  // Clonagem literal de estrutura (modo "clone") é exclusiva Premium — usuários
+  // Normal que colam um formato pronto recebem uma versão inspirada, não uma cópia exata.
+  const explicitStructure = isPremium && hasExplicitStructure(prompt);
 
   await onLog(E.gerando, 'ANÁLISE',  `Interpretando prompt${isPremium ? ' (Premium <:nitro:1500524497688723566>)' : ''}...`);
   await onLog(E.loading, 'MISTRAL',  `Conectando via Fila ${isPremium ? 'Premium' : 'Normal'}...`);
@@ -1080,8 +1084,14 @@ RULES:
   // nenhum estilo aleatório por cima — a IA deve reproduzir literalmente o
   // que foi pedido, e o pós-processamento (abaixo) não reescreve os nomes.
   const styleBlock = explicitStructure
-    ? `🚨 O usuário forneceu uma estrutura EXPLÍCITA no prompt (nomes, emojis e/ou formato próprios de categorias e canais).
-Reproduza EXATAMENTE o que foi pedido — mesmos nomes, mesmos emojis, mesma ordem, mesmo separador/formato visual usado pelo usuário. NÃO aplique nenhum outro estilo, prefixo ou separador por cima. NÃO adicione categorias/canais que não foram pedidos. NÃO omita nenhum item pedido. Se algo não ficou 100% claro, use o bom senso mas mantenha a fidelidade ao que foi escrito.`
+    ? `🚨 MODO CLONE (Premium) — o usuário colou um MODELO EXPLÍCITO de estrutura (nomes, emojis, texto em negrito/unicode, separadores e/ou regras próprias de categorias e canais).
+
+Sua tarefa é agir como um parser fiel, não como um criador:
+1. Leia TODA a mensagem do usuário, incluindo qualquer instrução em linguagem natural antes ou depois da lista (ex: "use obrigatoriamente X", "não use Y", "sempre em negrito") — essas regras têm PRIORIDADE MÁXIMA e devem ser seguidas à risca em TODOS os itens, mesmo que um item específico do exemplo não mostre isso claramente.
+2. Detecte o que é CATEGORIA e o que é CANAL pela estrutura visual: uma linha "solta"/sem recuo/sem prefixo de continuação (ex: sem "┃" ou "-" na frente) que antecede um bloco de linhas indentadas é a CATEGORIA; as linhas indentadas ou marcadas com o separador do usuário (ex: "┃", "-", "•") logo abaixo são os CANAIS daquela categoria.
+3. Copie EXATAMENTE: mesmo texto (incluindo caracteres unicode em negrito tipo 𝐀𝐁𝐂), mesma ordem, mesmos emojis, mesmo separador, mesma pontuação. NÃO troque unicode em negrito por markdown **. NÃO invente itens extras. NÃO remova nenhum item.
+4. Se alguma regra do usuário conflitar com o exemplo dado por ele, a regra escrita em texto vence.
+5. Se algo genuinely não ficar claro, use bom senso mas mantenha fidelidade máxima ao que foi escrito — nunca vá com o estilo "padrão" do Architect neste modo.`
     : `STYLE — STRICTLY ENFORCED (do NOT deviate):
 CATEGORY style: ${chosenCatStyle.id} → format: ${chosenCatStyle.pattern}
   Every single category name MUST start with: "${catPrefix}"
@@ -1194,7 +1204,7 @@ Return ONLY a raw JSON array. Example below shows just 2 categories for brevity 
     categories = await callMistralRaw(laneName, [
       { role: 'system', content: catsSystem },
       { role: 'user',   content: catsUser + customInstruction },
-    ], isPremium ? 7500 : 5500);
+    ], isPremium ? (7500 + Math.min(4000, Math.floor(prompt.length / 2))) : (5500 + Math.min(2000, Math.floor(prompt.length / 3))));
     if (!Array.isArray(categories) || categories.length === 0)
       throw new Error('Resposta de categorias inválida — array vazio ou malformado.');
     // Sanitize custom emojis from all names (last line of defense)
@@ -1227,7 +1237,11 @@ Return ONLY a raw JSON array. Example below shows just 2 categories for brevity 
         const channels = (Array.isArray(cat.channels) ? cat.channels : [])
           .filter(ch => ch && ch.name)
           .map(ch => {
-            let chName = String(ch.name).substring(0, 100).trim().toLowerCase();
+            // No modo clone (explicitStructure), preservamos a caixa original —
+            // o usuário pode ter pedido texto em UPPERCASE/negrito unicode de propósito.
+            let chName = explicitStructure
+              ? String(ch.name).substring(0, 100).trim()
+              : String(ch.name).substring(0, 100).trim().toLowerCase();
 
             if (!explicitStructure) {
               // ── Força o estilo de canal sorteado ─────────────────────────────
@@ -2088,7 +2102,7 @@ client.once('ready', async () => {
   client.on('guildDelete', () => rotatePresence());
 
   const commands = [
-    new SlashCommandBuilder().setName('criar_servidor').setDescription('Cria servidor completo com IA').addStringOption(o => o.setName('prompt').setDescription('Descreva o servidor').setRequired(true)),
+    new SlashCommandBuilder().setName('criar_servidor').setDescription('Cria servidor completo com IA').addStringOption(o => o.setName('prompt').setDescription('Descreva o servidor').setRequired(true).setMaxLength(6000)),
     new SlashCommandBuilder().setName('template').setDescription('Aplica template pronto').addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(true).addChoices({ name: '🌐 Comunidade', value: 'comunidade' }, { name: '🎮 Gaming', value: 'gaming' }, { name: '🪖 Militar', value: 'militar' }, { name: '🛒 Loja', value: 'loja' }, { name: '🎌 Anime', value: 'anime' }, { name: '📚 Educacional', value: 'educacional' })),
     new SlashCommandBuilder().setName('backup').setDescription('Salva estrutura do servidor'),
     new SlashCommandBuilder().setName('restaurar').setDescription('Restaura servidor do backup'),
