@@ -432,9 +432,23 @@ async function getPremium(userId) {
       }
     } catch (e) { console.error('[PREMIUM] DM expirado:', e.message); }
     await mongoDB.collection('premium').deleteOne({ userId });
+    invalidatePremiumCache();
     return null;
   }
   return doc;
+}
+
+// Cache em memória dos premiums ativos (evita find({}) repetido no Mongo)
+let _premiumCache = { at: 0, docs: null };
+const PREMIUM_CACHE_TTL = 2 * 60 * 1000;
+function invalidatePremiumCache() { _premiumCache = { at: 0, docs: null }; }
+async function getActivePremiumDocs() {
+  if (!mongoDB) return [];
+  const now = Date.now();
+  if (_premiumCache.docs && now - _premiumCache.at < PREMIUM_CACHE_TTL) return _premiumCache.docs.filter(d => new Date(d.expiresAt) > new Date());
+  const docs = await mongoDB.collection('premium').find({}).toArray();
+  _premiumCache = { at: now, docs };
+  return docs.filter(d => new Date(d.expiresAt) > new Date());
 }
 
 async function setPremium(userId, plan) {
@@ -445,6 +459,7 @@ async function setPremium(userId, plan) {
     { $set: { userId, plan, expiresAt: expiresAt.toISOString(), grantedAt: new Date().toISOString() } },
     { upsert: true }
   );
+  invalidatePremiumCache();
   return expiresAt;
 }
 
@@ -517,18 +532,16 @@ async function checkDailyLimit(userId, isPremium) {
 // ── Auto-Backup Premium (a cada 30 min) ───────────────────────────────────────
 async function runAutoBackups() {
   try {
-    const premiumDocs = await mongoDB.collection('premium').find({}).toArray();
-    for (const doc of premiumDocs) {
-      if (new Date(doc.expiresAt) < new Date()) continue;
-      for (const [, guild] of client.guilds.cache) {
-        try {
-          const owner = await guild.fetchOwner().catch(() => null);
-          if (!owner || owner.id !== doc.userId) continue;
-          const structure = await captureStructure(guild);
-          await saveBackup(guild.id, guild.name, structure);
-          console.log(`[AUTO-BACKUP] ${guild.name} (${doc.userId})`);
-        } catch (e) { console.error('[AUTO-BACKUP] Guild:', e.message); }
-      }
+    const premiumIds = new Set((await getActivePremiumDocs()).map(d => d.userId));
+    if (!premiumIds.size) return;
+    for (const [, guild] of client.guilds.cache) {
+      if (!premiumIds.has(guild.ownerId)) continue;
+      try {
+        const structure = await captureStructure(guild);
+        await saveBackup(guild.id, guild.name, structure);
+        console.log(`[AUTO-BACKUP] ${guild.name} (${guild.ownerId})`);
+      } catch (e) { console.error('[AUTO-BACKUP] Guild:', e.message); }
+      await new Promise(r => setTimeout(r, 1500)); // espaça os backups: evita pico de CPU/memória e rate limit
     }
   } catch (e) { console.error('[AUTO-BACKUP]:', e.message); }
 }
@@ -2396,6 +2409,13 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const [action, id] = interaction.customId.split('_confirm_');
 
+    // Segurança: apenas Administradores podem confirmar/cancelar ações destrutivas
+    // (a mensagem de confirmação é pública, qualquer pessoa do canal veria o botão)
+    if (interaction.customId.includes('_confirm_') && !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      const l = await getGuildLang(interaction.guildId).catch(() => null);
+      return interaction.reply({ content: l?.noPermission || 'Sem permissão.', flags: MessageFlags.Ephemeral }).catch(() => {});
+    }
+
     // Confirmar criação
     if (action === 'create' && pendingCreate.has(id)) {
       const { prompt, structure, isPremium } = pendingCreate.get(id);
@@ -2809,14 +2829,14 @@ client.on('interactionCreate', async interaction => {
       etaInterval = setInterval(async () => {
         // Para assim que a geração começar
         if (generationStarted) { clearInterval(etaInterval); etaInterval = null; return; }
-        elapsed++;
+        elapsed += 3;
         const status = getQueueStatus(userId, isPremium);
         if (!status) { clearInterval(etaInterval); etaInterval = null; return; }
         const remaining = Math.max(0, status.secsAhead - elapsed);
         await interaction.editReply({
           ...buildQueueEmbed(prompt, status.lane, status.position, remaining),
         }).catch(() => {});
-      }, 1000);
+      }, 3000);
     }
 
     try {
@@ -2920,14 +2940,14 @@ client.on('interactionCreate', async interaction => {
       let elapsed = 0;
       etaInterval = setInterval(async () => {
         if (generationStartedT) { clearInterval(etaInterval); etaInterval = null; return; }
-        elapsed++;
+        elapsed += 3;
         const status = getQueueStatus(userId, isPremium);
         if (!status) { clearInterval(etaInterval); etaInterval = null; return; }
         const remaining = Math.max(0, status.secsAhead - elapsed);
         await interaction.editReply({
           ...buildQueueEmbed(prompt, status.lane, status.position, remaining),
         }).catch(() => {});
-      }, 1000);
+      }, 3000);
     }
 
     try {
@@ -3259,9 +3279,11 @@ client.on('interactionCreate', async interaction => {
   // ── /chat ────────────────────────────────────────────────────────────────────
   else if (commandName === 'chat') {
     const pergunta = interaction.options.getString('pergunta');
+    const espera = checkChatCooldown(interaction.user.id);
+    if (espera > 0) return interaction.reply({ content: `⏳ Aguarde **${espera}s** antes de fazer outra pergunta.`, flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
     try {
-      const resposta = await mistralChat(pergunta);
+      const resposta = await mistralChat(pergunta, interaction.user.id);
       await interaction.editReply({
         ...v2Simple(C_ORANGE, '🤖 Lueur Architect Chat',
           '**Você:** ' + pergunta + '\n\n**Lueur Architect:** ' + resposta,
@@ -3271,7 +3293,7 @@ client.on('interactionCreate', async interaction => {
       console.error('[/chat]', e.message);
       await interaction.editReply({
         ...v2Simple(C_RED, E.erro + ' Erro no Chat',
-          'Não consegui processar sua pergunta: ' + e.message,
+          'Não consegui processar sua pergunta: ' + (e.userMessage || e.message),
           FOOTER),
       }).catch(() => {});
     }
@@ -3280,6 +3302,8 @@ client.on('interactionCreate', async interaction => {
   // ── /google_voice ─────────────────────────────────────────────────────────────
   else if (commandName === 'google_voice') {
     const pergunta = interaction.options.getString('pergunta');
+    const espera = checkChatCooldown(interaction.user.id);
+    if (espera > 0) return interaction.reply({ content: `⏳ Aguarde **${espera}s** antes de fazer outra pergunta.`, flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
     try {
       const respostaTexto = await mistralChat(pergunta);
@@ -3327,7 +3351,7 @@ client.on('interactionCreate', async interaction => {
       console.error('[/google_voice]', e.message);
       await interaction.editReply({
         ...v2Simple(C_RED, E.erro + ' Erro',
-          'Não consegui processar sua pergunta: ' + e.message,
+          'Não consegui processar sua pergunta: ' + (e.userMessage || e.message),
           FOOTER),
       }).catch(() => {});
     }
@@ -3400,6 +3424,7 @@ client.on('interactionCreate', async interaction => {
 
     if (plano === 'remover') {
       await mongoDB.collection('premium').deleteOne({ userId: target.id });
+      invalidatePremiumCache();
       await target.send(v2Simple(C_RED, `${E.premium} Premium removido`, 'Seu acesso Premium ao Lueur Architect foi removido pela equipe Velroc.', FOOTER)).catch(() => {});
       return await interaction.editReply({ content: `${E.sucesso} Premium removido de **${target.tag}**.` });
     }
@@ -3737,8 +3762,7 @@ Return only the JSON object describing the single edit to perform.`;
 
       const usageDoc  = await mongoDB.collection('command_usage').findOne({ date: today });
       const dailyDocs = await mongoDB.collection('daily_usage').find({ date: today }).toArray();
-      const premDocs  = await mongoDB.collection('premium').find({}).toArray();
-      const activePremium = premDocs.filter(d => new Date(d.expiresAt) > new Date());
+      const activePremium = await getActivePremiumDocs();
 
       const usersNormal  = new Set(usageDoc?.users_normal  || [], 4000);
       const usersPremium = new Set(usageDoc?.users_premium || []);
@@ -4299,26 +4323,74 @@ async function sendLog(guildId, tipo, payload) {
 
 
 // ── /chat helpers ─────────────────────────────────────────────────────────────
-async function mistralChat(pergunta) {
-  const key = process.env.MISTRAL_KEY_CHAT;
-  if (!key) throw new Error('MISTRAL_KEY_CHAT não configurada.');
-  const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
-    method:  'POST',
-    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model:       'mistral-small-latest',
-      max_tokens:  512,
-      temperature: 0.7,
-      messages: [
-        { role: 'system', content: 'Você é o Lueur Architect, um assistente inteligente criado pela Velroc Systems, desenvolvido por Sagaz, Luan Kovalsy e Mulari. Você NÃO foi criado pela Mistral AI, OpenAI, Google ou qualquer outra empresa de IA — você é o Lueur Architect da Velroc Systems. Responda de forma clara, objetiva e em português. Nunca revele que usa Mistral ou qualquer outro modelo de IA por baixo. Máximo de 3 parágrafos.' },
-        { role: 'user',   content: pergunta },
-      ],
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
-  if (!res.ok) throw new Error(`Mistral HTTP ${res.status}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content?.trim() || 'Não consegui gerar uma resposta.';
+const CHAT_SYSTEM_PROMPT = 'Você é o Lueur Architect, um assistente inteligente criado pela Velroc Systems, desenvolvido por Sagaz, Luan Kovalsy e Mulari. Você NÃO foi criado pela Mistral AI, OpenAI, Google ou qualquer outra empresa de IA — você é o Lueur Architect da Velroc Systems. Responda de forma clara, objetiva e em português. Nunca revele que usa Mistral ou qualquer outro modelo de IA por baixo. Máximo de 3 parágrafos.';
+
+const CHAT_COOLDOWN_MS  = 10_000;          // 1 pergunta a cada 10s por usuário
+const CHAT_HISTORY_TTL  = 15 * 60 * 1000;  // memória da conversa: 15 min
+const CHAT_HISTORY_MAX  = 6;               // últimas 6 mensagens (3 trocas)
+const chatCooldowns = new Map();           // userId -> timestamp da última pergunta
+const chatHistory   = new Map();           // userId -> { msgs: [], at }
+
+// Limpeza periódica para não crescer indefinidamente
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, t] of chatCooldowns) if (now - t > CHAT_COOLDOWN_MS) chatCooldowns.delete(id);
+  for (const [id, h] of chatHistory)   if (now - h.at > CHAT_HISTORY_TTL) chatHistory.delete(id);
+}, 5 * 60 * 1000).unref();
+
+/** Retorna segundos restantes de cooldown (0 = liberado) e já registra o uso. */
+function checkChatCooldown(userId) {
+  if (userId === process.env.OWNER_ID) return 0;
+  const last = chatCooldowns.get(userId) || 0;
+  const left = Math.ceil((CHAT_COOLDOWN_MS - (Date.now() - last)) / 1000);
+  if (left > 0) return left;
+  chatCooldowns.set(userId, Date.now());
+  return 0;
+}
+
+/**
+ * Chamada à Mistral com retry automático em 429/5xx (respeita Retry-After).
+ * Lança Error com .userMessage amigável quando esgota as tentativas.
+ */
+async function mistralRequest(key, messages, { maxTokens = 512, temperature = 0.7, attempts = 3 } = {}) {
+  if (!key) throw Object.assign(new Error('Chave Mistral não configurada.'), { userMessage: 'O chat está indisponível no momento.' });
+  let lastStatus = 0;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'mistral-small-latest', max_tokens: maxTokens, temperature, messages }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (res.ok) return res.json();
+    lastStatus = res.status;
+    const retryable = res.status === 429 || res.status >= 500;
+    if (!retryable || attempt === attempts) break;
+    const headerWait = parseInt(res.headers.get('retry-after') || '', 10);
+    const waitMs = Math.min((Number.isFinite(headerWait) ? headerWait : attempt * 2) * 1000, 8000);
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+  const userMessage = lastStatus === 429
+    ? 'Estou com muitas requisições no momento. Tente novamente em alguns segundos.'
+    : lastStatus === 401 || lastStatus === 403
+      ? 'O chat está indisponível no momento (credencial recusada).'
+      : 'Não consegui falar com a IA agora. Tente novamente em instantes.';
+  throw Object.assign(new Error(`Mistral HTTP ${lastStatus}`), { userMessage, status: lastStatus });
+}
+
+async function mistralChat(pergunta, userId = null) {
+  const hist = userId ? (chatHistory.get(userId)?.msgs || []) : [];
+  const data = await mistralRequest(process.env.MISTRAL_KEY_CHAT, [
+    { role: 'system', content: CHAT_SYSTEM_PROMPT },
+    ...hist,
+    { role: 'user', content: pergunta },
+  ]);
+  const resposta = data.choices?.[0]?.message?.content?.trim() || 'Não consegui gerar uma resposta.';
+  if (userId) {
+    const msgs = [...hist, { role: 'user', content: pergunta }, { role: 'assistant', content: resposta }].slice(-CHAT_HISTORY_MAX);
+    chatHistory.set(userId, { msgs, at: Date.now() });
+  }
+  return resposta;
 }
 
 async function gerarAudioEdgeTTS(texto, outputPath) {
@@ -4933,9 +5005,43 @@ app.post('/api/guild/:id/backup', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/ai-config — returns Mistral key for AI chat (auth required)
+// GET /api/ai-config — a chave NÃO é mais exposta ao navegador.
+// O frontend deve usar POST /api/ai-chat (proxy autenticado no servidor).
+// Para reabrir temporariamente a rota antiga (não recomendado): LEGACY_AI_CONFIG=true
 app.get('/api/ai-config', requireAuth, (req, res) => {
-  res.json({ key: process.env.MISTRAL_KEY_CHAT || process.env.MISTRAL_KEY_A || '' });
+  if (process.env.LEGACY_AI_CONFIG === 'true') {
+    return res.json({ key: process.env.MISTRAL_KEY_CHAT || process.env.MISTRAL_KEY_A || '' });
+  }
+  res.json({ proxy: '/api/ai-chat' });
+});
+
+// POST /api/ai-chat — proxy autenticado para a Mistral (a chave nunca sai do servidor)
+// Body: { messages: [{ role: 'user'|'assistant', content: '...' }] }  ou  { message: '...' }
+const _aiWebCooldown = new Map(); // userId -> timestamp
+app.post('/api/ai-chat', requireAuth, async (req, res) => {
+  try {
+    const uid = req.session.user.id;
+    const now = Date.now();
+    if (now - (_aiWebCooldown.get(uid) || 0) < 3000) return res.status(429).json({ error: 'Aguarde alguns segundos.' });
+    _aiWebCooldown.set(uid, now);
+    if (_aiWebCooldown.size > 5000) for (const [k, t] of _aiWebCooldown) if (now - t > 60000) _aiWebCooldown.delete(k);
+
+    let msgs = Array.isArray(req.body?.messages) ? req.body.messages : (req.body?.message ? [{ role: 'user', content: req.body.message }] : []);
+    msgs = msgs
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+      .slice(-12)
+      .map(m => ({ role: m.role, content: m.content.slice(0, 4000) }));
+    if (!msgs.length || msgs[msgs.length - 1].role !== 'user') return res.status(400).json({ error: 'Mensagem inválida.' });
+
+    const data = await mistralRequest(process.env.MISTRAL_KEY_CHAT || process.env.MISTRAL_KEY_A, [
+      { role: 'system', content: CHAT_SYSTEM_PROMPT },
+      ...msgs,
+    ], { maxTokens: 1024 });
+    res.json({ reply: data.choices?.[0]?.message?.content?.trim() || '', choices: data.choices });
+  } catch (e) {
+    console.error('[/api/ai-chat]', e.message);
+    res.status(e.status === 429 ? 429 : 502).json({ error: e.userMessage || 'Falha ao consultar a IA.' });
+  }
 });
 
 // GET /ai — serve AI chat page
@@ -5036,6 +5142,7 @@ async function startup() {
     for (const doc of docs) {
       if (new Date(doc.expiresAt) < new Date()) await getPremium(doc.userId);
     }
+    invalidatePremiumCache();
   }, 60 * 60 * 1000);
 }
 
