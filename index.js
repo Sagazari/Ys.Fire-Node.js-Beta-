@@ -100,7 +100,7 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
     if (isPremium) {
       ctx.font      = 'bold 13px Arial';
       ctx.fillStyle = '#b39ddb';
-      ctx.fillText('✦ PREMIUM', avatarX, 140);
+      ctx.fillText('PREMIUM', avatarX, 140);
     }
 
     // ── Subtítulo ─────────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ async function generateServerCard({ guildName, guildIcon, roles, categories, cha
       { label: 'Cargos',     value: String(roles),      icon: '◉' },
       { label: 'Categorias', value: String(categories), icon: '▦' },
       { label: 'Canais',     value: String(channels),   icon: '#' },
-      { label: 'Tipo',       value: isPremium ? 'Premium' : 'Normal', icon: isPremium ? '⚡' : '◆' },
+      { label: 'Tipo',       value: isPremium ? 'Premium' : 'Normal', icon: '◆' },
     ];
     const cardW = 180, cardH = 110, cardY = 250;
     const gapX  = (W - 120 - stats.length * cardW) / (stats.length - 1);
@@ -214,14 +214,14 @@ const MISTRAL_KEYS = {
 };
 
 if (!MISTRAL_KEYS.normal) {
-  console.error('<:negar:1500524485231509785> MISTRAL_KEY_A não encontrada! Defina no .env.');
+  console.error('[ERRO] MISTRAL_KEY_A não encontrada! Defina no .env.');
   process.exit(1);
 }
 if (!MISTRAL_KEYS.premium) {
-  console.warn('<:atencao:1500524473827459263>  MISTRAL_KEY_B não encontrada — Premium usará a fila normal.');
+  console.warn('[AVISO] MISTRAL_KEY_B não encontrada — Premium usará a fila normal.');
   MISTRAL_KEYS.premium = MISTRAL_KEYS.normal;
 }
-console.log(`<:aceitar:1500524505746116800> Filas Mistral ativas: Normal (KEY_A) | Premium (KEY_B)`);
+console.log(`[OK] Filas Mistral ativas: Normal (KEY_A) | Premium (KEY_B)`);
 
 // ── Sistema de 2 Filas ────────────────────────────────────────────────────────
 const SECS_PER_GENERATION = 12;
@@ -291,7 +291,7 @@ async function processLane(laneName) {
   // pare de sobrescrever a mensagem de erro quando a resposta zumbi chegar depois.
   const safetyTimeout = setTimeout(() => {
     if (settled) return;
-    console.error(`[LANE/${laneName}] <:atencao:1500524473827459263> Timeout de segurança acionado — lane desbloqueada forçadamente.`);
+    console.error(`[LANE/${laneName}] [AVISO] Timeout de segurança acionado — lane desbloqueada forçadamente.`);
     if (entry.cancelToken) entry.cancelToken.cancelled = true;
     entry.reject(new Error('A geração demorou demais e foi cancelada. Tente novamente — se persistir, tente um prompt um pouco mais curto.'));
     advanceLane();
@@ -335,63 +335,73 @@ const E = {
   info:       '<:informacao:1500524487177801788>',
   total:      '<:lista:1500524503778988072>',
   dev:        '<a:dev:1495982732981829763>',
+  atencao:    '<:atencao:1500524473827459263>',
+  ticket:     '<:ticket:1500524512607862884>',
+  deletar:    '<:deletar:1500524511081140384>',
+  avisos:     '<:avisos:1500524507171918006>',
+  nitro:      '<:nitro:1500524497688723566>',
+  linked:     '<:linked:1500524472229433404>',
+  notificacao:'<:notificacao:1500524483801251890>',
+  cmd:        '<:cmd:1500524508384071783>',
 };
+/** Objeto de emoji ({id,name}) a partir da chave de E — para botões e menus do Discord */
+const emojiOf = (key) => parseCustomEmoji(E[key]);
 
 // ── Idiomas ────────────────────────────────────────────────────────────────────
 const LANGS = {
   pt: {
-    flag: '🇧🇷', name: 'Português',
+    flag: 'PT', name: 'Português',
     langChanged:  (n) => `O idioma foi definido para **${n}**.`,
-    langTitle:    '🇧🇷  Idioma alterado!',
+    langTitle:    'Idioma alterado!',
     noPermission: `${E.erro} Você precisa ser **Administrador**!`,
     backupSaved:  `${E.sucesso}  Backup Salvo!`,
     noBackup:     `${E.erro} Nenhum backup encontrado!`,
-    doarTitle:    '☕  Apoie o Lueur Architect!',
-    doarDesc:     '> Se o Lueur Architect te ajudou, considere fazer uma doação!\n> Todo apoio ajuda a manter o bot no ar e a evoluir cada vez mais. 💜',
+    doarTitle:    'Apoie o Lueur Architect!',
+    doarDesc:     '> Se o Lueur Architect te ajudou, considere fazer uma doação!\n> Todo apoio ajuda a manter o bot no ar e a evoluir cada vez mais.',
     doarThanks:   'Obrigado pelo apoio!',
   },
   en: {
-    flag: '🇺🇸', name: 'English',
+    flag: 'EN', name: 'English',
     langChanged:  (n) => `Language has been set to **${n}**.`,
-    langTitle:    '🇺🇸  Language changed!',
+    langTitle:    'Language changed!',
     noPermission: `${E.erro} You need to be an **Administrator**!`,
     backupSaved:  `${E.sucesso}  Backup Saved!`,
     noBackup:     `${E.erro} No backup found!`,
-    doarTitle:    '☕  Support Lueur Architect!',
-    doarDesc:     '> If Lueur Architect helped you, consider making a donation!\n> Every bit of support helps keep the bot running. 💜',
+    doarTitle:    'Support Lueur Architect!',
+    doarDesc:     '> If Lueur Architect helped you, consider making a donation!\n> Every bit of support helps keep the bot running.',
     doarThanks:   'Thank you for your support!',
   },
   es: {
-    flag: '🇪🇸', name: 'Español',
+    flag: 'ES', name: 'Español',
     langChanged:  (n) => `El idioma se ha configurado en **${n}**.`,
-    langTitle:    '🇪🇸  ¡Idioma cambiado!',
+    langTitle:    '¡Idioma cambiado!',
     noPermission: `${E.erro} ¡Necesitas ser **Administrador**!`,
     backupSaved:  `${E.sucesso}  ¡Copia de seguridad guardada!`,
     noBackup:     `${E.erro} ¡No se encontró ninguna copia de seguridad!`,
-    doarTitle:    '☕  ¡Apoya a Lueur Architect!',
-    doarDesc:     '> ¡Si Lueur Architect te ayudó, considera hacer una donación!\n> Todo apoyo ayuda a mantener el bot activo. 💜',
+    doarTitle:    '¡Apoya a Lueur Architect!',
+    doarDesc:     '> ¡Si Lueur Architect te ayudó, considera hacer una donación!\n> Todo apoyo ayuda a mantener el bot activo.',
     doarThanks:   '¡Gracias por tu apoyo!',
   },
   fr: {
-    flag: '🇫🇷', name: 'Français',
+    flag: 'FR', name: 'Français',
     langChanged:  (n) => `La langue a été définie sur **${n}**.`,
-    langTitle:    '🇫🇷  Langue modifiée !',
+    langTitle:    'Langue modifiée !',
     noPermission: `${E.erro} Vous devez être **Administrateur** !`,
     backupSaved:  `${E.sucesso}  Sauvegarde enregistrée !`,
     noBackup:     `${E.erro} Aucune sauvegarde trouvée !`,
-    doarTitle:    '☕  Soutenez Lueur Architect !',
-    doarDesc:     '> Si Lueur Architect vous a aidé, pensez à faire un don !\n> Tout soutien aide à maintenir le bot en ligne. 💜',
+    doarTitle:    'Soutenez Lueur Architect !',
+    doarDesc:     '> Si Lueur Architect vous a aidé, pensez à faire un don !\n> Tout soutien aide à maintenir le bot en ligne.',
     doarThanks:   'Merci pour votre soutien !',
   },
   de: {
-    flag: '🇩🇪', name: 'Deutsch',
+    flag: 'DE', name: 'Deutsch',
     langChanged:  (n) => `Die Sprache wurde auf **${n}** gesetzt.`,
-    langTitle:    '🇩🇪  Sprache geändert!',
+    langTitle:    'Sprache geändert!',
     noPermission: `${E.erro} Du musst **Administrator** sein!`,
     backupSaved:  `${E.sucesso}  Backup gespeichert!`,
     noBackup:     `${E.erro} Kein Backup gefunden!`,
-    doarTitle:    '☕  Unterstütze Lueur Architect!',
-    doarDesc:     '> Wenn Lueur Architect dir geholfen hat, erwäge eine Spende!\n> Jede Unterstützung hilft, den Bot am Laufen zu halten. 💜',
+    doarTitle:    'Unterstütze Lueur Architect!',
+    doarDesc:     '> Wenn Lueur Architect dir geholfen hat, erwäge eine Spende!\n> Jede Unterstützung hilft, den Bot am Laufen zu halten.',
     doarThanks:   'Danke für deine Unterstützung!',
   },
 };
@@ -530,7 +540,10 @@ async function checkDailyLimit(userId, isPremium) {
 }
 
 // ── Auto-Backup Premium (a cada 30 min) ───────────────────────────────────────
+let _autoBackupRunning = false;
 async function runAutoBackups() {
+  if (_autoBackupRunning) return;
+  _autoBackupRunning = true;
   try {
     const premiumIds = new Set((await getActivePremiumDocs()).map(d => d.userId));
     if (!premiumIds.size) return;
@@ -544,6 +557,7 @@ async function runAutoBackups() {
       await new Promise(r => setTimeout(r, 1500)); // espaça os backups: evita pico de CPU/memória e rate limit
     }
   } catch (e) { console.error('[AUTO-BACKUP]:', e.message); }
+  finally { _autoBackupRunning = false; }
 }
 
 // ── sendBuildLog — feed de servidores criados ────────────────────────────────
@@ -569,12 +583,12 @@ async function sendBuildLog(sourceGuild, userId, prompt, structure, totalChannel
     // Distribuição por tipo de canal
     const allChs   = (structure.categories || []).flatMap(c => c.channels || []);
     const byType   = allChs.reduce((acc, ch) => { acc[ch.type || 'text'] = (acc[ch.type || 'text'] || 0) + 1; return acc; }, {});
-    const typeIcons = { text: '💬', voice: '🔊', forum: '📋', announcement: '📢', stage: '🎙️' };
-    const typeStr  = Object.entries(byType).map(([t, n]) => `${typeIcons[t] || '📌'} **${n}** ${t}`).join('  ·  ');
+    const typeIcons = { text: E.canais, voice: E.canais, forum: E.total, announcement: E.avisos, stage: E.canais };
+    const typeStr  = Object.entries(byType).map(([t, n]) => `${typeIcons[t] || E.info} **${n}** ${t}`).join('  ·  ');
 
     // Top 5 categorias com contagem de canais
     const catPreview = (structure.categories || []).slice(0, 5)
-      .map(c => `> 📁 **${c.name}** · ${c.channels?.length || 0} canais`)
+      .map(c => `> ${E.cats} **${c.name}** · ${c.channels?.length || 0} canais`)
       .join('\n');
     const moreCount = Math.max(0, categories - 5);
 
@@ -587,26 +601,26 @@ async function sendBuildLog(sourceGuild, userId, prompt, structure, totalChannel
       );
       if (publicCh) {
         const inv = await publicCh.createInvite({ maxAge: 0, maxUses: 0, reason: 'Build log' });
-        inviteStr = `\n🔗 **Convite:** ${inv.url}`;
+        inviteStr = `\n${E.linked} **Convite:** ${inv.url}`;
       }
     } catch (_) {}
 
     const iconUrl = sourceGuild.iconURL({ extension: 'png', size: 256 });
 
     const logContent = [
-      `## 🏗️ Novo servidor criado!`,
+      `## ${E.aguardando} Novo servidor criado!`,
       ``,
-      `👤 **Criado por:** ${creatorMention} (${creatorName})`,
-      `🏠 **Servidor:** ${sourceGuild.name}`,
-      `📅 **Data:** ${dateStr} às ${timeStr}`,
+      `${E.membros} **Criado por:** ${creatorMention} (${creatorName})`,
+      `${E.servidores} **Servidor:** ${sourceGuild.name}`,
+      `${E.data} **Data:** ${dateStr} às ${timeStr}`,
       inviteStr,
       ``,
-      `📊 **Estrutura**`,
-      `> 🎭 **${roles}** cargos  ╱  📁 **${categories}** categorias  ╱  💬 **${channels}** canais`,
+      `${E.total} **Estrutura**`,
+      `> ${E.cargos} **${roles}** cargos  ╱  ${E.cats} **${categories}** categorias  ╱  ${E.canais} **${channels}** canais`,
       ...(typeStr ? [`> ${typeStr}`] : []),
       ``,
-      ...(catPreview ? [`📂 **Categorias criadas**`, catPreview, ...(moreCount > 0 ? [`> *+ ${moreCount} categoria(s)*`] : []), ``] : []),
-      `💬 **Prompt usado**`,
+      ...(catPreview ? [`${E.cats} **Categorias criadas**`, catPreview, ...(moreCount > 0 ? [`> *+ ${moreCount} categoria(s)*`] : []), ``] : []),
+      `${E.canais} **Prompt usado**`,
       `> *${(prompt || '').substring(0, 200)}${(prompt || '').length > 200 ? '…' : ''}*`,
       ``,
       `-# ${FOOTER} · Velroc Systems`,
@@ -739,7 +753,7 @@ async function _mistralFetch(laneName, messages, maxTokens, retries, parseJson) 
 
       const finishReason = data.choices?.[0]?.finish_reason;
       if (finishReason === 'length') {
-        console.warn(`[MISTRAL/${laneName}] ⚠️ Resposta CORTADA por atingir max_tokens — tentando aproveitar o que foi gerado.`);
+        console.warn(`[MISTRAL/${laneName}] Resposta CORTADA por atingir max_tokens — tentando aproveitar o que foi gerado.`);
       }
 
       const content = (data.choices?.[0]?.message?.content || '').trim();
@@ -857,11 +871,23 @@ async function moderatePrompt(prompt) {
 
 // ── MongoDB ────────────────────────────────────────────────────────────────────
 let mongoDB;
+let mongoClient = null;
 async function connectDB() {
-  const mc = new MongoClient(process.env.MONGO_URI);
-  await mc.connect();
-  mongoDB = mc.db('architect');
-  console.log('<:aceitar:1500524505746116800> MongoDB conectado!');
+  if (mongoDB) return;
+  mongoClient = new MongoClient(process.env.MONGO_URI, { maxPoolSize: 10, serverSelectionTimeoutMS: 15000 });
+  await mongoClient.connect();
+  mongoDB = mongoClient.db('architect');
+  console.log('[OK] MongoDB conectado!');
+  // Índices (idempotentes) — consultas mais rápidas e sessões que expiram sozinhas
+  const idx = [
+    ['backups',      { guildId: 1 }],
+    ['premium',      { userId: 1 }],
+    ['guild_configs',{ guildId: 1 }],
+    ['web_sessions', { expires: 1 }, { expireAfterSeconds: 0 }],
+  ];
+  for (const [col, keys, opts] of idx) {
+    await mongoDB.collection(col).createIndex(keys, opts || {}).catch(e => console.warn(`[MONGO] índice ${col}:`, e.message));
+  }
 }
 
 async function saveBackup(guildId, guildName, structure) {
@@ -1980,9 +2006,9 @@ function buildAnalysisEmbed(prompt, logs) {
 
   const logLines = logs.slice(-6).map((l, i, arr) => {
     const isLast = i === arr.length - 1;
-    const icon   = isLast && !done ? '⏳' : '✅';
+    const icon   = isLast && !done ? E.loading : E.sucesso;
     return `${icon} ${l.tag} — ${l.msg}`;
-  }).join('\n') || '⏳ Inicializando...';
+  }).join('\n') || `${E.loading} Inicializando...`;
 
   const header = done ? `## Estrutura gerada` : `## Construindo servidor…`;
 
@@ -2047,8 +2073,8 @@ function buildConfirmEmbed(prompt, structure, secondsLeft) {
 function buildProgressEmbed(title, info, steps) {
   const last = steps.slice(-8);
   const log  = last.length > 0
-    ? last.map((s, i) => i === last.length - 1 ? `⏳ ${s}` : `✅ ${s}`).join('\n')
-    : `⏳ Iniciando construção...`;
+    ? last.map((s, i) => i === last.length - 1 ? `${E.loading} ${s}` : `${E.sucesso} ${s}`).join('\n')
+    : `${E.loading} Iniciando construção...`;
 
   const estimatedTotal = 40;
   const pct  = Math.min(100, Math.round((steps.length / estimatedTotal) * 100));
@@ -2144,7 +2170,7 @@ client.on('guildCreate', async guild => {
 
 // ── Ready ──────────────────────────────────────────────────────────────────────
 client.once('ready', async () => {
-  console.log(`<:aceitar:1500524505746116800> ${FOOTER} online como ${client.user.tag}`);
+  console.log(`[OK] ${FOOTER} online como ${client.user.tag}`);
 
   // ── Status dinâmico com contagem real de servidores (cross-shard) ──────────
   const shardId     = client.shard?.ids?.[0] ?? 0;
@@ -2173,10 +2199,10 @@ client.once('ready', async () => {
       totalCreations = agg?.total || 0;
     } catch (_) {}
     const statuses = [
-      { name: `🏗️ ${totalCreations} servidores criados`,        type: ActivityType.Custom },
-      { name: `⚡ ${FOOTER} · Premium disponível`, type: ActivityType.Custom },
-      { name: `🛡️ Protegendo ${totalGuilds} comunidades`,    type: ActivityType.Custom },
-      { name: `🤖 Velroc Systems`,                     type: ActivityType.Custom },
+      { name: `${totalCreations} servidores criados`,        type: ActivityType.Custom },
+      { name: `${FOOTER} · Premium disponível`, type: ActivityType.Custom },
+      { name: `Protegendo ${totalGuilds} comunidades`,    type: ActivityType.Custom },
+      { name: `Velroc Systems`,                     type: ActivityType.Custom },
     ];
     const s = statuses[_statusIndex % statuses.length];
     client.user.setPresence({ status: 'online', activities: [{ name: s.name, type: s.type, state: s.name }] });
@@ -2194,31 +2220,31 @@ client.once('ready', async () => {
 
   const commands = [
     new SlashCommandBuilder().setName('criar_servidor').setDescription('Cria servidor completo com IA').addStringOption(o => o.setName('prompt').setDescription('Descreva o servidor').setRequired(true).setMaxLength(6000)),
-    new SlashCommandBuilder().setName('template').setDescription('Aplica template pronto').addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(true).addChoices({ name: '🌐 Comunidade', value: 'comunidade' }, { name: '🎮 Gaming', value: 'gaming' }, { name: '🪖 Militar', value: 'militar' }, { name: '🛒 Loja', value: 'loja' }, { name: '🎌 Anime', value: 'anime' }, { name: '📚 Educacional', value: 'educacional' })),
+    new SlashCommandBuilder().setName('template').setDescription('Aplica template pronto').addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(true).addChoices({ name: 'Comunidade', value: 'comunidade' }, { name: 'Gaming', value: 'gaming' }, { name: 'Militar', value: 'militar' }, { name: 'Loja', value: 'loja' }, { name: 'Anime', value: 'anime' }, { name: 'Educacional', value: 'educacional' })),
     new SlashCommandBuilder().setName('backup').setDescription('Salva estrutura do servidor'),
     new SlashCommandBuilder().setName('restaurar').setDescription('Restaura servidor do backup'),
     new SlashCommandBuilder().setName('proteger').setDescription('Ativa/desativa anti-nuke').addBooleanOption(o => o.setName('ativo').setDescription('Ativar ou desativar').setRequired(true)),
-    new SlashCommandBuilder().setName('deletar').setDescription('Deleta canais, cargos ou tudo').addStringOption(o => o.setName('tipo').setDescription('O que deletar').setRequired(true).addChoices({ name: '🎭 Cargos', value: 'cargos' }, { name: '💬 Canais', value: 'canais' }, { name: '🗑️ Tudo', value: 'tudo' })).addStringOption(o => o.setName('alvo').setDescription('Quais ou "everyone"').setRequired(false)).addBooleanOption(o => o.setName('tudo').setDescription('Deletar tudo?').setRequired(false)),
+    new SlashCommandBuilder().setName('deletar').setDescription('Deleta canais, cargos ou tudo').addStringOption(o => o.setName('tipo').setDescription('O que deletar').setRequired(true).addChoices({ name: 'Cargos', value: 'cargos' }, { name: 'Canais', value: 'canais' }, { name: 'Tudo', value: 'tudo' })).addStringOption(o => o.setName('alvo').setDescription('Quais ou "everyone"').setRequired(false)).addBooleanOption(o => o.setName('tudo').setDescription('Deletar tudo?').setRequired(false)),
     new SlashCommandBuilder().setName('status').setDescription('Informações do servidor'),
     new SlashCommandBuilder().setName('cargo_criar').setDescription('Cria um cargo').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('cor').setDescription('Cor do cargo').setRequired(false).addChoices(
-      { name: '🔴 Vermelho',      value: '#e74c3c' },
-      { name: '🟠 Laranja',       value: '#e67e22' },
-      { name: '🟡 Amarelo',       value: '#f1c40f' },
-      { name: '🟢 Verde',         value: '#2ecc71' },
-      { name: '🔵 Azul',          value: '#3498db' },
-      { name: '🟣 Roxo',          value: '#9b59b6' },
-      { name: '🩷 Rosa',          value: '#e91e8c' },
-      { name: '⚪ Branco',        value: '#ffffff' },
-      { name: '⚫ Preto',         value: '#23272a' },
-      { name: '🩶 Cinza',         value: '#95a5a6' },
-      { name: '🟤 Marrom',        value: '#795548' },
-      { name: '🔷 Azul Escuro',   value: '#1a237e' },
-      { name: '🌊 Ciano',         value: '#00bcd4' },
-      { name: '🟩 Verde Lima',    value: '#8bc34a' },
-      { name: '🧡 Âmbar',         value: '#ff6f00' },
-      { name: '💜 Violeta',       value: '#5865f2' },
+      { name: 'Vermelho',      value: '#e74c3c' },
+      { name: 'Laranja',       value: '#e67e22' },
+      { name: 'Amarelo',       value: '#f1c40f' },
+      { name: 'Verde',         value: '#2ecc71' },
+      { name: 'Azul',          value: '#3498db' },
+      { name: 'Roxo',          value: '#9b59b6' },
+      { name: 'Rosa',          value: '#e91e8c' },
+      { name: 'Branco',        value: '#ffffff' },
+      { name: 'Preto',         value: '#23272a' },
+      { name: 'Cinza',         value: '#95a5a6' },
+      { name: 'Marrom',        value: '#795548' },
+      { name: 'Azul Escuro',   value: '#1a237e' },
+      { name: 'Ciano',         value: '#00bcd4' },
+      { name: 'Verde Lima',    value: '#8bc34a' },
+      { name: 'Âmbar',         value: '#ff6f00' },
+      { name: 'Violeta',       value: '#5865f2' },
     )).addBooleanOption(o => o.setName('admin').setDescription('Admin?').setRequired(false)),
-    new SlashCommandBuilder().setName('canal_criar').setDescription('Cria um canal').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(false).addChoices({ name: '💬 Texto', value: 'text' }, { name: '🔊 Voz', value: 'voice' }, { name: '📋 Fórum', value: 'forum' }, { name: '📢 Announcement', value: 'announcement' }, { name: '🎙️ Palco', value: 'stage' })).addStringOption(o => o.setName('topico').setDescription('Tópico').setRequired(false)),
+    new SlashCommandBuilder().setName('canal_criar').setDescription('Cria um canal').addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)).addStringOption(o => o.setName('tipo').setDescription('Tipo').setRequired(false).addChoices({ name: 'Texto', value: 'text' }, { name: 'Voz', value: 'voice' }, { name: 'Fórum', value: 'forum' }, { name: 'Announcement', value: 'announcement' }, { name: 'Palco', value: 'stage' })).addStringOption(o => o.setName('topico').setDescription('Tópico').setRequired(false)),
     new SlashCommandBuilder().setName('ban').setDescription('Bane um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)).addIntegerOption(o => o.setName('dias').setDescription('Dias (0-7)').setMinValue(0).setMaxValue(7).setRequired(false)),
     new SlashCommandBuilder().setName('kick').setDescription('Expulsa um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
     new SlashCommandBuilder().setName('mute').setDescription('Muta um membro').addUserOption(o => o.setName('membro').setDescription('Membro').setRequired(true)).addIntegerOption(o => o.setName('duracao').setDescription('Duração em minutos').setRequired(true).setMinValue(1).setMaxValue(10080)).addStringOption(o => o.setName('motivo').setDescription('Motivo').setRequired(false)),
@@ -2230,10 +2256,10 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('clear').setDescription('Apaga mensagens').addIntegerOption(o => o.setName('quantidade').setDescription('Quantidade (máx: 100)').setRequired(true).setMinValue(1).setMaxValue(100)),
     new SlashCommandBuilder().setName('embed').setDescription('Cria embed personalizado').addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true)).addStringOption(o => o.setName('descrição').setDescription('Descrição').setRequired(true)).addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(false)).addStringOption(o => o.setName('cor').setDescription('Cor hex').setRequired(false)).addStringOption(o => o.setName('imagem').setDescription('URL da imagem').setRequired(false)).addStringOption(o => o.setName('rodape').setDescription('Rodapé').setRequired(false)),
     new SlashCommandBuilder().setName('anuncio').setDescription('Envia anúncio').addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true)).addStringOption(o => o.setName('mensagem').setDescription('Mensagem').setRequired(true)).addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)).addBooleanOption(o => o.setName('marcar_everyone').setDescription('Marcar @everyone?').setRequired(false)),
-    new SlashCommandBuilder().setName('idioma').setDescription('Altera o idioma do bot no servidor').addStringOption(o => o.setName('lang').setDescription('Idioma').setRequired(true).addChoices({ name: '🇧🇷 Português', value: 'pt' }, { name: '🇺🇸 English', value: 'en' }, { name: '🇪🇸 Español', value: 'es' }, { name: '🇫🇷 Français', value: 'fr' }, { name: '🇩🇪 Deutsch', value: 'de' })),
+    new SlashCommandBuilder().setName('idioma').setDescription('Altera o idioma do bot no servidor').addStringOption(o => o.setName('lang').setDescription('Idioma').setRequired(true).addChoices({ name: 'Português', value: 'pt' }, { name: 'English', value: 'en' }, { name: 'Español', value: 'es' }, { name: 'Français', value: 'fr' }, { name: 'Deutsch', value: 'de' })),
     new SlashCommandBuilder().setName('doar').setDescription('Apoie o desenvolvimento do Lueur Architect'),
     new SlashCommandBuilder().setName('dm').setDescription('Enviar mensagem oficial').addStringOption(o => o.setName('mensagem').setDescription('Mensagem').setRequired(true)),
-    new SlashCommandBuilder().setName('premium').setDescription('Gerenciar Premium do Lueur Architect').addUserOption(o => o.setName('usuário').setDescription('Usuário').setRequired(true)).addStringOption(o => o.setName('plano').setDescription('Plano').setRequired(true).addChoices({ name: '⚡ Semanal (7 dias)', value: 'semanal' }, { name: '💎 Mensal (30 dias)', value: 'mensal' }, { name: '👑 Anual (365 dias)', value: 'anual' }, { name: '❌ Remover', value: 'remover' })),
+    new SlashCommandBuilder().setName('premium').setDescription('Gerenciar Premium do Lueur Architect').addUserOption(o => o.setName('usuário').setDescription('Usuário').setRequired(true)).addStringOption(o => o.setName('plano').setDescription('Plano').setRequired(true).addChoices({ name: 'Semanal (7 dias)', value: 'semanal' }, { name: 'Mensal (30 dias)', value: 'mensal' }, { name: 'Anual (365 dias)', value: 'anual' }, { name: 'Remover', value: 'remover' })),
     new SlashCommandBuilder().setName('info').setDescription('Informações do Lueur Architect'),
     new SlashCommandBuilder().setName('help').setDescription('Lista de comandos'),
     new SlashCommandBuilder().setName('usuários').setDescription('Estatísticas de uso do Lueur Architect hoje').addStringOption(o => o.setName('data').setDescription('Data no formato YYYY-MM-DD (padrão: hoje)').setRequired(false)),
@@ -2246,13 +2272,13 @@ client.once('ready', async () => {
 
     new SlashCommandBuilder().setName('logs_config').setDescription('Configura o canal de logs de cada sistema')
       .addStringOption(o => o.setName('tipo').setDescription('Tipo de log').setRequired(true).addChoices(
-        { name: '🔨 Bans / Kicks', value: 'ban' },
-        { name: '🔇 Mutes',        value: 'mute' },
-        { name: '🎫 Tickets',      value: 'ticket' },
-        { name: '⚠️ Warns',        value: 'warn' },
-        { name: '🤖 IA Detect',    value: 'detect' },
-        { name: '🤝 Parcerias',    value: 'parceria' },
-        { name: '📋 Todos',        value: 'all' },
+        { name: 'Bans / Kicks', value: 'ban' },
+        { name: 'Mutes',        value: 'mute' },
+        { name: 'Tickets',      value: 'ticket' },
+        { name: 'Warns',        value: 'warn' },
+        { name: 'IA Detect',    value: 'detect' },
+        { name: 'Parcerias',    value: 'parceria' },
+        { name: 'Todos',        value: 'all' },
       ))
       .addChannelOption(o => o.setName('canal').setDescription('Canal de logs').setRequired(true)),
 
@@ -2275,9 +2301,9 @@ client.once('ready', async () => {
 
     new SlashCommandBuilder().setName('detect_config').setDescription('Configura as ações do sistema de detecção IA')
       .addStringOption(o => o.setName('nivel').setDescription('Nível de severidade').setRequired(true).addChoices(
-        { name: '🟡 Baixo — apenas avisar no log',        value: 'low' },
-        { name: '🟠 Médio — mutar automaticamente',       value: 'medium' },
-        { name: '🔴 Alto — banir automaticamente',        value: 'high' },
+        { name: 'Baixo — apenas avisar no log',        value: 'low' },
+        { name: 'Médio — mutar automaticamente',       value: 'medium' },
+        { name: 'Alto — banir automaticamente',        value: 'high' },
       ))
       .addBooleanOption(o => o.setName('links').setDescription('Detectar links suspeitos?').setRequired(false))
       .addBooleanOption(o => o.setName('divulgacao').setDescription('Detectar divulgações indiretas?').setRequired(false))
@@ -2355,7 +2381,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('role_all').setDescription('Adiciona ou remove um cargo de todos os membros')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo a aplicar').setRequired(true))
       .addStringOption(o => o.setName('acao').setDescription('Ação').setRequired(true)
-        .addChoices({ name: '➕ Adicionar', value: 'add' }, { name: '➖ Remover', value: 'remove' })),
+        .addChoices({ name: 'Adicionar', value: 'add' }, { name: 'Remover', value: 'remove' })),
 
     new SlashCommandBuilder().setName('mention_role').setDescription('Menciona um cargo com uma mensagem (mesmo que não seja mencionável)')
       .addRoleOption(o => o.setName('cargo').setDescription('Cargo a mencionar').setRequired(true))
@@ -2365,11 +2391,11 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('automod').setDescription('Configura o AutoMod do servidor')
       .addStringOption(o => o.setName('acao').setDescription('O que configurar').setRequired(true)
         .addChoices(
-          { name: '🚫 Anti-Link', value: 'anti_link' },
-          { name: '📢 Anti-Spam', value: 'anti_spam' },
-          { name: '🤬 Anti-Palavrão', value: 'anti_palavrao' },
-          { name: '📋 Ver Config', value: 'ver' },
-          { name: '🗑️ Desativar Tudo', value: 'desativar' },
+          { name: 'Anti-Link', value: 'anti_link' },
+          { name: 'Anti-Spam', value: 'anti_spam' },
+          { name: 'Anti-Palavrão', value: 'anti_palavrao' },
+          { name: 'Ver Config', value: 'ver' },
+          { name: 'Desativar Tudo', value: 'desativar' },
         ))
       .addRoleOption(o => o.setName('cargo_ignorado').setDescription('Cargo isento das regras').setRequired(false)),
 
@@ -2391,8 +2417,8 @@ client.once('ready', async () => {
     try {
       const rest = new REST().setToken(process.env.DISCORD_TOKEN);
       await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-      console.log(`<:aceitar:1500524505746116800> ${commands.length} comandos registrados!`);
-    } catch (e) { console.error('<:negar:1500524485231509785> Erro ao registrar comandos:', e.message); }
+      console.log(`[OK] ${commands.length} comandos registrados!`);
+    } catch (e) { console.error('[ERRO] Erro ao registrar comandos:', e.message); }
   }
 });
 
@@ -2510,7 +2536,7 @@ client.on('interactionCreate', async interaction => {
 
         // DM de voto no top.gg após criação bem-sucedida
         interaction.user.send(
-          `Se você gostou do Lueur Architect, vote aqui para ajudar: https://top.gg/bot/1353210073832357992?s=03ad7aa496c89\nObrigado! 🙏`
+          `Se você gostou do Lueur Architect, vote aqui para ajudar: https://top.gg/bot/1353210073832357992?s=03ad7aa496c89\nObrigado! ${E.sucesso}`
         ).catch(() => {});
 
         // DM de upsell Premium — apenas para quem criou SEM Premium
@@ -3084,7 +3110,7 @@ client.on('interactionCreate', async interaction => {
     const adm  = interaction.options.getBoolean('admin') || false;
     try {
       const role = await guild.roles.create({ name: nome, color: cor, permissions: adm ? [PermissionFlagsBits.Administrator] : [] });
-      await interaction.reply(v2Simple(role.color, `${E.sucesso} Cargo Criado!`, `**${E.cargos} Nome:** ${role.name}   **🎨 Cor:** ${cor}`, FOOTER));
+      await interaction.reply(v2Simple(role.color, `${E.sucesso} Cargo Criado!`, `**${E.cargos} Nome:** ${role.name}   **${E.config} Cor:** ${cor}`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -3125,7 +3151,7 @@ client.on('interactionCreate', async interaction => {
       await target.send(v2Simple(C_RED, `${E.banido} Você foi banido!`, `Você foi banido de **${guild.name}**\n\n**Motivo:** ${motivo}`, FOOTER)).catch(() => {});
       await target.ban({ reason: motivo, deleteMessageDays: dias });
       await interaction.reply(v2Simple(C_RED, `${E.banido} Membro Banido!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**<:deletar:1500524511081140384> Mensagens deletadas:** ${dias} dia(s)`, FOOTER));
-      await sendLog(guild.id, 'ban', v2Simple(C_RED, `🔨 Log — Ban`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Mensagens deletadas:** ${dias} dia(s)`, FOOTER));
+      await sendLog(guild.id, 'ban', v2Simple(C_RED, `${E.banido} Log — Ban`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Mensagens deletadas:** ${dias} dia(s)`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -3139,7 +3165,7 @@ client.on('interactionCreate', async interaction => {
       await target.send(v2Simple(C_YELLOW, `${E.membros} Você foi expulso!`, `Você foi expulso de **${guild.name}**\n\n**Motivo:** ${motivo}`, FOOTER)).catch(() => {});
       await target.kick(motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.membros} Membro Expulso!`, `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}`, FOOTER));
-      await sendLog(guild.id, 'ban', v2Simple(C_YELLOW, `👢 Log — Kick`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, FOOTER));
+      await sendLog(guild.id, 'ban', v2Simple(C_YELLOW, `${E.banido} Log — Kick`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -3153,7 +3179,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await target.timeout(duracao * 60 * 1000, motivo);
       await interaction.reply(v2Simple(C_YELLOW, `${E.mutado} Membro Mutado!`, `**${E.membros} Membro:** ${target.user.tag}   **<:time:1500524456840400999> Duração:** ${duracao} min   **<:lista:1500524503778988072> Motivo:** ${motivo}`, FOOTER));
-      await sendLog(guild.id, 'mute', v2Simple(C_YELLOW, `🔇 Log — Mute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Duração:** ${duracao} min\n**Motivo:** ${motivo}`, FOOTER));
+      await sendLog(guild.id, 'mute', v2Simple(C_YELLOW, `${E.mutado} Log — Mute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Duração:** ${duracao} min\n**Motivo:** ${motivo}`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -3165,7 +3191,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await target.timeout(null);
       await interaction.reply(v2Simple(C_GREEN, `${E.unlock} Membro Desmutado!`, `**${E.membros} Membro:** ${target.user.tag}`, FOOTER));
-      await sendLog(guild.id, 'mute', v2Simple(C_GREEN, `🔊 Log — Unmute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}`, FOOTER));
+      await sendLog(guild.id, 'mute', v2Simple(C_GREEN, `${E.canais} Log — Unmute`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -3181,7 +3207,7 @@ client.on('interactionCreate', async interaction => {
       await mongoDB.collection('warns').insertOne({ guildId: guild.id, userId: target.id, moderatorId: member.id, motivo, createdAt: new Date() });
       const totalWarns = await mongoDB.collection('warns').countDocuments({ guildId: guild.id, userId: target.id });
       await interaction.reply(v2Simple(C_YELLOW, '<:atencao:1500524473827459263> Advertência Enviada!', `**${E.membros} Membro:** ${target.user.tag}   **<:lista:1500524503778988072> Motivo:** ${motivo}\n**Total de warns:** ${totalWarns}`, FOOTER));
-      await sendLog(guild.id, 'warn', v2Simple(C_YELLOW, `⚠️ Log — Warn`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Total de warns:** ${totalWarns}`, FOOTER));
+      await sendLog(guild.id, 'warn', v2Simple(C_YELLOW, `${E.atencao} Log — Warn`, `**Membro:** ${target.user.tag} (${target.id})\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}\n**Total de warns:** ${totalWarns}`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -3193,7 +3219,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await canal.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
       await interaction.reply(v2Simple(C_RED, `${E.lock} Canal Trancado!`, `**${E.canais} Canal:** <#${canal.id}>   **<:lista:1500524503778988072> Motivo:** ${motivo}`, FOOTER));
-      await sendLog(guild.id, 'ban', v2Simple(C_RED, `🔒 Log — Canal Trancado`, `**Canal:** <#${canal.id}>\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, FOOTER));
+      await sendLog(guild.id, 'ban', v2Simple(C_RED, `${E.lock} Log — Canal Trancado`, `**Canal:** <#${canal.id}>\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -3226,7 +3252,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const msgs = await interaction.channel.bulkDelete(Math.min(quantidade, 100), true);
       await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Mensagens Deletadas!`, `**${msgs.size}** mensagem(s) deletada(s)!`, FOOTER));
-      await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `🗑️ Log — Clear`, `**Canal:** <#${interaction.channel.id}>\n**Moderador:** ${member.user.tag}\n**Mensagens:** ${msgs.size} deletadas`, FOOTER));
+      await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `${E.deletar} Log — Clear`, `**Canal:** <#${interaction.channel.id}>\n**Moderador:** ${member.user.tag}\n**Mensagens:** ${msgs.size} deletadas`, FOOTER));
     } catch (e) { await interaction.editReply(errorEmbed(e.message)); }
   }
 
@@ -3273,19 +3299,19 @@ client.on('interactionCreate', async interaction => {
       { upsert: true }
     );
     guildLangCache.set(guild.id, newLang);
-    await interaction.reply(v2Simple(C_GREEN, newLang.langTitle, `${newLang.langChanged(newLang.name)}\n\n**<:linked:1500524472229433404> Idioma:** ${newLang.flag} ${newLang.name}`, FOOTER));
+    await interaction.reply(v2Simple(C_GREEN, newLang.langTitle, `${newLang.langChanged(newLang.name)}\n\n**<:linked:1500524472229433404> Idioma:** ${newLang.name}`, FOOTER));
   }
 
   // ── /chat ────────────────────────────────────────────────────────────────────
   else if (commandName === 'chat') {
     const pergunta = interaction.options.getString('pergunta');
     const espera = checkChatCooldown(interaction.user.id);
-    if (espera > 0) return interaction.reply({ content: `⏳ Aguarde **${espera}s** antes de fazer outra pergunta.`, flags: MessageFlags.Ephemeral });
+    if (espera > 0) return interaction.reply({ content: `${E.data} Aguarde **${espera}s** antes de fazer outra pergunta.`, flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
     try {
       const resposta = await mistralChat(pergunta, interaction.user.id);
       await interaction.editReply({
-        ...v2Simple(C_ORANGE, '🤖 Lueur Architect Chat',
+        ...v2Simple(C_ORANGE, `${E.bot} Lueur Architect Chat`,
           '**Você:** ' + pergunta + '\n\n**Lueur Architect:** ' + resposta,
           `${FOOTER} • Velroc Systems`),
       });
@@ -3303,7 +3329,7 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'google_voice') {
     const pergunta = interaction.options.getString('pergunta');
     const espera = checkChatCooldown(interaction.user.id);
-    if (espera > 0) return interaction.reply({ content: `⏳ Aguarde **${espera}s** antes de fazer outra pergunta.`, flags: MessageFlags.Ephemeral });
+    if (espera > 0) return interaction.reply({ content: `${E.data} Aguarde **${espera}s** antes de fazer outra pergunta.`, flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
     try {
       const respostaTexto = await mistralChat(pergunta);
@@ -3334,7 +3360,7 @@ client.on('interactionCreate', async interaction => {
       try {
         await gerarAudioEdgeTTS(textoLimpo, tmp);
         await interaction.editReply({
-          content: '🎙️ **Você:** ' + pergunta,
+          content: `${E.canais} **Você:** ` + pergunta,
           files:   [{ attachment: tmp, name: 'resposta.mp3' }],
         });
       } catch (audioErr) {
@@ -3361,7 +3387,7 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'doar') {
     const doarPayload = v2Simple(C_PURPLE,
       lang.doarTitle,
-      `${lang.doarDesc}\n\n**💸 Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**👨‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
+      `${lang.doarDesc}\n\n**Pix — Copia e Cola**\n\`\`\`00020126580014br.gov.bcb.pix0136d1918ea8-a370-4a1b-9a91-6169472609755204000053039865802BR5925Jose Gabriel Nascimento F6009Sao Paulo62290525REC69C84CBCE0A2A7675161826304388D\`\`\`\n**‍<:cmd:1500524508384071783> Dev:** Velroc   **${E.servidores} Servidores:** ${client.guilds.cache.size}`,
       `${FOOTER} • ${lang.doarThanks}`
     );
     doarPayload.flags = (doarPayload.flags || 0) | MessageFlags.Ephemeral;
@@ -3383,13 +3409,13 @@ client.on('interactionCreate', async interaction => {
 
     await interaction.reply(v2Simple(C_ORANGE,
       `${E.bot} Lueur Architect — Create. Protect. Restore.`,
-      `**👨‍💻 Devs:** Sagaz, Luan Kovalsy e Mulari   **🌐 Servidores:** ${client.guilds.cache.size}   **⏱️ Uptime:** ${uptimeStr}\n` +
-      `**📦 Versão:** ${VERSION}   **🏗️ Stack:** Discord.js v14   **🏓 Ping:** ${ping}ms\n` +
-      `**🏢 Desenvolvido por:** Velroc Systems | Sagaz, Luan Kovalsy e Mulari\n` +
-      `**🧠 RAM Heap:** ${ramUsed}MB / ${ramTotal}MB   **💾 RAM RSS:** ${rss}MB\n` +
-      `**🖥️ Node.js:** ${process.version}   **🔧 Plataforma:** ${process.platform}\n` +
-      `**📋 Fila Normal:** ${lanes.normal.queue.filter(e=>e.userId).length} aguardando   **⭐ Fila Premium:** ${lanes.premium.queue.filter(e=>e.userId).length} aguardando\n` +
-      `**🔗 Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
+      `**${E.velroc} Devs:** Sagaz, Luan Kovalsy e Mulari   **${E.servidores} Servidores:** ${client.guilds.cache.size}   **${E.data} Uptime:** ${uptimeStr}\n` +
+      `**${E.total} Versão:** ${VERSION}   **${E.aguardando} Stack:** Discord.js v14   **${E.loading} Ping:** ${ping}ms\n` +
+      `**${E.velroc} Desenvolvido por:** Velroc Systems | Sagaz, Luan Kovalsy e Mulari\n` +
+      `**${E.bot} RAM Heap:** ${ramUsed}MB / ${ramTotal}MB   **${E.backup} RAM RSS:** ${rss}MB\n` +
+      `**${E.bot} Node.js:** ${process.version}   **${E.config} Plataforma:** ${process.platform}\n` +
+      `**${E.total} Fila Normal:** ${lanes.normal.queue.filter(e=>e.userId).length} aguardando   **${E.premium} Fila Premium:** ${lanes.premium.queue.filter(e=>e.userId).length} aguardando\n` +
+      `**${E.linked} Site:** [architect.velroc.workers.dev](https://architect.velroc.workers.dev)`,
       FOOTER
     ));
   }
@@ -3462,12 +3488,12 @@ client.on('interactionCreate', async interaction => {
         `${E.ban} Soft-Ban aplicado!`,
         `**${E.membros} Membro:** ${target.user.tag}
 **${E.config} Motivo:** ${motivo}
-**🗑️ Mensagens:** Todas deletadas (7 dias)`,
+**${E.deletar} Mensagens:** Todas deletadas (7 dias)`,
         FOOTER
       ));
       // Log
       await sendLog(guild.id, 'ban', v2Simple(C_RED,
-        `🔨 Soft-Ban — ${target.user.tag}`,
+        `${E.banido} Soft-Ban — ${target.user.tag}`,
         `**Moderador:** ${interaction.user.tag}
 **Motivo:** ${motivo}
 **Mensagens deletadas:** 7 dias`,
@@ -3491,7 +3517,7 @@ client.on('interactionCreate', async interaction => {
       { $set: set },
       { upsert: true }
     );
-    const nomes = { ban:'🔨 Bans/Kicks', mute:'🔇 Mutes', ticket:'🎫 Tickets', warn:'⚠️ Warns', detect:'🤖 IA Detect', parceria:'🤝 Parcerias' };
+    const nomes = { ban:'Bans/Kicks', mute:'Mutes', ticket:'Tickets', warn:'Warns', detect:'IA Detect', parceria:'Parcerias' };
     const lista = tipos.map(t => nomes[t]).join(', ');
     await interaction.editReply(v2Simple(C_GREEN,
       `${E.config} Logs Configurados!`,
@@ -3528,7 +3554,7 @@ client.on('interactionCreate', async interaction => {
       `${E.premium} IA Personalizada!`,
       `Seu prompt foi salvo. A IA usará essas instruções nas próximas criações de servidor.
 
-**📝 Prompt:**
+**${E.info} Prompt:**
 ${promptCustom.substring(0, 300)}${promptCustom.length > 300 ? '...' : ''}`,
       FOOTER
     ));
@@ -3669,7 +3695,7 @@ Return only the JSON object describing the single edit to perform.`;
       { upsert: true }
     );
     await interaction.editReply(v2Simple(C_PURPLE,
-      '🏗️ Feed de Criações Configurado!',
+      `${E.aguardando} Feed de Criações Configurado!`,
       `Todos os servidores criados com o Lueur Architect aparecerão em <#${canal.id}> em tempo real.\n\n> Use \`/criar_servidor\` em qualquer servidor para ver o feed em ação.`,
       FOOTER
     ));
@@ -3697,7 +3723,7 @@ Return only the JSON object describing the single edit to perform.`;
       { upsert: true }
     );
     await interaction.editReply(v2Simple(C_GREEN,
-      `🤝 Sistema de Parceria Configurado!`,
+      `${E.linked} Sistema de Parceria Configurado!`,
       `**Cargo com permissão:** <@&${cargoPermitido.id}>
 ` +
       `**Canal de parcerias:** <#${canal.id}>
@@ -3722,7 +3748,7 @@ Return only the JSON object describing the single edit to perform.`;
       { upsert: true }
     );
     await interaction.editReply(v2Simple(ativo ? C_GREEN : C_RED,
-      `🤖 IA Detect ${ativo ? 'Ativada' : 'Desativada'}!`,
+      `${E.bot} IA Detect ${ativo ? 'Ativada' : 'Desativada'}!`,
       ativo
         ? 'O sistema de detecção inteligente está ativo. Use **/detect_config** para configurar as ações.'
         : 'A detecção inteligente foi desativada neste servidor.',
@@ -3744,9 +3770,9 @@ Return only the JSON object describing the single edit to perform.`;
       { $set: { 'detect.nivel': nivel, 'detect.links': links, 'detect.divulgacao': divulg, 'detect.spam': spam } },
       { upsert: true }
     );
-    const nivelLabel = { low: '🟡 Baixo (log apenas)', medium: '🟠 Médio (mutar)', high: '🔴 Alto (banir)' }[nivel];
+    const nivelLabel = { low: 'Baixo (log apenas)', medium: 'Médio (mutar)', high: 'Alto (banir)' }[nivel];
     await interaction.editReply(v2Simple(C_ORANGE,
-      `🤖 Detect Config Salvo!`,
+      `${E.bot} Detect Config Salvo!`,
       `**Nível:** ${nivelLabel}
 **Links:** ${links ? 'Sim' : 'Não'}   **Divulgação:** ${divulg ? 'Sim' : 'Não'}   **Spam:** ${spam ? 'Sim' : 'Não'}`,
       FOOTER
@@ -3764,7 +3790,7 @@ Return only the JSON object describing the single edit to perform.`;
       const dailyDocs = await mongoDB.collection('daily_usage').find({ date: today }).toArray();
       const activePremium = await getActivePremiumDocs();
 
-      const usersNormal  = new Set(usageDoc?.users_normal  || [], 4000);
+      const usersNormal  = new Set(usageDoc?.users_normal  || []);
       const usersPremium = new Set(usageDoc?.users_premium || []);
       const totalUsers   = new Set([...usersNormal, ...usersPremium]);
 
@@ -3804,41 +3830,41 @@ Return only the JSON object describing the single edit to perform.`;
     await interaction.deferReply({ ephemeral: true });
     await interaction.editReply(v2Simple(C_ORANGE,
       `${E.info} Comandos — ${FOOTER}`,
-      `**🏗️ Criação IA**
+      `**${E.aguardando} Criação IA**
 ` +
       `\`/criar_servidor\` \`/template\` \`/ia_config\` \`/editar\`
 
 ` +
-      `**💾 Backup & Proteção**
+      `**${E.backup} Backup & Proteção**
 ` +
       `\`/backup\` \`/restaurar\` \`/proteger\`
 
 ` +
-      `**🔨 Moderação**
+      `**${E.banido} Moderação**
 ` +
       `\`/ban\` \`/bansoft\` \`/kick\` \`/mute\` \`/unmute\` \`/warn\` \`/warns\` \`/clearwarns\`
 ` +
       `\`/lock\` \`/unlock\` \`/slowmode\` \`/clear\` \`/move\` \`/nick\`
 
 ` +
-      `**⚙️ Servidor**
+      `**${E.config} Servidor**
 ` +
       `\`/cargo_criar\` \`/canal_criar\` \`/deletar\` \`/embed\` \`/anuncio\`
 ` +
       `\`/autorole\` \`/set_parceria\` \`/parceria\` \`/logs_config\`
 
 ` +
-      `**📊 Informações**
+      `**${E.total} Informações**
 ` +
       `\`/userinfo\` \`/serverinfo\` \`/avatar\` \`/roleinfo\`
 
 ` +
-      `**🎉 Diversão & Engajamento**
+      `**${E.nitro} Diversão & Engajamento**
 ` +
       `\`/sorteio\` \`/enquete\` \`/contador\`
 
 ` +
-      `**🔧 Geral**
+      `**${E.config} Geral**
 ` +
       `\`/status\` \`/info\` \`/idioma\` \`/usuários\` \`/doar\` \`/tickets\` \`/help\`
 
@@ -3864,7 +3890,7 @@ Return only the JSON object describing the single edit to perform.`;
         return interaction.editReply(v2Simple(C_GREY, '<:ticket:1500524512607862884> Ranking de Tickets', 'Nenhum ticket foi reivindicado e fechado ainda neste servidor.', FOOTER));
       }
 
-      const medals = ['🥇', '🥈', '🥉'];
+      const medals = ['`1º`', '`2º`', '`3º`'];
       const lines  = docs.map((d, i) => {
         const medal = medals[i] || `\`${i + 1}.\``;
         return `${medal} <@${d.staffId}> — **${d.count}** ticket(s) atendido(s)`;
@@ -3885,7 +3911,7 @@ Return only the JSON object describing the single edit to perform.`;
       return interaction.reply({ content: lang.noPermission, flags: MessageFlags.Ephemeral });
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const canal      = interaction.options.getChannel('canal');
-    const titulo     = interaction.options.getString('titulo')     || '🎫 Suporte — Abrir Ticket';
+    const titulo     = interaction.options.getString('titulo')     || `${E.ticket} Suporte — Abrir Ticket`;
     const descrição  = interaction.options.getString('descrição')  || 'Clique abaixo para abrir um ticket e nossa equipe irá te atender em breve.';
     const catsRaw    = interaction.options.getString('categorias') || 'Suporte';
     const cargoStaff = interaction.options.getRole('cargo_staff');
@@ -3897,7 +3923,7 @@ Return only the JSON object describing the single edit to perform.`;
       { $set: {
           guildId:          guild.id,
           ticketChannel:    canal.id,
-          ticketCategories: cats.map(name => ({ name, emoji: '🎫' })),
+          ticketCategories: cats.map(name => ({ name, emoji: E.ticket })),
           ticketStaffRole:  cargoStaff?.id || null,
           ticketTitle:      titulo,
           ticketDesc:       descrição,
@@ -3915,14 +3941,14 @@ Return only the JSON object describing the single edit to perform.`;
       const menu = new StringSelectMenuBuilder()
         .setCustomId('ticket_select')
         .setPlaceholder('Selecione o tipo de suporte…')
-        .addOptions(cats.map(name => ({ label: name, value: name.toLowerCase().replace(/\s+/g,'_'), emoji: '🎫' })));
+        .addOptions(cats.map(name => ({ label: name, value: name.toLowerCase().replace(/\s+/g,'_'), emoji: emojiOf('ticket') })));
       components.push(new ActionRowBuilder().addComponents(menu));
     } else {
       const btn = new ButtonBuilder()
         .setCustomId('ticket_open')
         .setLabel(cats[0] || 'Abrir Ticket')
         .setStyle(ButtonStyle.Primary)
-        .setEmoji('🎫');
+        .setEmoji(emojiOf('ticket'));
       components.push(new ActionRowBuilder().addComponents(btn));
     }
 
@@ -3953,7 +3979,7 @@ Return only the JSON object describing the single edit to perform.`;
       `**Cargo:** <@&${cargo.id}>   **Ação:** ${acao === 'add' ? 'Adicionado' : 'Removido'}\n**Sucesso:** ${sucesso}   **Falhas:** ${falhas}`,
       FOOTER
     ));
-    await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `👥 Log — Role All`, `**Cargo:** ${cargo.name}\n**Ação:** ${acao}\n**Moderador:** ${member.user.tag}\n**Aplicado em:** ${sucesso} membros`, FOOTER));
+    await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `${E.membros} Log — Role All`, `**Cargo:** ${cargo.name}\n**Ação:** ${acao}\n**Moderador:** ${member.user.tag}\n**Aplicado em:** ${sucesso} membros`, FOOTER));
   }
 
   // ── /mention_role ─────────────────────────────────────────────────────────────
@@ -3982,22 +4008,22 @@ Return only the JSON object describing the single edit to perform.`;
 
     if (acao === 'ver') {
       const cfg = await mongoDB.collection('automod').findOne({ guildId: guild.id });
-      if (!cfg) return interaction.editReply(v2Simple(C_GREY, '🛡️ AutoMod', 'Nenhuma configuração de AutoMod definida ainda.', FOOTER));
-      return interaction.editReply(v2Simple(C_ORANGE, '🛡️ AutoMod — Config Atual',
-        `**Anti-Link:** ${cfg.anti_link ? '✅ Ativo' : '❌ Inativo'}\n**Anti-Spam:** ${cfg.anti_spam ? '✅ Ativo' : '❌ Inativo'}\n**Anti-Palavrão:** ${cfg.anti_palavrao ? '✅ Ativo' : '❌ Inativo'}\n**Cargo Ignorado:** ${cfg.cargoIgnorado ? `<@&${cfg.cargoIgnorado}>` : 'Nenhum'}`,
+      if (!cfg) return interaction.editReply(v2Simple(C_GREY, `${E.config} AutoMod`, 'Nenhuma configuração de AutoMod definida ainda.', FOOTER));
+      return interaction.editReply(v2Simple(C_ORANGE, `${E.config} AutoMod — Config Atual`,
+        `**Anti-Link:** ${cfg.anti_link ? `${E.sucesso} Ativo` : `${E.erro} Inativo`}\n**Anti-Spam:** ${cfg.anti_spam ? `${E.sucesso} Ativo` : `${E.erro} Inativo`}\n**Anti-Palavrão:** ${cfg.anti_palavrao ? `${E.sucesso} Ativo` : `${E.erro} Inativo`}\n**Cargo Ignorado:** ${cfg.cargoIgnorado ? `<@&${cfg.cargoIgnorado}>` : 'Nenhum'}`,
         FOOTER
       ));
     }
     if (acao === 'desativar') {
       await mongoDB.collection('automod').updateOne({ guildId: guild.id }, { $set: { anti_link: false, anti_spam: false, anti_palavrao: false } }, { upsert: true });
-      return interaction.editReply(v2Simple(C_RED, '🛡️ AutoMod Desativado!', 'Todas as regras de AutoMod foram desativadas.', FOOTER));
+      return interaction.editReply(v2Simple(C_RED, `${E.config} AutoMod Desativado!`, 'Todas as regras de AutoMod foram desativadas.', FOOTER));
     }
 
     const update = { [acao]: true, guildId: guild.id };
     if (cargoIgnorado) update.cargoIgnorado = cargoIgnorado.id;
     await mongoDB.collection('automod').updateOne({ guildId: guild.id }, { $set: update }, { upsert: true });
-    const labels = { anti_link: '🚫 Anti-Link', anti_spam: '📢 Anti-Spam', anti_palavrao: '🤬 Anti-Palavrão' };
-    await interaction.editReply(v2Simple(C_GREEN, `🛡️ AutoMod — ${labels[acao]} Ativado!`,
+    const labels = { anti_link: 'Anti-Link', anti_spam: 'Anti-Spam', anti_palavrao: 'Anti-Palavrão' };
+    await interaction.editReply(v2Simple(C_GREEN, `${E.config} AutoMod — ${labels[acao]} Ativado!`,
       `A regra foi ativada.\n${cargoIgnorado ? `**Cargo ignorado:** <@&${cargoIgnorado.id}>` : ''}`,
       FOOTER
     ));
@@ -4009,8 +4035,8 @@ Return only the JSON object describing the single edit to perform.`;
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const warnDocs = await mongoDB.collection('warns').find({ guildId: guild.id, userId: target.id }).sort({ createdAt: -1 }).limit(10).toArray();
     if (!warnDocs.length) return interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Sem Advertências!`, `${target.tag} não tem advertências neste servidor.`, FOOTER));
-    const lista = warnDocs.map((w, i) => ```${i+1}.`` **${w.motivo}** — <t:${Math.floor(new Date(w.createdAt).getTime()/1000)}:R>`).join('\n');
-    await interaction.editReply(v2Simple(C_YELLOW, `⚠️ Warns — ${target.tag}`, `**Total:** ${warnDocs.length}\n\n${lista}`, FOOTER));
+    const lista = warnDocs.map((w, i) => `\`${i+1}.\` **${w.motivo}** — <t:${Math.floor(new Date(w.createdAt).getTime()/1000)}:R>`).join('\n');
+    await interaction.editReply(v2Simple(C_YELLOW, `${E.atencao} Warns — ${target.tag}`, `**Total:** ${warnDocs.length}\n\n${lista}`, FOOTER));
   }
 
   // ── /clearwarns ───────────────────────────────────────────────────────────────
@@ -4021,7 +4047,7 @@ Return only the JSON object describing the single edit to perform.`;
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { deletedCount } = await mongoDB.collection('warns').deleteMany({ guildId: guild.id, userId: target.id });
     await interaction.editReply(v2Simple(C_GREEN, `${E.sucesso} Warns Limpos!`, `**${deletedCount}** advertência(s) de **${target.tag}** removidas.`, FOOTER));
-    await sendLog(guild.id, 'warn', v2Simple(C_GREEN, `⚠️ Log — Warns Limpos`, `**Membro:** ${target.tag}\n**Moderador:** ${member.user.tag}\n**Warns removidos:** ${deletedCount}`, FOOTER));
+    await sendLog(guild.id, 'warn', v2Simple(C_GREEN, `${E.atencao} Log — Warns Limpos`, `**Membro:** ${target.tag}\n**Moderador:** ${member.user.tag}\n**Warns removidos:** ${deletedCount}`, FOOTER));
   }
 
   // ── /userinfo ─────────────────────────────────────────────────────────────────
@@ -4029,7 +4055,7 @@ Return only the JSON object describing the single edit to perform.`;
     const target = interaction.options.getMember('membro') || member;
     const u      = target.user;
     const roles  = target.roles.cache.filter(r => r.name !== '@everyone').sort((a,b) => b.position - a.position).map(r => `<@&${r.id}>`).slice(0, 10).join(' ') || 'Nenhum';
-    await interaction.reply(v2Simple(C_BLUE, `👤 Info — ${u.tag}`,
+    await interaction.reply(v2Simple(C_BLUE, `${E.membros} Info — ${u.tag}`,
       `**ID:** ${u.id}\n**Conta criada:** <t:${Math.floor(u.createdTimestamp/1000)}:R>\n**Entrou no servidor:** <t:${Math.floor(target.joinedTimestamp/1000)}:R>\n**Cargos:** ${roles}\n**Bot:** ${u.bot ? 'Sim' : 'Não'}`,
       FOOTER
     ));
@@ -4042,7 +4068,7 @@ Return only the JSON object describing the single edit to perform.`;
     const text     = channels.filter(c => c.type === ChannelType.GuildText).size;
     const voice    = channels.filter(c => c.type === ChannelType.GuildVoice).size;
     const roles    = guild.roles.cache.filter(r => r.name !== '@everyone').size;
-    await interaction.reply(v2Simple(C_ORANGE, `🌐 Info — ${guild.name}`,
+    await interaction.reply(v2Simple(C_ORANGE, `${E.servidores} Info — ${guild.name}`,
       `**ID:** ${guild.id}\n**Dono:** ${owner ? `${owner.user.tag}` : 'N/A'}\n**Membros:** ${guild.memberCount}\n**Canais:** ${text} texto | ${voice} voz\n**Cargos:** ${roles}\n**Criado:** <t:${Math.floor(guild.createdTimestamp/1000)}:R>\n**Boost:** Nível ${guild.premiumTier} (${guild.premiumSubscriptionCount} boosts)`,
       FOOTER
     ));
@@ -4052,14 +4078,14 @@ Return only the JSON object describing the single edit to perform.`;
   else if (commandName === 'avatar') {
     const target = interaction.options.getUser('membro') || interaction.user;
     const url    = target.displayAvatarURL({ size: 1024, extension: 'png' });
-    await interaction.reply(v2Simple(C_BLUE, `🖼️ Avatar — ${target.tag}`, `[Clique para abrir em tamanho completo](${url})\n${url}`, FOOTER));
+    await interaction.reply(v2Simple(C_BLUE, `${E.info} Avatar — ${target.tag}`, `[Clique para abrir em tamanho completo](${url})\n${url}`, FOOTER));
   }
 
   // ── /roleinfo ─────────────────────────────────────────────────────────────────
   else if (commandName === 'roleinfo') {
     const cargo   = interaction.options.getRole('cargo');
     const membros = guild.members.cache.filter(m => m.roles.cache.has(cargo.id)).size;
-    await interaction.reply(v2Simple(cargo.color || C_GREY, `🏷️ Info — ${cargo.name}`,
+    await interaction.reply(v2Simple(cargo.color || C_GREY, `${E.cargos} Info — ${cargo.name}`,
       `**ID:** ${cargo.id}\n**Cor:** ${cargo.hexColor}\n**Membros:** ${membros}\n**Mencionável:** ${cargo.mentionable ? 'Sim' : 'Não'}\n**Hoist (separado):** ${cargo.hoist ? 'Sim' : 'Não'}\n**Criado:** <t:${Math.floor(cargo.createdTimestamp/1000)}:R>`,
       FOOTER
     ));
@@ -4078,14 +4104,14 @@ Return only the JSON object describing the single edit to perform.`;
       const membros = guild.members.cache.filter(m => !m.user.bot).map(m => m);
       if (membros.length < vencedores) return interaction.reply({ content: `${E.erro} Membros insuficientes!`, flags: MessageFlags.Ephemeral });
       const shuffled = membros.sort(() => Math.random() - 0.5).slice(0, vencedores);
-      const lista    = shuffled.map((m, i) => ```${i+1}.`` <@${m.id}>`).join('\n');
-      await interaction.reply(v2Simple(C_ORANGE, `🎉 Sorteio — ${premio}`, `**Vencedor(es):**\n${lista}`, `${FOOTER} • Sorteio realizado por ${member.user.tag}`));
+      const lista    = shuffled.map((m, i) => `\`${i+1}.\` <@${m.id}>`).join('\n');
+      await interaction.reply(v2Simple(C_ORANGE, `${E.nitro} Sorteio — ${premio}`, `**Vencedor(es):**\n${lista}`, `${FOOTER} • Sorteio realizado por ${member.user.tag}`));
     } else {
       // Sorteio com prazo — cria mensagem com botão
       const endTime  = Math.floor((Date.now() + duracao * 60000) / 1000);
-      const btn      = new ButtonBuilder().setCustomId(`giveaway_enter_${interaction.id}`).setLabel('🎉 Participar').setStyle(ButtonStyle.Success);
+      const btn      = new ButtonBuilder().setCustomId(`giveaway_enter_${interaction.id}`).setLabel('Participar').setStyle(ButtonStyle.Success);
       const row      = new ActionRowBuilder().addComponents(btn);
-      const panelV2  = v2Simple(C_ORANGE, `🎉 Sorteio — ${premio}`,
+      const panelV2  = v2Simple(C_ORANGE, `${E.nitro} Sorteio — ${premio}`,
         `**Prêmio:** ${premio}\n**Vencedores:** ${vencedores}\n**Termina:** <t:${endTime}:R>\n**Participantes:** 0\n\nClique no botão para participar!`,
         FOOTER
       );
@@ -4112,7 +4138,7 @@ Return only the JSON object describing the single edit to perform.`;
     const emojis   = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'];
     const opcoes   = [1,2,3,4,5].map(n => interaction.options.getString(`opcao${n}`)).filter(Boolean);
     const lista    = opcoes.map((o, i) => `${emojis[i]} ${o}`).join('\n');
-    const msg      = await interaction.reply({ ...v2Simple(C_BLUE, `📊 Enquete`, `**${pergunta}**\n\n${lista}`, `${FOOTER} • Vote com os emojis abaixo`), fetchReply: true });
+    const msg      = await interaction.reply({ ...v2Simple(C_BLUE, `${E.total} Enquete`, `**${pergunta}**\n\n${lista}`, `${FOOTER} • Vote com os emojis abaixo`), fetchReply: true });
     for (let i = 0; i < opcoes.length; i++) await msg.react(emojis[i]).catch(() => {});
   }
 
@@ -4155,8 +4181,8 @@ Return only the JSON object describing the single edit to perform.`;
       const newCh = await ch.clone({ reason: motivo });
       await newCh.setPosition(ch.position);
       await ch.delete();
-      await newCh.send(v2Simple(C_BLUE, `🔄 Canal Resetado!`, `**Motivo:** ${motivo}\n**Por:** ${member.user.tag}`, FOOTER));
-      await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `🔄 Log — Reset de Canal`, `**Canal:** #${ch.name}\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, FOOTER));
+      await newCh.send(v2Simple(C_BLUE, `${E.loading} Canal Resetado!`, `**Motivo:** ${motivo}\n**Por:** ${member.user.tag}`, FOOTER));
+      await sendLog(guild.id, 'ban', v2Simple(C_BLUE, `${E.loading} Log — Reset de Canal`, `**Canal:** #${ch.name}\n**Moderador:** ${member.user.tag}\n**Motivo:** ${motivo}`, FOOTER));
     } catch (e) { await interaction.reply({ ...errorEmbed(e.message), flags: MessageFlags.Ephemeral }); }
   }
 
@@ -4200,7 +4226,7 @@ Return only the JSON object describing the single edit to perform.`;
       .setCustomId('button_role_toggle_' + cargo.id)
       .setLabel('Obter / Remover: ' + cargo.name)
       .setStyle(ButtonStyle.Primary)
-      .setEmoji('🎭');
+      .setEmoji(emojiOf('cargos'));
     const row     = new ActionRowBuilder().addComponents(btn);
     const panelV2 = v2Simple(C_ORANGE, titulo, descrição, `${FOOTER} • Button Role`);
     const msg = await canal.send({ flags: panelV2.flags, components: [...panelV2.components, row] });
@@ -4278,7 +4304,7 @@ Return only the JSON object describing the single edit to perform.`;
     const canal = guild.channels.cache.get(canalId);
     if (!canal)
       return interaction.editReply({ ...errorEmbed('Canal de parceria não encontrado. Reconfigure com **/set_parceria**.') });
-    await canal.send(v2Simple(C_ORANGE, '🤝 Nova Parceria!',
+    await canal.send(v2Simple(C_ORANGE, `${E.linked} Nova Parceria!`,
       `**Servidor:** ${guild.name}
 **Descrição:** ${descrição}
 **Invite:** ${invite}
@@ -4654,15 +4680,79 @@ const DASHBOARD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DASHBOARD_REDIRECT      = process.env.DASHBOARD_REDIRECT_URI || 'http://localhost:3000/auth/callback';
 const DASHBOARD_SECRET        = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ── Segurança HTTP ────────────────────────────────────────────────────────────
+app.set('trust proxy', 1);          // Render fica atrás de proxy HTTPS
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+app.use(express.json({ limit: '256kb' }));
+app.use(express.urlencoded({ extended: true, limit: '64kb' }));
 app.use(cookieParser());
+
+if (!process.env.SESSION_SECRET)
+  console.warn('[AVISO] SESSION_SECRET não definido: as sessões serão invalidadas a cada reinício. Defina no Render.');
+
+/** Store de sessão no MongoDB: sobrevive a reinícios/deploys (o MemoryStore padrão perdia tudo) */
+class MongoSessionStore extends session.Store {
+  _col() { return mongoDB ? mongoDB.collection('web_sessions') : null; }
+  get(sid, cb) {
+    const c = this._col(); if (!c) return cb(null, null);
+    c.findOne({ _id: sid }).then(d => {
+      if (!d || d.expires < new Date()) return cb(null, null);
+      try { cb(null, JSON.parse(d.data)); } catch { cb(null, null); }
+    }).catch(cb);
+  }
+  set(sid, sess, cb) {
+    const c = this._col(); if (!c) return cb && cb();
+    const maxAge = sess?.cookie?.maxAge || 7 * 24 * 60 * 60 * 1000;
+    c.updateOne({ _id: sid }, { $set: { data: JSON.stringify(sess), expires: new Date(Date.now() + maxAge) } }, { upsert: true })
+      .then(() => cb && cb()).catch(e => cb && cb(e));
+  }
+  touch(sid, sess, cb) {
+    const c = this._col(); if (!c) return cb && cb();
+    const maxAge = sess?.cookie?.maxAge || 7 * 24 * 60 * 60 * 1000;
+    c.updateOne({ _id: sid }, { $set: { expires: new Date(Date.now() + maxAge) } })
+      .then(() => cb && cb()).catch(e => cb && cb(e));
+  }
+  destroy(sid, cb) {
+    const c = this._col(); if (!c) return cb && cb();
+    c.deleteOne({ _id: sid }).then(() => cb && cb()).catch(e => cb && cb(e));
+  }
+}
+
 app.use(session({
+  name:              'lueur.sid',
   secret:            DASHBOARD_SECRET,
+  store:             new MongoSessionStore(),
   resave:            false,
   saveUninitialized: false,
-  cookie:            { secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 }, // 7 days
+  cookie:            { secure: 'auto', httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 }, // 7 dias
 }));
+
+/** Limitador simples em memória (por usuário logado ou IP) */
+const _rateBuckets = new Map();
+function rateLimit({ windowMs, max, name }) {
+  return (req, res, next) => {
+    const key = `${name}:${req.session?.user?.id || req.ip}`;
+    const now = Date.now();
+    let b = _rateBuckets.get(key);
+    if (!b || now > b.reset) b = { n: 0, reset: now + windowMs };
+    b.n++; _rateBuckets.set(key, b);
+    if (b.n > max) {
+      res.setHeader('Retry-After', Math.ceil((b.reset - now) / 1000));
+      return res.status(429).json({ error: 'Muitas requisições. Aguarde um instante.' });
+    }
+    next();
+  };
+}
+setInterval(() => { const now = Date.now(); for (const [k, b] of _rateBuckets) if (now > b.reset) _rateBuckets.delete(k); }, 60_000).unref();
+app.use('/api',  rateLimit({ windowMs: 60_000, max: 120, name: 'api'  }));
+app.use('/auth', rateLimit({ windowMs: 60_000, max: 30,  name: 'auth' }));
 
 // Serve static files from /public
 app.use(express.static(path.join(__dirname, 'public')));
@@ -4672,6 +4762,46 @@ function requireAuth(req, res, next) {
   if (req.session?.user) return next();
   res.status(401).json({ error: 'Unauthorized' });
 }
+
+/**
+ * Garante que o usuário é Administrador do servidor AGORA (consulta o Discord, com cache de 60s).
+ * Antes a permissão vinha da lista salva no login e ficava válida por até 7 dias, mesmo após rebaixar o cargo.
+ */
+const _adminCache = new Map();
+async function isGuildAdmin(guild, userId, sessionGuilds) {
+  if (guild.ownerId === userId) return true;
+  const key = `${guild.id}:${userId}`;
+  const hit = _adminCache.get(key);
+  if (hit && Date.now() - hit.at < 60_000) return hit.ok;
+  let ok;
+  try {
+    const m = await guild.members.fetch(userId);
+    ok = m.permissions.has(PermissionFlagsBits.Administrator);
+  } catch (e) {
+    if (e?.code === 10007 || e?.code === 10013) ok = false;   // não é membro / usuário desconhecido
+    else { // falha de rede/limite: usa a lista da sessão como plano B
+      const g = (sessionGuilds || []).find(x => x.id === guild.id);
+      ok = !!g && (parseInt(g.permissions) & 0x8) === 0x8;
+    }
+  }
+  _adminCache.set(key, { ok, at: Date.now() });
+  if (_adminCache.size > 5000) for (const [k, v] of _adminCache) if (Date.now() - v.at > 60_000) _adminCache.delete(k);
+  return ok;
+}
+async function requireGuildAdmin(req, res, next) {
+  const id = req.params.id;
+  if (!/^\d{15,25}$/.test(id || ''))
+    return res.status(400).json({ error: 'guildId ausente ou inválido. Selecione um servidor antes de continuar.' });
+  const guild = client.guilds.cache.get(id);
+  if (!guild) return res.status(404).json({ error: 'Guild not found' });
+  try {
+    if (!(await isGuildAdmin(guild, req.session.user.id, req.session.userGuilds)))
+      return res.status(403).json({ error: 'Forbidden' });
+    req.guild = guild;
+    next();
+  } catch (e) { next(e); }
+}
+app.use('/api/guild/:id', requireAuth, requireGuildAdmin);
 
 // ── OAuth2 Routes ─────────────────────────────────────────────────────────────
 app.get('/auth/login', (req, res) => {
@@ -4704,25 +4834,26 @@ app.get('/auth/callback', async (req, res) => {
       }),
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) throw new Error('No access token');
+    if (!tokenRes.ok || !tokenData.access_token) throw new Error('No access token');
 
     // Fetch user
     const userRes = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const user = await userRes.json();
+    if (!userRes.ok || !user?.id) throw new Error('Usuário inválido retornado pelo Discord');
 
     // Fetch user guilds
     const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
-    const userGuilds = await guildsRes.json();
+    const userGuilds = guildsRes.ok ? await guildsRes.json() : [];
 
-    req.session.user         = user;
-    req.session.accessToken  = tokenData.access_token;
-    req.session.userGuilds   = userGuilds;
-    req.session.oauthState   = null;
-    res.redirect('/dashboard');
+    // Novo ID de sessão após o login (evita session fixation); o access_token não é guardado
+    await new Promise((resolve, reject) => req.session.regenerate(e => e ? reject(e) : resolve()));
+    req.session.user       = user;
+    req.session.userGuilds = Array.isArray(userGuilds) ? userGuilds : [];
+    req.session.save(() => res.redirect('/dashboard'));
   } catch (e) {
     console.error('[OAuth2]', e.message);
     res.redirect('/?error=auth_failed');
@@ -4730,8 +4861,7 @@ app.get('/auth/callback', async (req, res) => {
 });
 
 app.get('/auth/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/');
+  req.session.destroy(() => { res.clearCookie('lueur.sid'); res.redirect('/'); });
 });
 
 // ── API Routes ────────────────────────────────────────────────────────────────
@@ -4755,10 +4885,6 @@ app.get('/api/guild/:id', requireAuth, async (req, res) => {
     if (!guild) return res.status(404).json({ error: 'Guild not found' });
 
     // Check user is admin in this guild
-    const userGuilds = req.session.userGuilds || [];
-    const userGuild  = userGuilds.find(g => g.id === req.params.id);
-    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
-      return res.status(403).json({ error: 'Forbidden' });
 
     const config = await mongoDB?.collection('guild_configs').findOne({ guildId: req.params.id }) || {};
     const premiumDoc = await mongoDB?.collection('premium').findOne({ userId: guild.ownerId });
@@ -4806,10 +4932,6 @@ app.post('/api/guild/:id/config', requireAuth, async (req, res) => {
       console.warn('[API] /config chamado sem guildId válido — verifique o frontend');
       return res.status(400).json({ error: 'guildId ausente ou inválido. Selecione um servidor antes de salvar.' });
     }
-    const userGuilds = req.session.userGuilds || [];
-    const userGuild  = userGuilds.find(g => g.id === req.params.id);
-    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
-      return res.status(403).json({ error: 'Forbidden' });
 
     const allowed = [
       'antiNuke','welcomeMsg','welcomeCh','logCh','lang',
@@ -4835,10 +4957,6 @@ app.post('/api/guild/:id/restore', requireAuth, async (req, res) => {
   try {
     const guild = client.guilds.cache.get(req.params.id);
     if (!guild) return res.status(404).json({ error: 'Guild not found' });
-    const userGuilds = req.session.userGuilds || [];
-    const userGuild  = userGuilds.find(g => g.id === req.params.id);
-    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
-      return res.status(403).json({ error: 'Forbidden' });
     const backupDoc = await mongoDB?.collection('backups').findOne({ guildId: req.params.id });
     if (!backupDoc) return res.status(404).json({ error: 'Nenhum backup encontrado.' });
     await applyStructure(guild, backupDoc.structure);
@@ -4853,10 +4971,6 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
   try {
     const guild = client.guilds.cache.get(req.params.id);
     if (!guild) return res.status(404).json({ error: 'Guild not found' });
-    const userGuilds = req.session.userGuilds || [];
-    const userGuild  = userGuilds.find(g => g.id === req.params.id);
-    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
-      return res.status(403).json({ error: 'Forbidden' });
 
     const config = await mongoDB?.collection('guild_configs').findOne({ guildId: req.params.id });
     if (!config?.ticketPanelCh) return res.status(400).json({ error: 'Canal do painel não configurado.' });
@@ -4908,7 +5022,7 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
         .addOptions(cats.map(c => ({
           label: c.name,
           value: c.name.toLowerCase().replace(/\s+/g, '_'),
-          emoji: parseCustomEmoji(c.emoji) || c.emoji || '🎫',
+          emoji: parseCustomEmoji(c.emoji) || c.emoji || E.ticket,
         })));
       components.push(new ActionRowBuilder().addComponents(menu));
     } else {
@@ -4918,7 +5032,7 @@ app.post('/api/guild/:id/ticket/deploy', requireAuth, async (req, res) => {
         .setCustomId('ticket_open')
         .setLabel(cats[0]?.name || 'Abrir Ticket')
         .setStyle(ButtonStyle.Primary);
-      btn.setEmoji(emojiObj || '🎫');
+      btn.setEmoji(emojiObj || emojiOf('ticket'));
       components.push(new ActionRowBuilder().addComponents(btn));
     }
 
@@ -4938,10 +5052,6 @@ app.post('/api/guild/:id/generate', requireAuth, async (req, res) => {
   try {
     const guild = client.guilds.cache.get(req.params.id);
     if (!guild) return res.status(404).json({ error: 'Guild not found' });
-    const userGuilds = req.session.userGuilds || [];
-    const userGuild  = userGuilds.find(g => g.id === req.params.id);
-    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
-      return res.status(403).json({ error: 'Forbidden' });
 
     const { prompt, confirm } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt required' });
@@ -4993,10 +5103,6 @@ app.post('/api/guild/:id/backup', requireAuth, async (req, res) => {
   try {
     const guild = client.guilds.cache.get(req.params.id);
     if (!guild) return res.status(404).json({ error: 'Guild not found' });
-    const userGuilds = req.session.userGuilds || [];
-    const userGuild  = userGuilds.find(g => g.id === req.params.id);
-    if (!userGuild || (parseInt(userGuild.permissions) & 0x8) !== 0x8)
-      return res.status(403).json({ error: 'Forbidden' });
 
     await saveBackup(guild);
     res.json({ ok: true });
@@ -5093,46 +5199,62 @@ app.use((err, req, res, next) => {
 
 // Express sobe IMEDIATAMENTE — não espera o client Discord estar pronto
 // Isso garante que o /health e /ping respondam durante o boot (crítico no Render free tier)
+let httpServer = null;
 const isMainShard = !client.shard || (client.shard.ids?.[0] === 0);
 if (isMainShard) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`<:aceitar:1500524505746116800> Dashboard server na porta ${PORT} (Shard 0)`);
+  httpServer = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[OK] Dashboard server na porta ${PORT} (Shard 0)`);
   });
 } else {
   console.log(`[SHARD #${client.shard?.ids?.[0]}] Express não iniciado (apenas Shard 0 serve HTTP).`);
 }
 
 // ── Global Error Handlers ──────────────────────────────────────────────────────
-client.on('error', e => console.error('<:negar:1500524485231509785> Client error:', e.message));
-process.on('unhandledRejection', reason => console.error('<:negar:1500524485231509785> Unhandled rejection:', reason?.message || reason));
-process.on('uncaughtException',  e      => console.error('<:negar:1500524485231509785> Uncaught exception:',  e?.message    || e));
+client.on('error', e => console.error('[ERRO] Client error:', e.message));
+process.on('unhandledRejection', reason => console.error('[ERRO] Unhandled rejection:', reason?.stack || reason?.message || reason));
+process.on('uncaughtException',  e      => console.error('[ERRO] Uncaught exception:',  e?.stack    || e?.message    || e));
+
+// Desligamento limpo (o Render envia SIGTERM a cada deploy/reinício)
+let _shuttingDown = false;
+async function gracefulShutdown(signal) {
+  if (_shuttingDown) return;
+  _shuttingDown = true;
+  console.log(`[SHUTDOWN] ${signal} recebido — encerrando...`);
+  setTimeout(() => process.exit(0), 8000).unref();
+  try { httpServer?.close(); } catch {}
+  try { await client.destroy(); } catch {}
+  try { await mongoClient?.close(); } catch {}
+  process.exit(0);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 // ── Startup ────────────────────────────────────────────────────────────────────
 async function startup() {
   const missing = ['DISCORD_TOKEN', 'CLIENT_ID', 'MONGO_URI'].filter(k => !process.env[k]);
   if (missing.length) {
-    console.error(`<:negar:1500524485231509785> Variáveis de ambiente faltando: ${missing.join(', ')}`);
+    console.error(`[ERRO] Variáveis de ambiente faltando: ${missing.join(', ')}`);
     process.exit(1);
   }
   console.log(`[STARTUP] TOKEN: ${process.env.DISCORD_TOKEN?.slice(0,10)}... CLIENT_ID: ${process.env.CLIENT_ID}`);
 
   try { await connectDB(); }
-  catch (e) { console.error('<:negar:1500524485231509785> Erro MongoDB:', e.message); process.exit(1); }
+  catch (e) { console.error('[ERRO] Erro MongoDB:', e.message); process.exit(1); }
 
   console.log('[STARTUP] Fazendo login no Discord...');
   const loginTimeout = setTimeout(() => {
-    console.error('<:negar:1500524485231509785> Discord login TIMEOUT (30s) — verifique o DISCORD_TOKEN no Render.');
+    console.error('[ERRO] Discord login TIMEOUT (30s) — verifique o DISCORD_TOKEN no Render.');
     process.exit(1);
   }, 30000);
 
   try {
     await client.login(process.env.DISCORD_TOKEN);
     clearTimeout(loginTimeout);
-    console.log('<:aceitar:1500524505746116800> Discord login OK');
+    console.log('[OK] Discord login OK');
   } catch (e) {
     clearTimeout(loginTimeout);
-    console.error('<:negar:1500524485231509785> Discord login FALHOU:', e.message);
+    console.error('[ERRO] Discord login FALHOU:', e.message);
     process.exit(1);
   }
 
