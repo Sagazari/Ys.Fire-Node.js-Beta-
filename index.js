@@ -872,11 +872,20 @@ async function moderatePrompt(prompt) {
 // ── MongoDB ────────────────────────────────────────────────────────────────────
 let mongoDB;
 let mongoClient = null;
+let _mongoReadyResolve;
+const mongoReady = new Promise(r => { _mongoReadyResolve = r; });
+/** Espera o Mongo conectar (até ms). Evita sessões perdidas durante o boot. */
+async function waitMongo(ms = 20000) {
+  if (mongoDB) return mongoDB;
+  await Promise.race([mongoReady, new Promise((_, rej) => setTimeout(() => rej(new Error('MongoDB indisponível')), ms))]);
+  return mongoDB;
+}
 async function connectDB() {
   if (mongoDB) return;
   mongoClient = new MongoClient(process.env.MONGO_URI, { maxPoolSize: 10, serverSelectionTimeoutMS: 15000 });
   await mongoClient.connect();
   mongoDB = mongoClient.db('architect');
+  _mongoReadyResolve(mongoDB);
   console.log('[OK] MongoDB conectado!');
   // Índices (idempotentes) — consultas mais rápidas e sessões que expiram sozinhas
   const idx = [
@@ -4677,8 +4686,12 @@ const app          = express();
 
 const DASHBOARD_CLIENT_ID     = process.env.CLIENT_ID;
 const DASHBOARD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DASHBOARD_REDIRECT      = process.env.DASHBOARD_REDIRECT_URI || 'http://localhost:3000/auth/callback';
-const DASHBOARD_SECRET        = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+// Redirect: usa a variável; se faltar, monta a partir da URL pública que o Render fornece
+const DASHBOARD_REDIRECT      = process.env.DASHBOARD_REDIRECT_URI
+  || (process.env.RENDER_EXTERNAL_URL ? `${process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '')}/auth/callback` : 'http://localhost:3000/auth/callback');
+// Segredo de sessão: usa a variável; se faltar, deriva um valor ESTÁVEL do token (não muda a cada reinício)
+const DASHBOARD_SECRET        = process.env.SESSION_SECRET
+  || crypto.createHash('sha256').update('lueur-session:' + (process.env.DISCORD_TOKEN || 'dev')).digest('hex');
 
 // ── Segurança HTTP ────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);          // Render fica atrás de proxy HTTPS
@@ -4695,38 +4708,37 @@ app.use(express.urlencoded({ extended: true, limit: '64kb' }));
 app.use(cookieParser());
 
 if (!process.env.SESSION_SECRET)
-  console.warn('[AVISO] SESSION_SECRET não definido: as sessões serão invalidadas a cada reinício. Defina no Render.');
+  console.warn('[AVISO] SESSION_SECRET não definido: usando um segredo derivado do token (estável). Recomendado definir no Render.');
+console.log(`[AUTH] Redirect URI em uso: ${DASHBOARD_REDIRECT}`);
 
 /** Store de sessão no MongoDB: sobrevive a reinícios/deploys (o MemoryStore padrão perdia tudo) */
 class MongoSessionStore extends session.Store {
-  _col() { return mongoDB ? mongoDB.collection('web_sessions') : null; }
+  async _col() { const db = await waitMongo(); return db.collection('web_sessions'); }
   get(sid, cb) {
-    const c = this._col(); if (!c) return cb(null, null);
-    c.findOne({ _id: sid }).then(d => {
+    this._col().then(c => c.findOne({ _id: sid })).then(d => {
       if (!d || d.expires < new Date()) return cb(null, null);
       try { cb(null, JSON.parse(d.data)); } catch { cb(null, null); }
-    }).catch(cb);
+    }).catch(e => { console.error('[SESSION] get:', e.message); cb(e); });
   }
   set(sid, sess, cb) {
-    const c = this._col(); if (!c) return cb && cb();
     const maxAge = sess?.cookie?.maxAge || 7 * 24 * 60 * 60 * 1000;
-    c.updateOne({ _id: sid }, { $set: { data: JSON.stringify(sess), expires: new Date(Date.now() + maxAge) } }, { upsert: true })
-      .then(() => cb && cb()).catch(e => cb && cb(e));
+    this._col().then(c => c.updateOne({ _id: sid }, { $set: { data: JSON.stringify(sess), expires: new Date(Date.now() + maxAge) } }, { upsert: true }))
+      .then(() => cb && cb()).catch(e => { console.error('[SESSION] set:', e.message); cb && cb(e); });
   }
   touch(sid, sess, cb) {
-    const c = this._col(); if (!c) return cb && cb();
     const maxAge = sess?.cookie?.maxAge || 7 * 24 * 60 * 60 * 1000;
-    c.updateOne({ _id: sid }, { $set: { expires: new Date(Date.now() + maxAge) } })
+    this._col().then(c => c.updateOne({ _id: sid }, { $set: { expires: new Date(Date.now() + maxAge) } }))
       .then(() => cb && cb()).catch(e => cb && cb(e));
   }
   destroy(sid, cb) {
-    const c = this._col(); if (!c) return cb && cb();
-    c.deleteOne({ _id: sid }).then(() => cb && cb()).catch(e => cb && cb(e));
+    this._col().then(c => c.deleteOne({ _id: sid }))
+      .then(() => cb && cb()).catch(e => cb && cb(e));
   }
 }
 
 app.use(session({
   name:              'lueur.sid',
+  proxy:             true,
   secret:            DASHBOARD_SECRET,
   store:             new MongoSessionStore(),
   resave:            false,
@@ -4818,8 +4830,13 @@ app.get('/auth/login', (req, res) => {
 });
 
 app.get('/auth/callback', async (req, res) => {
-  const { code, state } = req.query;
-  if (!code || state !== req.session.oauthState) return res.redirect('/?error=invalid_state');
+  const { code, state, error: discordError } = req.query;
+  if (discordError) return res.redirect(`/?error=${encodeURIComponent(String(discordError)).slice(0, 40)}`);
+  if (!code || !req.session?.oauthState || state !== req.session.oauthState) {
+    console.warn(`[OAuth2] invalid_state — cookie de sessão ${req.session?.oauthState ? 'ok, state diferente' : 'AUSENTE (sessão não persistiu ou host diferente do redirect)'}`);
+    return res.redirect('/?error=invalid_state');
+  }
+  delete req.session.oauthState;
   try {
     // Exchange code for token
     const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
@@ -5182,6 +5199,20 @@ app.get('/ping', (req, res) => res.status(200).send('pong'));
 // GET / — redirect to dashboard or login
 app.get('/', (req, res) => {
   if (req.session?.user) return res.redirect('/dashboard');
+  if (req.query.error) {
+    const msgs = {
+      invalid_state: 'A sessão expirou ou o cookie não foi salvo. Tente novamente (se persistir, limpe os cookies do site).',
+      auth_failed: 'O Discord recusou ou a troca do código falhou. Tente novamente.',
+      access_denied: 'Você cancelou a autorização no Discord.',
+    };
+    const key = String(req.query.error).replace(/[^a-z_]/gi, '');
+    return res.status(401).type('html').send(
+      `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<body style="font-family:system-ui;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center">` +
+      `<div style="max-width:420px;padding:24px"><h2>Falha no login</h2><p>${msgs[key] || 'Erro: ' + key}</p>` +
+      `<a href="/auth/login" style="color:#fff;background:#5865f2;padding:10px 20px;border-radius:8px;text-decoration:none">Tentar de novo</a></div></body>`
+    );
+  }
   res.redirect('/auth/login');
 });
 
@@ -5237,10 +5268,17 @@ async function startup() {
     console.error(`[ERRO] Variáveis de ambiente faltando: ${missing.join(', ')}`);
     process.exit(1);
   }
-  console.log(`[STARTUP] TOKEN: ${process.env.DISCORD_TOKEN?.slice(0,10)}... CLIENT_ID: ${process.env.CLIENT_ID}`);
+  console.log(`[STARTUP] CLIENT_ID: ${process.env.CLIENT_ID} | MONGO_URI: ${process.env.MONGO_URI ? 'ok' : 'faltando'}`);
 
-  try { await connectDB(); }
-  catch (e) { console.error('[ERRO] Erro MongoDB:', e.message); process.exit(1); }
+  let dbOk = false;
+  for (let i = 1; i <= 3 && !dbOk; i++) {
+    try { await connectDB(); dbOk = true; }
+    catch (e) {
+      console.error(`[ERRO] MongoDB (tentativa ${i}/3):`, e.message);
+      if (i < 3) await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+  if (!dbOk) process.exit(1);
 
   console.log('[STARTUP] Fazendo login no Discord...');
   const loginTimeout = setTimeout(() => {
