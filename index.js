@@ -4851,7 +4851,10 @@ app.get('/auth/callback', async (req, res) => {
       }),
     });
     const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.access_token) throw new Error('No access token');
+    if (!tokenRes.ok || !tokenData.access_token) {
+      console.error(`[OAuth2] Discord recusou o token (HTTP ${tokenRes.status}): ${tokenData.error || '?'} — ${tokenData.error_description || ''} | redirect_uri enviado: ${DASHBOARD_REDIRECT} | client_id: ${DASHBOARD_CLIENT_ID} | secret ${DASHBOARD_CLIENT_SECRET ? 'definido' : 'AUSENTE'}`);
+      throw new Error('No access token');
+    }
 
     // Fetch user
     const userRes = await fetch('https://discord.com/api/users/@me', {
