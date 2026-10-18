@@ -4703,7 +4703,8 @@ app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
-app.use(express.json({ limit: '256kb' }));
+// /api/mistral recebe imagens em base64 (corpo grande) e tem o próprio parser
+app.use((req, res, next) => req.path === '/api/mistral' ? next() : express.json({ limit: '256kb' })(req, res, next));
 app.use(express.urlencoded({ extended: true, limit: '64kb' }));
 app.use(cookieParser());
 
@@ -5168,6 +5169,65 @@ app.post('/api/ai-chat', requireAuth, async (req, res) => {
     console.error('[/api/ai-chat]', e.message);
     res.status(e.status === 429 ? 429 : 502).json({ error: e.userMessage || 'Falha ao consultar a IA.' });
   }
+});
+
+// POST /api/mistral — proxy autenticado (com streaming) para a Mistral.
+// O ai.html manda o mesmo corpo que mandaria à Mistral; a chave fica só no servidor.
+const _mistralWebHits = new Map(); // userId -> [timestamps]
+const MISTRAL_WEB_MODELS = ['mistral-small-2503', 'pixtral-12b-2409'];
+app.post('/api/mistral', requireAuth, express.json({ limit: '12mb' }), async (req, res) => {
+  const ac = new AbortController();
+  res.on('close', () => ac.abort());
+  try {
+    const key = process.env.MISTRAL_KEY_CHAT || process.env.MISTRAL_KEY_A;
+    if (!key) return res.status(503).json({ error: 'IA não configurada no servidor (MISTRAL_KEY_A).' });
+
+    const uid = req.session.user.id, now = Date.now();
+    const hits = (_mistralWebHits.get(uid) || []).filter(t => now - t < 60000);
+    if (hits.length >= 40) return res.status(429).json({ error: 'Muitas requisições. Aguarde um minuto.' });
+    hits.push(now); _mistralWebHits.set(uid, hits);
+    if (_mistralWebHits.size > 5000) for (const [k, v] of _mistralWebHits) if (!v.some(t => now - t < 60000)) _mistralWebHits.delete(k);
+
+    const b = req.body || {};
+    if (!MISTRAL_WEB_MODELS.includes(b.model) || !Array.isArray(b.messages) || !b.messages.length)
+      return res.status(400).json({ error: 'Requisição inválida.' });
+    const num = (v, lo, hi, d) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d;
+    const payload = {
+      model: b.model,
+      messages: b.messages.slice(-40),
+      stream: !!b.stream,
+      max_tokens: Math.round(num(b.max_tokens, 1, 32000, 4096)),
+      temperature: num(b.temperature, 0, 1.5, 0.4),
+    };
+
+    const up = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify(payload),
+      signal: ac.signal,
+    });
+    if (!up.ok) {
+      const t = await up.text().catch(() => '');
+      console.error(`[/api/mistral] Mistral HTTP ${up.status}: ${t.slice(0, 200)}`);
+      const msg = up.status === 401 ? 'A chave da Mistral no servidor é inválida.'
+                : up.status === 429 ? 'Limite da Mistral atingido. Tente em instantes.'
+                : `Falha na IA (${up.status}).`;
+      return res.status(up.status === 429 ? 429 : 502).json({ error: msg });
+    }
+    res.status(200);
+    res.setHeader('Content-Type', up.headers.get('content-type') || 'application/json');
+    if (payload.stream) { res.setHeader('Cache-Control', 'no-cache, no-transform'); res.setHeader('X-Accel-Buffering', 'no'); }
+    require('stream').Readable.fromWeb(up.body).on('error', () => res.end()).pipe(res);
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error('[/api/mistral]', e.message);
+    if (!res.headersSent) res.status(502).json({ error: 'Falha ao consultar a IA.' }); else res.end();
+  }
+});
+
+// GET /editor — editor de vídeo (roda no navegador)
+app.get('/editor', (req, res) => {
+  if (!req.session?.user) return res.redirect('/auth/login');
+  res.sendFile(path.join(__dirname, 'public', 'editor.html'));
 });
 
 // GET /ai — serve AI chat page
